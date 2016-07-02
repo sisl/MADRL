@@ -17,7 +17,7 @@ class Policy(nn.Model):
         pass
 
     @property
-    def observation_space(self):
+    def obsfeat_space(self):
         return self._env_spec.observation_space
 
     @property
@@ -32,7 +32,7 @@ class Policy(nn.Model):
 
 class StochasticPolicy(Policy):
     def __init__(self, env_spec):
-        Policy.__init__(env_spec)
+        super(StochasticPolicy, self).__init__(env_spec)
 
 
     @property
