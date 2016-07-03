@@ -28,7 +28,7 @@ class AgentLayer():
         return self.nagents
 
     def move_agent(self, agent_idx, action):
-        return self.allies[agent_idx].move(action)
+        return self.allies[agent_idx].step(action)
 
     def set_position(self, agent_idx, x, y):
         self.allis[agent_idx].set_position(x,y)
@@ -45,6 +45,7 @@ class AgentLayer():
     def remove_agent(self, agent_idx):
         # idx is between zero and nagents
         self.allies.pop(agent_idx)
+        self.nagents -= 1
 
     def get_state_matrix(self):
         """
@@ -65,8 +66,8 @@ class AgentLayer():
     def get_state(self):
         pos = np.zeros(2*len(self.allies))
         idx = 0
-        for ally in enumerate(self.allies):
-            pos[idx:(idx+2)] = ally.get_state 
+        for ally in self.allies:
+            pos[idx:(idx+2)] = ally.get_state()
             idx += 2
         return pos
 

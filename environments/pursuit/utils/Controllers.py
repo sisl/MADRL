@@ -12,6 +12,6 @@ class RandomPolicy():
         self.rng = rng
         self.n_actions = n_actions
 
-    def action(self, state):
+    def act(self, state):
         return self.rng.randint(self.n_actions) 
 
