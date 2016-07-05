@@ -35,7 +35,6 @@ class Model(object):
 
     # HDF5 saving and loading
     # The hierarchy in the HDF5 file reflects the hierarchy in the Tensorflow graph.
-
     def save_h5(self, sess, h5file, key, extra_attrs=None):
         with h5py.File(h5file, 'a') as f:
             if key in f:
@@ -69,7 +68,7 @@ class Model(object):
 
             h = self.savehash(sess)
             assert h == dset.attrs['hash'], 'Checkpoint hash %s does not match loaded hash %s' % (dset.attrs['hash'], h)
-    
+
 # Layers for feedforward networks
 
 class Layer(Model):
@@ -93,6 +92,7 @@ class ReshapeLayer(Layer):
     def output(self): return self._output
     @property
     def output_shape(self): return self._output_shape
+
 
 class AffineLayer(Layer):
     def __init__(self, input_B_Di, input_shape, output_shape, initializer):
