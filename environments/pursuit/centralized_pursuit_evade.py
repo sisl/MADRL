@@ -170,58 +170,12 @@ class CentralizedPursuitEvade():
         return False
 
 
-
-
-    def act(self, agent_idx, action):
-        if self.train_pursuit:
-            self.transition_pursuer(agent_idx, action)
-        else:
-            self.transition_evader(agent_idx, action)
-
-    def observe(self, agent_idx):
-        if self.train_pursuit:
-            return self.get_layers_pursuer(agent_idx)
-        else:
-            return self.get_layers_evader(agent_idx)
-
     def update_ally_controller(self, controller):
         self.ally_controller = controller
 
     def update_opponent_controller(self, controller):
         self.opponent_controller = controller
 
-
-    def initialize(self, origin = False, random = True):
-        mmatrix = self.map_matrix
-        n_pursuers = self.n_pursuers
-        n_evaders = self.n_evaders
-        if origin:
-            # initialize all agents to (0,0)
-            allies = agent_utils.create_agents(n_pursuers, mmatrix)
-            opponents = agent_utils.create_agents(n_evaders, mmatrix)
-        elif random:
-            # initialize all agents to random valid positions
-            allies = agent_utils.create_agents(n_pursuers, mmatrix, randinit=True)
-            opponents = agent_utils.create_agents(n_evaders, mmatrix, randinit=True)
-        else:
-            if not self.initial_config:
-                # if empty do origin
-                allies = agent_utils.create_agents(n_pursuers, mmatrix)
-                opponents = agent_utils.create_agents(n_evaders, mmatrix)
-            else:
-            # use the initial configuration
-                allies = agent_utils.set_agents(self.initial_config["allies"], mmatrix)
-                opponents = agent_utils.set_agents(self.initial_config["opponents"], mmatrix)
-
-        (xs, ys) = mmatrix.shape
-        self.ally_layer = AgentLayer(xs, ys, allies)
-        self.opponent_layer = AgentLayer(xs, ys, opponents)
-
-        self.n_pursuers = self.ally_layer.n_agents()
-        self.n_evaders = self.opponent_layer.n_agents()
-
-        self.ally_actions = np.zeros(self.n_pursuers, dtype=np.int32)
-        self.opponent_actions = np.zeros(self.n_evaders, dtype=np.int32)
 
     def set_agents(self, agent_type):
         if agent_type == "allies":
