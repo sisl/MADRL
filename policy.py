@@ -73,7 +73,7 @@ class StochasticPolicy(Policy):
             self._penobj_grad_P = tfutil.flatcat(tf.gradients(self._penobj, self._param_vars))
 
             # KL gradient for TRPO
-            self._klgrad_P = tfutil.flatcat(tf.gradients(self._kl, self._param_vars))
+            self._kl_grad_P = tfutil.flatcat(tf.gradients(self._kl, self._param_vars))
 
             # Check
             self._check_numerics = tf.add_check_numeric_ops()
@@ -146,12 +146,12 @@ class StochasticPolicy(Policy):
 
     def set_params(self, sess, params_P):
         sess.run(self._assign_params, {self._flatparams_P: params_P})
-        
+
     def get_params(self, sess):
         params_P = sess.run(self._curr_params_P)
         assert params_P.shape == (self._num_params,)
         return params_P
-    
+
     @contextmanager
     def try_params(self, sess, params_D):
         orig_params_D = self.get_params(sess)
@@ -161,3 +161,23 @@ class StochasticPolicy(Policy):
 
     def take_desent_step(self, sess, grad_P, learning_rate):
         sess.run(self._take_descent_step, {self._flatparams_P: grad_P, self._learning_rate: learning_rate})
+
+    ObjInfo = namedtuple('ObjInfo', 'reinfobj, reinfobjgrad_P, kl, klgrad_P, penobj, penobjgrad_P')
+    def compute(self, sess, feed, reinfobj=False, reinfobjgrad=False, kl=False, klgrad=False, penobj=False, penobjgrad=False):
+        ops = []
+        if reinfobj: ops.append(self._reinfobj)
+        if reinfobjgrad: ops.append(self._reinfobj_grad_P)
+        if kl: ops.append(self._kl)
+        if klgrad: ops.append(self._kl_grad_P)
+        if penobj: ops.append(self._penobj)
+        if penobjgrad: ops.append(self._penobj_grad_P)
+
+        results = sess.run(ops, self._make_feed_dict(self, feed))
+        vals = []
+        vals.append(results.pop(0) if obj else None)
+        vals.append(results.pop(0) if objgrad else None)
+        vals.append(results.pop(0) if kl else None)
+        vals.append(results.pop(0) if klgrad else None)
+        vals.append(results.pop(0) if penobj else None)
+        vals.append(results.pop(0) if penobjgrad else None)
+        return self.ObjInfo(*vals)
