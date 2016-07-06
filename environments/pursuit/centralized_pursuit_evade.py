@@ -62,8 +62,10 @@ class CentralizedPursuitEvade():
         n_act_purs = self.pursuer_layer.get_nactions(0)
         n_act_ev = self.evader_layer.get_nactions(0)
 
-        self.action_space = spaces.Discrete(n_act_purs)
+        self.action_space = spaces.Discrete(n_act_purs**self.n_pursuers)
         self.observation_space = spaces.Box(self.low, self.high)
+
+        self.act_dims = [n_act_purs for i in xrange(self.n_pursuers)]
 
         self.local_obs = np.zeros((self.n_pursuers, 3, self.obs_range, self.obs_range)) # Nagents X 3 X xsize X ysize
 
@@ -74,8 +76,8 @@ class CentralizedPursuitEvade():
 
         self.current_agent_layer = np.zeros((xs, ys), dtype=np.int32)
 
-        self.catchr = kwargs.pop('catchr', 0.1)
-        self.caughtr = kwargs.pop('caughtr', -0.1)
+        self.catchr = kwargs.pop('catchr', 0.01)
+        self.caughtr = kwargs.pop('caughtr', -0.01)
 
         self.term_pursuit = kwargs.pop('term_pursuit', 1.0)
         self.term_evade = kwargs.pop('term_evade', -1.0)
@@ -121,9 +123,10 @@ class CentralizedPursuitEvade():
             for i, a in enumerate(actions):
                 self.pursuer_layer.move_agent(i, a)
         else:
-            # move single agent
-            self.pursuer_layer.move_agent(0, actions)
-
+            # ravel it up
+            act_idxs = np.unravel_index(actions, self.act_dims)
+            for i, a in enumerate(act_idxs):
+                self.pursuer_layer.move_agent(i, a)
 
         for i in xrange(self.evader_layer.n_agents()):
             # controller input should be an observation, but doesn't matter right now

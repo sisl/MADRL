@@ -12,27 +12,32 @@ from rltools.models import softmax_mlp
 
 xs = 10
 ys = 10
-n_evaders = 1
-n_pursuers = 1
+n_evaders = 5
+n_pursuers = 2
 
 map_mat = TwoDMaps.rectangle_map(xs, ys) 
 
 # obs_range should be odd 3, 5, 7, etc
-env = CentralizedPursuitEvade(map_mat, n_evaders=n_evaders, n_pursuers=n_pursuers, obs_range=9, n_catch=1)
-#env = gym.make("CartPole-v0")
+env = CentralizedPursuitEvade(map_mat, n_evaders=n_evaders, n_pursuers=n_pursuers, obs_range=9, n_catch=2)
 
 
 config = {}
-config["train_iterations"] = 100 # number of trpo iterations
-config["max_pathlength"] = 150 # maximum length of an env trajecotry
+config["train_iterations"] = 6 # number of trpo iterations
+config["max_pathlength"] = 250 # maximum length of an env trajecotry
+config["timesteps_per_batch"] = 1000
+config["eval_trajectories"] = 25
+config["eval_every"] = 2 
 config["gamma"] = 0.95 # discount factor
+config["save_path"] = "data/obs_range_sweep/test2"
+
 
 # lets initialize a model
 input_obs = tf.placeholder(tf.float32, shape=(None,) + env.observation_space.shape, name="obs")
-net = softmax_mlp(input_obs, env.action_space.n, layers=[32,32], activation=tf.nn.tanh)
+net = softmax_mlp(input_obs, env.action_space.n, layers=[128,128], activation=tf.nn.tanh)
 
 solver = TRPOSolver(env, config=config, policy_net=net, input_layer=input_obs)
 solver.learn()
 
 simulate(env, solver, 100, render=False)
+
 
