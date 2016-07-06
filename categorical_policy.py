@@ -4,6 +4,7 @@ import tfutil
 from .policy import StochasticPolicy
 from .distributions import Categorical
 
+CategoricalMLPPolicyConfig = namedtuple('CategoricalMLPPolicyConfig', 'hidden_spec')
 
 class CategoricalMLPPolicy(StochasticPolicy):
     def __init__(self, env_spec, cfg):
@@ -32,7 +33,7 @@ class CategoricalMLPPolicy(StochasticPolicy):
 
     def _sample_from_actiondist(self, actiondist_B_Pa):
         probs_B_A = np.exp(actiondist_B_Pa); assert probs_B_A.shape[1] == self.action_space.shape[0]
-        return self.distribution.sample(probs_B_A)[:,None] # TODO: use self.distribution
+        return self.distribution.sample(probs_B_A)[:,None]
 
     def _compute_actiondist_entropy(self, actiondist_B_Pa):
         return self.distribution.entropy(np.exp(actiondist_B_Pa))
