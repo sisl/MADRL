@@ -1,11 +1,11 @@
-from contextlib import contextmanager
-import h5py
 import hashlib
 import json
+
+import h5py
 import numpy as np
-import os
-import os.path
 import tensorflow as tf
+
+import util
 
 
 class Model(object):
@@ -102,9 +102,9 @@ class AffineLayer(Layer):
         with tf.variable_scope(type(self).__name__) as self.varscope:
             if initializer is None:
                 initializer = tf.truncated_normal_initializer(mean=0., stddev=np.sqrt(2./input_shape[0]))
-                self.W_Di_Do = tf.get_variable('W', shape=[input_shape[0], output_shape[0]], initializer=initializer)
-                self.b_1_Do = tf.get_variable('b', shape=[1, output_shape[0]], initializer=tf.constant_initializer(0.))
-                self.output_B_Do = tf.matmul(input_B_Di, self.W_Di_Do) + self.b_1_Do
+            self.W_Di_Do = tf.get_variable('W', shape=[input_shape[0], output_shape[0]], initializer=initializer)
+            self.b_1_Do = tf.get_variable('b', shape=[1, output_shape[0]], initializer=tf.constant_initializer(0.))
+            self.output_B_Do = tf.matmul(input_B_Di, self.W_Di_Do) + self.b_1_Do
     @property
     def output(self): return self.output_B_Do
     @property
@@ -168,12 +168,12 @@ class FeedforwardNet(Layer):
         print(json.dumps(layerspec, indent=2, separators=(',', ': ')))
 
         self.layers = []
-        with variable_scope(type(self).__name__) as self.__varscope:
+        with tf.variable_scope(type(self).__name__) as self.varscope:
 
             prev_output, prev_output_shape = input_B_Di, input_shape
 
             for i_layer, ls in enumerate(layerspec):
-                with variable_scope('layer_%d' % i_layer):
+                with tf.variable_scope('layer_%d' % i_layer):
                     if ls['type'] == 'reshape':
                         _check_keys(ls, ['type', 'new_shape'], [])
                         self.layers.append(ReshapeLayer(prev_output, ls['new_shape']))
@@ -205,9 +205,6 @@ class FeedforwardNet(Layer):
                 self._output, self._output_shape = prev_output, prev_output_shape
 
     @property
-    def varscope(self): return self.__varscope
-    @property
     def output(self): return self._output
     @property
     def output_shape(self): return self._output_shape
-

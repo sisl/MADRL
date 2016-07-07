@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.sparse.linalg as ssl
 
 import nn
 import util
@@ -27,7 +28,7 @@ def btlinesearch(f, x0, fx0, g, dx, accept_ratio, shrink_factor, max_steps, verb
     while num_steps < max_steps:
         true_imp = f(x0 + t*dx) - fx0
         lin_imp = t*m
-        if verbose: true_imp, lin_imp, accept_ratio
+        if verbose: print(true_imp, lin_imp, accept_ratio)
         if true_imp <= accept_ratio * lin_imp:
             break
         t *= shrink_factor

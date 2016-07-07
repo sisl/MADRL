@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 import util
@@ -68,7 +69,7 @@ def unflatten_into_tensors(flatparams_P, output_shapes, name=None):
             flatval = flatparams_P[curr_pos:curr_pos+size]
             outputs.append(tf.reshape(flatval, shape))
             curr_pos += size
-            assert curr_pos == flatparams_P.get_shape().num_elements()
+        assert curr_pos == flatparams_P.get_shape().num_elements(), "{} != {}".format(curr_pos, flatparams_P.get_shape().num_elements())
         return tf.tuple(outputs, name=scope)
 
 def unflatten_into_vars(flatparams_P, param_vars, name=None):
@@ -78,3 +79,11 @@ def unflatten_into_vars(flatparams_P, param_vars, name=None):
     with tf.op_scope([flatparams_P] + param_vars, name, 'unflatten_into_vars') as scope:
         tensors = unflatten_into_tensors(flatparams_P, [v.get_shape().as_list() for v in param_vars])
         return tf.group(*[v.assign(t) for v, t in util.safezip(param_vars, tensors)], name=scope)
+
+def subsample_feed(feed, frac):
+    assert isinstance(feed, tuple) and len(feed) >= 1
+    assert isinstance(frac, float) and 0. < frac <= 1.
+    l = feed[0].shape[0]
+    assert all(a.shape[0] == l for a in feed), 'All feed entries must have the same length'
+    subsamp_inds = np.random.choice(l, size=int(frac*l))
+    return tuple(a[subsamp_inds,...] for a in feed)

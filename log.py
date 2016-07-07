@@ -15,9 +15,9 @@ def _printfields(fields, print_header=True):
             vals.append(val)
     # Print header
     if print_header:
-        print(tableprint.header(names, width=8))
+        print(tableprint.header(names, width=11))
     # Print value row
-    print(tableprint.row(vals, width=8))
+    print(tableprint.row(vals, width=11))
 
 def _type_to_col(t, pos):
     if t is int: return tables.Int32Col(pos=pos)
@@ -48,7 +48,7 @@ class TrainingLog(object):
         # Writing to log
         if self.f is not None:
             if self.log_table is None:
-                desc = {l: _type_to_col(t, pos) for pos, (k, _, t) in enumerate(kvt)} # key, value, type
+                desc = {k: _type_to_col(t, pos) for pos, (k, _, t) in enumerate(kvt)} # key, value, type
                 self.log_table = self.f.create_table(self.f.root, 'log', desc)
 
             row = self.log_table.row
@@ -73,18 +73,22 @@ class TrainingLog(object):
                 kvt = nonefilled_kvt
             _printfields(kvt, **kwargs)
 
-    def write_snapshot(self, model, key_iter):
+    def write_snapshot(self, sess, model, key_iter):
         if self.f is None: return
+
+        # Get var values
+        vs = model.get_trainable_variables()
+        vals = sess.run(vs)
+        
         # Save all variables into this group
         snapshot_root = '/snapshots/iter%07d' % key_iter
 
-        for v in model.get_all_variables():
-            assert v.name[0] == '/'
-            fullpath = snapshot_root + v.name
+        for v,val in zip(vs, vals):
+            fullpath = snapshot_root + '/' + v.name
             groupname, arrayname = fullpath.rsplit('/', 1)
-            self.f.create_array(groupname, arrayname, v.get_value(), createparents=True)
+            self.f.create_array(groupname, arrayname, val, createparents=True)
 
         # Store the model hash as an attribute
-        self.f.getNode(snapshot_root)._v_attrs.hash = model.savehash()
+        self.f.getNode(snapshot_root)._v_attrs.hash = model.savehash(sess)
 
         self.f.flush()

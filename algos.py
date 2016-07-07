@@ -1,9 +1,11 @@
 import numpy as np
 
-from sampler import SimpleSampler
-from policy import Policy
-import util
 import optim
+import tfutil
+import util
+from policy import StochasticPolicy
+from sampler import SimpleSampler
+
 
 class Algorithm(object):
     pass
@@ -33,14 +35,16 @@ class SamplingPolicyOptimizer(RLAlgorithm):
         self.positive_adv = positive_adv
         self.store_paths = store_paths
         self.whole_paths = whole_paths
-
+        # TODO obsfeat
         self.sampler = SimpleSampler(self, max_traj_len, batch_size)
         self.total_time = 0.0
 
-    def train(self, sess, logfilename):
+    def train(self, sess, log):
         for itr in range(self.start_iter, self.n_iter):
-            print_fields = self.step(sess, itr)
-
+            iter_info = self.step(sess, itr)
+            log.write(iter_info, print_header=itr % 20 == 0)
+            if itr % 20 == 0:
+                log.write_snapshot(sess, self.policy, itr)
 
     def step(self, sess, itr):
         with util.Timer() as t_all:
@@ -50,7 +54,7 @@ class SamplingPolicyOptimizer(RLAlgorithm):
 
             # Compute baseline
             with util.Timer() as t_base:
-                trajbatch_vals = self.sampler.process(sess, itr, trajbatch)
+                trajbatch_vals, base_info_fields = self.sampler.process(itr, trajbatch)
 
             # Take the policy grad step
             with util.Timer() as t_step:
@@ -60,12 +64,15 @@ class SamplingPolicyOptimizer(RLAlgorithm):
 
         # LOG
         self.total_time += t_all.dt
+
         fields = [
             ('iter', itr, int)
         ] + sample_info_fields + [
-            # entropy of action distribution
-            # max parameter different from last iteration
-        ] + step_print_fields + [
+            ('vf_r2', trajbatch_vals['v_r'], float),
+            ('tdv_r2', trajbatch_vals['tv_r'], float),
+            ('ent', self.policy._compute_actiondist_entropy(trajbatch.adist.stacked).mean(), float), # entropy of action distribution
+            ('dx', util.maxnorm(params0_P - self.policy.get_params(sess)), float) # max parameter different from last iteration
+        ] + base_info_fields + step_print_fields + [
             ('tsamp', t_sample.dt, float), # Time for sampling
             ('tbase', t_base.dt, float),   # Time for advantage/baseline computation
             ('tstep', t_step.dt, float),
@@ -81,50 +88,51 @@ def TRPO(max_kl, subsample_hvp_frac=.1, damping=1e-2, grad_stop_tol=1e-6, max_cg
         advstacked_N = util.standardized(advantages.stacked)
 
         # Compute objective, KL divergence and gradietns at init point
-        feed = Policy.Feed(trajbatch.obsfeat.stacked, trajbatch.a.stacked, trajbatch.adist.stacked, advstacked_N, kl_cost_coeff=None)
-        info0 = policy.compute(sess, feed, reinfobj=True, kl=True, reinfobjgrad=True, klgrad=True)
-        gnorm = util.maxnorm(info0.reinfobjgrad_P)
-        assert np.allclose(info0.kl, 0), "Initial KL divergence is %.7f, but should be 0" % (kl0)
+        feed = (trajbatch.obsfeat.stacked, trajbatch.a.stacked, trajbatch.adist.stacked, advstacked_N)
+        reinfobj0, kl0, reinfobjgrad0 = policy.compute_reinfobj_kl_with_grad(sess, *feed)
+        # info0 = policy.compute(sess, feed, reinfobj=True, kl=True, reinfobjgrad=True, klgrad=True)
+        gnorm = util.maxnorm(reinfobjgrad0)
+        assert np.allclose(kl0, 0), "Initial KL divergence is %.7f, but should be 0" % (kl0)
         # if np.allclose(info0.reinfobjgrad_P, 0):
         # Terminate early if gradients are too small
         if gnorm < grad_stop_tol:
-            #
-            info1 = info0
+            reinfobj1 = reinfobj0
+            kl1 = kl0
+            reinfobjgrad1 = reinfobjgrad0
             num_bt_steps = 0
         else:
             # Take constrained ng step
 
             # Data subsample for Hessain vector products
-            subsamp_feed = feed if subsample_hvp_frac is None else Policy.subsample_feed(feed, int(subsample_hvp_frac*feed.obsfeat_B_Fd.shape[0]))
+            subsamp_feed = feed if subsample_hvp_frac is None else tfutil.subsample_feed(feed, subsample_hvp_frac)
 
             def hvp_klgrad_func(p):
                 with policy.try_params(sess, p):
-                    return policy.compute(sess, subsamp_feed, klgrad=True).klgrad_P
+                    return policy.compute_klgrad(sess, subsamp_feed[0], subsamp_feed[2])[0]
 
             # Line search objective
             def obj_and_kl_func(p):
                 with policy.try_params(sess, p):
-                    info = policy.compute(sess, feed, reinfobj=True, kl=True)
-                return -info.reinfobj, info.kl
+                    reinfobj, kl = policy.compute_reinfobj_kl(sess, *feed)
+                return -reinfobj, kl
 
             params1_P, num_bt_steps = optim.ngstep(
                 x0=params0_P,    # current
-                obj0=-info0.reinfobj, # current
-                objgrad0=-info0.reinfobjgrad_P,
+                obj0=-reinfobj0, # current
+                objgrad0=-reinfobjgrad0,
                 obj_and_kl_func=obj_and_kl_func,
-                hvp_klgrad_func=hvp_klgrad_func,
+                hvpx0_func=hvp_klgrad_func,
                 max_kl=max_kl,
-                klgrad0=info0.klgrad_P,
                 damping=damping,
                 max_cg_iter=max_cg_iter,
                 enable_bt=enable_bt
             )
             policy.set_params(sess, params1_P)
-            info1 = policy.compute(sess, feed, reinfobj=True, kl=True)
+            reinfobj1, kl1 = policy.compute_reinfobj_kl(sess, *feed)
 
         return [
-            ('dl', info1.reinfobj - info0.reinfobj, float), # improvement of objective
-            ('kl', info1.kl, float),                        # kl cost of solution
+            ('dl', reinfobj1 - reinfobj0, float), # improvement of objective
+            ('kl', kl1, float),                        # kl cost of solution
             ('bt', num_bt_steps, int)                     # number of backtracking steps
         ]
     return trpo_step
