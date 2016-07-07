@@ -5,7 +5,7 @@ import numpy as np
 #################################################################
 
 
-class RandomPolicy():
+class RandomPolicy(object):
 
     # constructor
     def __init__(self, n_actions, rng = np.random.RandomState()):
@@ -15,3 +15,12 @@ class RandomPolicy():
     def act(self, state):
         return self.rng.randint(self.n_actions) 
 
+
+class SingleActionPolicy(object):
+
+    def __init__(self, a):
+        self.action = a
+        
+
+    def act(self, state):
+        return self.action

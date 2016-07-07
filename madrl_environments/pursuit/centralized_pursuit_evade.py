@@ -5,6 +5,8 @@ from utils import agent_utils
 from utils.Controllers import RandomPolicy
 from utils.AgentLayer import AgentLayer
 
+import matplotlib.pyplot as plt
+
 
 #################################################################
 # Implements an Evade Pursuit Problem in 2D
@@ -56,6 +58,8 @@ class CentralizedPursuitEvade():
 
         self.n_catch = kwargs.pop('n_catch', 2)
 
+        self.plt_delay = kwargs.pop('plt_delay', 1.0) 
+
         self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
         self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
 
@@ -71,8 +75,6 @@ class CentralizedPursuitEvade():
 
         self.evader_controller = kwargs.pop('ally_controller', RandomPolicy(n_act_purs))
         self.pursuer_controller = kwargs.pop('opponent_controller', RandomPolicy(n_act_ev)) 
-
-
 
         self.current_agent_layer = np.zeros((xs, ys), dtype=np.int32)
 
@@ -148,6 +150,17 @@ class CentralizedPursuitEvade():
         done = self.is_terminal()
 
         return o, r, done, None
+
+    def render(self):
+        plt.matshow(self.model_state[0], cmap=plt.get_cmap('Greys'), fignum=1)
+        for i in xrange(self.pursuer_layer.n_agents()):
+            x,y = self.pursuer_layer.get_position(i)
+            plt.plot(x, y, "r*", markersize=12)
+        for i in xrange(self.evader_layer.n_agents()):
+            x,y = self.evader_layer.get_position(i)
+            plt.plot(x, y, "b*", markersize=12)
+        plt.pause(self.plt_delay)
+        plt.clf()
 
 
     def sample_action(self):
