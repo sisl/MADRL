@@ -1,3 +1,8 @@
+import tensorflow as tf
+
+import util
+
+
 def categorical_kl(logprobs1_B_A, logprobs2_B_A, name=None):
     """KL divergence between categorical distributions, specified as log probabilities"""
     with tf.op_scope([logprobs1_B_A, logprobs2_B_A], name, 'categorical_kl') as scope:

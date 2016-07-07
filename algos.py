@@ -1,5 +1,9 @@
-import util
+import numpy as np
 
+from sampler import SimpleSampler
+from policy import Policy
+import util
+import optim
 
 class Algorithm(object):
     pass
@@ -33,10 +37,10 @@ class SamplingPolicyOptimizer(RLAlgorithm):
         self.sampler = SimpleSampler(self, max_traj_len, batch_size)
         self.total_time = 0.0
 
-    def train(self, sess):
-        for itr in range(self.start_itr, self.n_iter):
+    def train(self, sess, logfilename):
+        for itr in range(self.start_iter, self.n_iter):
             print_fields = self.step(sess, itr)
-            prntfld(print_fields)
+
 
     def step(self, sess, itr):
         with util.Timer() as t_all:
@@ -57,31 +61,34 @@ class SamplingPolicyOptimizer(RLAlgorithm):
         # LOG
         self.total_time += t_all.dt
         fields = [
-            ('iter', itr)
+            ('iter', itr, int)
         ] + sample_info_fields + [
             # entropy of action distribution
             # max parameter different from last iteration
         ] + step_print_fields + [
-            ('tsamp', t_sample.dt), # Time for sampling
-            ('tbase', t_base.dt),   # Time for advantage/baseline computation
-            ('tstep', t_step.dt),
-            ('ttotal', self.total_time)
+            ('tsamp', t_sample.dt, float), # Time for sampling
+            ('tbase', t_base.dt, float),   # Time for advantage/baseline computation
+            ('tstep', t_step.dt, float),
+            ('ttotal', self.total_time, float)
         ]
         return fields
 
 
-def TRPO(max_kl, subsample_hvp_frac=.1, damping=1e-2):
+def TRPO(max_kl, subsample_hvp_frac=.1, damping=1e-2, grad_stop_tol=1e-6, max_cg_iter=10, enable_bt=True):
 
-    def trpo_step(sess, policy, params0_p, trajbatch):
+    def trpo_step(sess, policy, params0_P, trajbatch, advantages):
         # standardize advantage
-        advstacked_N = util.standardized(trajbatch['advantages'])
+        advstacked_N = util.standardized(advantages.stacked)
 
         # Compute objective, KL divergence and gradietns at init point
-        feed = Policy.Feed(trajbatch['observations'], trajbatch['actions'], trajbatch['adist'], advstacked_N, kl_cost_coeff=None)
+        feed = Policy.Feed(trajbatch.obsfeat.stacked, trajbatch.a.stacked, trajbatch.adist.stacked, advstacked_N, kl_cost_coeff=None)
         info0 = policy.compute(sess, feed, reinfobj=True, kl=True, reinfobjgrad=True, klgrad=True)
-
-        if np.allclose(info0.reinfobjgrad_P, 0):
-            # Already optimized
+        gnorm = util.maxnorm(info0.reinfobjgrad_P)
+        assert np.allclose(info0.kl, 0), "Initial KL divergence is %.7f, but should be 0" % (kl0)
+        # if np.allclose(info0.reinfobjgrad_P, 0):
+        # Terminate early if gradients are too small
+        if gnorm < grad_stop_tol:
+            #
             info1 = info0
             num_bt_steps = 0
         else:
@@ -92,12 +99,12 @@ def TRPO(max_kl, subsample_hvp_frac=.1, damping=1e-2):
 
             def hvp_klgrad_func(p):
                 with policy.try_params(sess, p):
-                    return policy.compute(sess, subsamp_feed).klgrad_P
+                    return policy.compute(sess, subsamp_feed, klgrad=True).klgrad_P
 
             # Line search objective
             def obj_and_kl_func(p):
                 with policy.try_params(sess, p):
-                    info = policy.compute(sess, feed)
+                    info = policy.compute(sess, feed, reinfobj=True, kl=True)
                 return -info.reinfobj, info.kl
 
             params1_P, num_bt_steps = optim.ngstep(
@@ -108,15 +115,16 @@ def TRPO(max_kl, subsample_hvp_frac=.1, damping=1e-2):
                 hvp_klgrad_func=hvp_klgrad_func,
                 max_kl=max_kl,
                 klgrad0=info0.klgrad_P,
-                DAMPING=DAMPING,
-                max_cg_iter=10
+                damping=damping,
+                max_cg_iter=max_cg_iter,
+                enable_bt=enable_bt
             )
             policy.set_params(sess, params1_P)
-            info1 = policy.compute(sess, feed)
+            info1 = policy.compute(sess, feed, reinfobj=True, kl=True)
 
-            return [
-                ('dl', info1.reinfobj - info0.reinfobj), # improvement of objective
-                ('kl', info1.kl),              # kl cost of solution
-                ('bt', num_bt_steps)           # number of backtracking steps
-            ]
+        return [
+            ('dl', info1.reinfobj - info0.reinfobj, float), # improvement of objective
+            ('kl', info1.kl, float),                        # kl cost of solution
+            ('bt', num_bt_steps, int)                     # number of backtracking steps
+        ]
     return trpo_step

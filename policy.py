@@ -5,6 +5,8 @@ import numpy as np
 import tensorflow as tf
 
 import nn
+import tfutil
+
 
 class Policy(nn.Model):
     def __init__(self, env_spec):
@@ -40,7 +42,7 @@ class StochasticPolicy(Policy):
             self._obsfeat_B_Df = tf.placeholder(tf.float32, [batch_size, self.obsfeat_space.shape], name='obsfeat_B_Df') # Df = feature dimensions
             self._actiondist_B_Pa = self._make_actiondist_ops(self._obsfeat_B_Df) # Pa = action distribution params
             self._input_action_B_Da = tf.placeholder(tf.float32, [batch_size, self.action_space.shape], name='input_actions_B_Da') # Action dims
-            self._logprobs_B = self._make_actiondist_logprob_ops(self._actiondist_B_Pa, self._input_action_B_Da)
+            self._logprobs_B = self._make_actiondist_logprobs_ops(self._actiondist_B_Pa, self._input_action_B_Da)
 
             # proposal distribution from old policy
             self._proposal_actiondist_B_Pa = tf.placeholder(tf.float32, [batch_size, num_actiondist_params], name='proposal_actiondist_B_Pa')
@@ -121,6 +123,7 @@ class StochasticPolicy(Policy):
         """Sample actions conditioned on observations
         (Also returns the params)
         """
+        actiondist_B_Pa = self.compute_action_dist_params(sess, obsfeat_B_Df)
         return self._sample_from_actiondist(actiondist_B_Pa), actiondist_B_Pa
 
     def compute_action_logprobs(self, sess, obsfeat_B_Df, actions_B_Da):
@@ -164,6 +167,7 @@ class StochasticPolicy(Policy):
 
     ObjInfo = namedtuple('ObjInfo', 'reinfobj, reinfobjgrad_P, kl, klgrad_P, penobj, penobjgrad_P')
     def compute(self, sess, feed, reinfobj=False, reinfobjgrad=False, kl=False, klgrad=False, penobj=False, penobjgrad=False):
+        # FIXME; break into separate funcs
         ops = []
         if reinfobj: ops.append(self._reinfobj)
         if reinfobjgrad: ops.append(self._reinfobj_grad_P)

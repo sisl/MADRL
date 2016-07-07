@@ -1,3 +1,8 @@
+import numpy as np
+
+import util
+
+
 class Trajectory(object):
     __slots__ = ('obs_T_Do', 'obsfeat_T_Df', 'adist_T_Pa', 'a_T_Da', 'r_T')
     def __init__(self, obs_T_Do, obsfeat_T_Df, adist_T_Pa, a_T_Da, r_T):
@@ -24,7 +29,8 @@ class Trajectory(object):
     @classmethod
     def LoadH5(cls, grp, obsfeat_fn):
         """
-        obsfeat_fn: used to fill in observation features. if None, the raw observations will be copied over.
+        obsfeat_fn: Used to fill in observation features. 
+                    If None, the raw observations will be copied over.
         """
         obs_T_Do = grp['obs_T_Do'][...]
         obsfeat_T_Df = obsfeat_fn(obs_T_Do) if obsfeat_fn is not None else obs_T_Do.copy()
@@ -114,6 +120,9 @@ class TrajBatch(object):
 
 
 class Sampler(object):
+    """
+    Base Sampler class
+    """
     def start(self):
         """Init sampler"""
         raise NotImplementedError()
@@ -158,42 +167,42 @@ class SimpleSampler(Sampler):
             trajs.append(Trajectory(obs_T_Do, obsfeat_T_Df, adist_T_Pa, a_T_Da, r_T))
         trajbatch = TrajBatch.FromTrajs(trajs)
         return (trajbatch,
-                [('ret', trajbatch.r.padded(fill=0.).sum(axis=1).mean()), # average return for batch of traj
-                 ('avglen', int(np.mean([len(traj) for traj in trajbatch]))), # average traj length
-                 ('ravg', trajbatch.r.stacked.mean()) # avg reward encountered per time step (probably not that useful)
+                [('ret', trajbatch.r.padded(fill=0.).sum(axis=1).mean(), float), # average return for batch of traj
+                 ('avglen', int(np.mean([len(traj) for traj in trajbatch])), int), # average traj length
+                 ('ravg', trajbatch.r.stacked.mean(), int) # avg reward encountered per time step (probably not that useful)
                 ])
-    
+
     def process(self, itr, trajbatch):
         assert len(trajbatch) == self.batch_size
         trajlens = [len(traj) for traj in trajbatch]
         maxT = max(trajlens)
-        
+
         qvals_zfilled_B_T = util.discount(trajbatch.r.padded(fill=0.), self.algo.discount); assert qvals_zfilled_B_T.shape == (self.batch_size, maxT)
         q = RaggedArray([qvals_zfilled_B_T[i,:len(traj)] for i, traj in enumerate(trajbatch)])
         q_B_T = q.padded(fill=np.nan) # q vals padded with nans in the end
         assert q_B_T.shape == (self.batch_size, maxT)
-        
+
         # Time-dependent baseline
         simplev_B_T = np.tile(np.nanmean(q_B_T, axis=0, keepdims=True), (B, 1)); assert simplev_B_T.shape == (self.batch_size, maxT)
         simplev = RaggedArray([simplev_B_T[i,:len(traj)] for i, traj in enumerate(trajbatch)])
-        
+
         # State-dependent baseline
         v_stacked = self.algo.baseline.predict(trajbatch); assert v_stacked.ndim == 1
-        
+
         # Compare squared loss of value function to that of time-dependent value function
         constfunc_prediction_loss = np.var(q.stacked)
         simplev_prediction_loss = np.var(q.stacked-simplev.stacked) #((q.stacked-simplev.stacked)**2).mean()
         simplev_r2 = 1. - simplev_prediction_loss/(constfunc_prediction_loss + 1e-8)
         vfunc_prediction_loss = np.var(q.stacked-v_stacked) #((q.stacked-v_stacked)**2).mean()
         vfunc_r2 = 1. - vfunc_prediction_loss/(constfunc_prediction_loss + 1e-8)
-        
+
         # Compute advantage -- GAE(gamma,1) estimator; FIXME
         adv_stacked = q.stacked - v_stacked
         adv = RaggedArray(adv_stacked, lengths=trajlens)
-        
+
         # Fit for the next time step
         self.algo.baseline.fit(trajbatch, q)
-        
+
         return dict(advantage=adv, qval=q, v_r=vfunc_r2, tv_r=simplev_r2)
 
 

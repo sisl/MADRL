@@ -140,3 +140,74 @@ class ConvLayer(Layer):
     def output(self): return self.output_B_Oh_Ow_Co
     @property
     def output_shape(self): return self._output_shape
+
+def _check_keys(d, keys, optional):
+    s = set(d.keys())
+    if not (s == set(keys) or s == set(keys+optional)):
+        raise RuntimeError('Got keys %s, but expected keys %s with optional keys %s' % (str(s, str(keys), str(optional))))
+
+
+def _parse_initializer(layerspec):
+    if 'initializer' not in layerspec:
+        return None
+    initspec = layerspec['initializer']
+    raise NotImplementedError('Unknown layer initializer type %s' % initspec['type'])
+
+
+class FeedforwardNet(Layer):
+    def __init__(self, input_B_Di, input_shape, layerspec_json):
+        """        
+        Args:
+            layerspec (string): JSON string describing layers
+        """        
+        assert len(input_shape) >= 1
+        self.input_B_Di = input_B_Di
+
+        layerspec = json.loads(layerspec_json)
+        print('Loading feedforward net specification')
+        print(json.dumps(layerspec, indent=2, separators=(',', ': ')))
+
+        self.layers = []
+        with variable_scope(type(self).__name__) as self.__varscope:
+
+            prev_output, prev_output_shape = input_B_Di, input_shape
+
+            for i_layer, ls in enumerate(layerspec):
+                with variable_scope('layer_%d' % i_layer):
+                    if ls['type'] == 'reshape':
+                        _check_keys(ls, ['type', 'new_shape'], [])
+                        self.layers.append(ReshapeLayer(prev_output, ls['new_shape']))
+
+                    elif ls['type'] == 'fc':
+                        _check_keys(ls, ['type', 'n'], ['initializer'])
+                        self.layers.append(AffineLayer(
+                            prev_output, prev_output_shape, output_shape=(ls['n'],), initializer=_parse_initializer(ls)))
+
+                    elif ls['type'] == 'conv':
+                        _check_keys(ls, ['type', 'chanout', 'filtsize', 'outsize', 'stride', 'padding'], ['initializer'])
+                        self.layers.append(ConvLayer(
+                            input_B_Ih_Iw_Ci=prev_output, input_shape=prev_output_shape,
+                            Co=ls['chanout'],
+                            Fh=ls['filtsize'], Fw=ls['filtsize'],
+                            Oh=ls['outsize'], Ow=ls['outsize'],
+                            Sh=ls['stride'], Sw=ls['stride'],
+                            padding=ls['padding'],
+                            initializer=_parse_initializer(ls)))
+
+                    elif ls['type'] == 'nonlin':
+                        _check_keys(ls, ['type', 'func'], [])
+                        self.layers.append(NonlinearityLayer(prev_output, prev_output_shape, ls['func']))
+
+                    else:
+                        raise NotImplementedError('Unknown layer type %s' % ls['type'])
+
+                prev_output, prev_output_shape = self.layers[-1].output, self.layers[-1].output_shape
+                self._output, self._output_shape = prev_output, prev_output_shape
+
+    @property
+    def varscope(self): return self.__varscope
+    @property
+    def output(self): return self._output
+    @property
+    def output_shape(self): return self._output_shape
+
