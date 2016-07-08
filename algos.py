@@ -92,7 +92,7 @@ def TRPO(max_kl, subsample_hvp_frac=.1, damping=1e-2, grad_stop_tol=1e-6, max_cg
         reinfobj0, kl0, reinfobjgrad0 = policy.compute_reinfobj_kl_with_grad(sess, *feed)
         # info0 = policy.compute(sess, feed, reinfobj=True, kl=True, reinfobjgrad=True, klgrad=True)
         gnorm = util.maxnorm(reinfobjgrad0)
-        assert np.allclose(kl0, 0), "Initial KL divergence is %.7f, but should be 0" % (kl0)
+        assert np.allclose(kl0, 0.0, atol=1e-06), "Initial KL divergence is %.7f, but should be 0" % (kl0)
         # if np.allclose(info0.reinfobjgrad_P, 0):
         # Terminate early if gradients are too small
         if gnorm < grad_stop_tol:
