@@ -8,9 +8,9 @@ from distributions import Categorical
 
 
 class CategoricalMLPPolicy(StochasticPolicy):
-    def __init__(self, obsfeat_space, action_space, hidden_spec, varscope_name):
+    def __init__(self, obsfeat_space, action_space, hidden_spec, tblog, varscope_name):
         self.hidden_spec = hidden_spec
-        super(CategoricalMLPPolicy, self).__init__(obsfeat_space, action_space, action_space.n, varscope_name)
+        super(CategoricalMLPPolicy, self).__init__(obsfeat_space, action_space, action_space.n, tblog, varscope_name)
         self._dist = Categorical(self.action_space.n)
 
     @property
@@ -44,7 +44,7 @@ class CategoricalMLPPolicy(StochasticPolicy):
 
 class PursuitMLPPolicy(CategoricalMLPPolicy):
     def _make_actiondist_ops(self, obsfeat_B_Df):
-        wit tf.variable_scope('hidden'):
+        with tf.variable_scope('hidden'):
             net = nn.FeedforwardNet(obsfeat_B_Df, self.obsfeat_space.shape, self.hidden_spec)
         with tf.variable_scope('out'):
             out_layer = nn.AffineLayer(net.output, net.output_shape, self.action_space.n, initializer=tf.random_uniform_initializer(-.01, .01)) # TODO action_space
@@ -53,12 +53,12 @@ class PursuitMLPPolicy(CategoricalMLPPolicy):
         pass
     def _make_actiondist_logprob_ops(self, actiondist_B_Pa, input_actions_B_Da):
         # TODO
-        self._pursuit_look up_last_idx(actiondist_B_Pa, input_actions_B_Da[:,0])
+        #self._pursuit_look up_last_idx(actiondist_B_Pa, input_actions_B_Da[:,0])
         pass
 
     def _make_actiondist_kl_ops(self, proposal_actiondist_B_Pa, actiondist_B_Pa):
         # TODO
-        self._pursuit_categorical_kl()
+        #self._pursuit_categorical_kl()
         pass
 
     def _sample_from_actiondist(self, actiondist_B_Pa):
