@@ -93,6 +93,8 @@ class CentralizedPursuitEvade():
         self.term_pursuit = kwargs.pop('term_pursuit', 1.0)
         self.term_evade = kwargs.pop('term_evade', -1.0)
 
+        self.urgency_reward = kwargs.pop('urgency_reward', 0.0)
+
         self.ally_actions = np.zeros(n_act_purs, dtype=np.int32)
         self.opponent_actions = np.zeros(n_act_ev, dtype=np.int32)
 
@@ -112,7 +114,7 @@ class CentralizedPursuitEvade():
 
     def reset(self):
         if self.random_evaders:
-            self.n_evaders = np.random.randint(9)
+            self.n_evaders = np.random.randint(1,10)
         self.pursuer_layer = AgentLayer(self.xs, self.ys, 
                                 agent_utils.create_agents(self.n_pursuers, self.map_matrix, randinit=True))
         self.evader_layer = AgentLayer(self.xs, self.ys,
@@ -131,15 +133,24 @@ class CentralizedPursuitEvade():
 
         r = self.reward()
 
+        if self.train_pursuit:
+            agent_layer = self.pursuer_layer
+            opponent_layer = self.evader_layer
+            opponent_controller = self.evader_controller
+        else:
+            agent_layer = self.evader_layer
+            opponent_layer = self.pursuer_layer
+            opponent_controller = self.pursuer_controller
+
         if actions is list:
             # move all agents
             for i, a in enumerate(actions):
-                self.pursuer_layer.move_agent(i, a)
+                agent_layer.move_agent(i, a)
         else:
             # ravel it up
             act_idxs = np.unravel_index(actions, self.act_dims)
             for i, a in enumerate(act_idxs):
-                self.pursuer_layer.move_agent(i, a)
+                agent_layer.move_agent(i, a)
 
         for i in xrange(self.evader_layer.n_agents()):
             # controller input should be an observation, but doesn't matter right now
@@ -154,7 +165,10 @@ class CentralizedPursuitEvade():
         ev_remove, pr_remove = self.remove_agents()
 
         # add caught rewards
-        r += (ev_remove * self.term_pursuit)
+        if self.train_pursuit:
+            r += (ev_remove * self.term_pursuit)
+        else:
+            r += (ev_remove * self.term_evade)
 
         o = self.collect_obs(self.pursuer_layer)
 
