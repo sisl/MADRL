@@ -6,6 +6,7 @@ from utils.Controllers import RandomPolicy
 from utils.AgentLayer import AgentLayer
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 
 #################################################################
@@ -60,6 +61,8 @@ class CentralizedPursuitEvade():
 
         self.plt_delay = kwargs.pop('plt_delay', 1.0) 
 
+        self.random_evaders = kwargs.pop('random_evaders', False)
+
         self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
         self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
 
@@ -73,8 +76,8 @@ class CentralizedPursuitEvade():
 
         self.local_obs = np.zeros((self.n_pursuers, 3, self.obs_range, self.obs_range)) # Nagents X 3 X xsize X ysize
 
-        self.evader_controller = kwargs.pop('ally_controller', RandomPolicy(n_act_purs))
-        self.pursuer_controller = kwargs.pop('opponent_controller', RandomPolicy(n_act_ev)) 
+        self.evader_controller = kwargs.pop('evader_controller', RandomPolicy(n_act_purs))
+        self.pursuer_controller = kwargs.pop('pursuer_controller', RandomPolicy(n_act_ev)) 
 
         self.current_agent_layer = np.zeros((xs, ys), dtype=np.int32)
 
@@ -102,6 +105,8 @@ class CentralizedPursuitEvade():
     #################################################################
 
     def reset(self):
+        if self.random_evaders:
+            self.n_evaders = np.random.randint(9)
         self.pursuer_layer = AgentLayer(self.xs, self.ys, 
                                 agent_utils.create_agents(self.n_pursuers, self.map_matrix, randinit=True))
         self.evader_layer = AgentLayer(self.xs, self.ys,
@@ -152,10 +157,13 @@ class CentralizedPursuitEvade():
         return o, r, done, None
 
     def render(self):
-        plt.matshow(self.model_state[0], cmap=plt.get_cmap('Greys'), fignum=1)
+        plt.matshow(self.model_state[0].T, cmap=plt.get_cmap('Greys'), fignum=1)
         for i in xrange(self.pursuer_layer.n_agents()):
             x,y = self.pursuer_layer.get_position(i)
             plt.plot(x, y, "r*", markersize=12)
+            ax = plt.gca()
+            ofst = self.obs_range / 2.0
+            ax.add_patch(Rectangle((x-ofst,y-ofst), self.obs_range, self.obs_range, alpha=0.5, facecolor="#FF9848"))
         for i in xrange(self.evader_layer.n_agents()):
             x,y = self.evader_layer.get_position(i)
             plt.plot(x, y, "b*", markersize=12)
