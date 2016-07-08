@@ -21,10 +21,11 @@ n_pursuers = 2
 
 map_mat = TwoDMaps.rectangle_map(xs, ys) 
 
-runs = [1, 2, 3, 4, 5]
+#runs = [1, 2, 3, 4, 5]
+runs = [1]
 ranges = [3, 5, 7, 9]
 oranges = np.array([ranges for r in runs]).flatten()
-model_paths = [join("../data/obs_range_sweep_2layer", "obs_range_"+str(o), "run"+str(r), "final_model.ckpt") for o in oranges for r in runs]
+model_paths = [join("../data/obs_range_sweep_2layer_random_evaders", "obs_range_"+str(o), "run"+str(r), "final_model.ckpt") for o in oranges for r in runs]
 
 n_traj = 100
 max_steps = 500
@@ -82,7 +83,10 @@ plt.ylabel('Time to Catch Single Evader')
 plt.title('Centralized Pursuit Policy Speed Evaluation')
 plt.grid()
 plt.legend()
-plt.savefig('results/speed_eval/three_layer_centralized_eval_best.pdf') 
+plt.ylim([0,90])
+plt.savefig('results/speed_eval/two_layer_centralized_eval_random_evaders_best.pdf') 
+
+plt.clf()
 
 
 """

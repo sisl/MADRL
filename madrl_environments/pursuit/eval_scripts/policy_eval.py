@@ -30,10 +30,10 @@ n_pursuers = 2
 
 map_mat = TwoDMaps.rectangle_map(xs, ys) 
 
-runs = [1, 2, 3, 4, 5]
+runs = [1]
 ranges = [3, 5, 7, 9]
 oranges = np.array([ranges for r in runs]).flatten()
-model_paths = [join("../data/obs_range_sweep_3layer", "obs_range_"+str(o), "run"+str(r), "final_model.ckpt") for o in oranges for r in runs]
+model_paths = [join("../data/obs_range_sweep_2layer_random_evaders_urgency", "obs_range_"+str(o), "run"+str(r), "final_model.ckpt") for o in oranges for r in runs]
 
 n_traj = 100
 max_steps = 250
@@ -53,7 +53,7 @@ for i, ran in enumerate(ranges):
         env = CentralizedPursuitEvade(map_mat, n_evaders=n_evaders, n_pursuers=n_pursuers, obs_range=ran, n_catch=2)
 
         input_obs = tf.placeholder(tf.float32, shape=(None,) + env.observation_space.shape, name="obs")
-        net = softmax_mlp(input_obs, env.action_space.n, layers=[128,64,64], activation=tf.nn.tanh)
+        net = softmax_mlp(input_obs, env.action_space.n, layers=[128,128], activation=tf.nn.tanh)
         solver = TRPOSolver(env, policy_net=net, input_layer=input_obs)
         solver.load(model_paths[pidx])
 
@@ -91,7 +91,7 @@ plt.ylabel('Average Rewards')
 plt.title('Centralized Pursuit Policy Evaluation')
 plt.grid()
 plt.legend(loc=4)
-plt.savefig('results/policy_eval/two_layer_centralized_eval_best.pdf') 
+plt.savefig('results/policy_eval/two_layer_centralized_eval_random_evaders_urgency_best.pdf') 
 
 """
 stoch_mean = []
