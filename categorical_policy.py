@@ -44,19 +44,21 @@ class CategoricalMLPPolicy(StochasticPolicy):
 
 class PursuitMLPPolicy(CategoricalMLPPolicy):
     def _make_actiondist_ops(self, obsfeat_B_Df):
-        with tf.variable_scope('hidden'):
-            net = nn.FeedforwardNet(obsfeat_B_Df, self.obsfeat_space.shape, self.cfg.hidden_spec)
+        wit tf.variable_scope('hidden'):
+            net = nn.FeedforwardNet(obsfeat_B_Df, self.obsfeat_space.shape, self.hidden_spec)
         with tf.variable_scope('out'):
-            out_layer = nn.AffineLayer(net.output, net.output_shape, self.action_space.shape, initializer=tf.random_uniform_initializer(-.01, .01)) # TODO action_space
+            out_layer = nn.AffineLayer(net.output, net.output_shape, self.action_space.n, initializer=tf.random_uniform_initializer(-.01, .01)) # TODO action_space
 
         # TODO
         pass
     def _make_actiondist_logprob_ops(self, actiondist_B_Pa, input_actions_B_Da):
         # TODO
+        self._pursuit_look up_last_idx(actiondist_B_Pa, input_actions_B_Da[:,0])
         pass
 
     def _make_actiondist_kl_ops(self, proposal_actiondist_B_Pa, actiondist_B_Pa):
         # TODO
+        self._pursuit_categorical_kl()
         pass
 
     def _sample_from_actiondist(self, actiondist_B_Pa):

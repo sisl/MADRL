@@ -42,6 +42,10 @@ def numdiff_hvp(v, grad_func, x0, grad0=None, finitediff_delta=1e-4):
 
     Uses a 1-dimensional finite difference approximation for the
     directional derivative of the gradient function.
+    if grad0 given:
+         (g(x+rv)-g(x))/r
+    Otherwise
+         (g(x+rv)-g(x-rv))/2r
 
     Args:
         v: the vector to left-multiply by the Hessian
@@ -54,8 +58,10 @@ def numdiff_hvp(v, grad_func, x0, grad0=None, finitediff_delta=1e-4):
     if np.allclose(v, 0): return np.zeros_like(v)
     eps = finitediff_delta / np.linalg.norm(v)
     dx = eps * v
-    if grad0 is None: grad0 = grad_func(x0)
     grad1 = grad_func(x0+dx)
+    if grad0 is None:
+        grad0 = grad_func(x0-dx)
+        eps = 2*eps
     out = grad1 - grad0; out /= eps
     return out
 

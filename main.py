@@ -26,8 +26,8 @@ def main():
         {"type": "nonlin", "func": "tanh"}
     ]
     '''
-    
-    policy = CategoricalMLPPolicy(env.observation_space, env.action_space, hidden_spec=hidden_spec, varscope_name='catmlp_policy')
+    tboard_dir = '/tmp/madrl_tb'
+    policy = CategoricalMLPPolicy(env.observation_space, env.action_space, hidden_spec=hidden_spec, tboard_dir, varscope_name='catmlp_policy')
     baseline = LinearFeatureBaseline(env.observation_space, env.action_space)
     step_func = algos.TRPO(max_kl=0.01)
     popt = algos.SamplingPolicyOptimizer(
@@ -38,6 +38,7 @@ def main():
         discount=discount
     )
     save_file = '/tmp/s.h5'
+    
     log_f = log.TrainingLog(save_file, [])
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())

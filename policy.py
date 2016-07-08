@@ -32,7 +32,7 @@ class Policy(nn.Model):
 
 
 class StochasticPolicy(Policy):
-    def __init__(self, obsfeat_space, action_space, num_actiondist_params, varscope_name):
+    def __init__(self, obsfeat_space, action_space, num_actiondist_params, tblog, varscope_name):
         super(StochasticPolicy, self).__init__(obsfeat_space, action_space)
 
         with tf.variable_scope(varscope_name) as self.varscope:
@@ -52,7 +52,7 @@ class StochasticPolicy(Policy):
 
             # Plain pg objective (REINFORCE)
             impweight_B = tf.exp(self._logprobs_B - self._proposal_logprobs_B)
-            self._reinfobj = tf.reduce_mean(impweight_B*self._advantage_B)
+            self._reinfobj = tf.reduce_mean(impweight_B*self._advantage_B) # Surrogate loss
 
             # KL
             self._kl_coeff = tf.placeholder(tf.float32, name='kl_cost_coeff')
@@ -89,6 +89,8 @@ class StochasticPolicy(Policy):
                 self._learning_rate = tf.placeholder(tf.float32, name='learning_rate')
                 vargrads = tfutil.unflatten_into_tensors(self._flatparams_P, [v.get_shape().as_list() for v in self._param_vars])
                 self._take_descent_step = tf.train.AdamOptimizer(learning_rate=self._learning_rate).apply_gradients(util.safezip(vargrads, self._param_vars))
+
+            self._tbwriter = tf.train.SummaryWriter(tblog, graph=tf.get_default_graph())
 
     @property
     def distribution(self):
