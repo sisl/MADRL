@@ -67,20 +67,11 @@ class CentralizedPursuitEvade():
 
         self.plt_delay = kwargs.pop('plt_delay', 1.0) 
 
-        self.random_evaders = kwargs.pop('random_evaders', False)
-
-        self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
-        self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
+        self.random_opponents = kwargs.pop('random_opponents', False)
+        self.max_opponents = kwargs.pop('max_opponents', 10)
 
         n_act_purs = self.pursuer_layer.get_nactions(0)
         n_act_ev = self.evader_layer.get_nactions(0)
-
-        self.action_space = spaces.Discrete(n_act_purs**self.n_pursuers)
-        self.observation_space = spaces.Box(self.low, self.high)
-
-        self.act_dims = [n_act_purs for i in xrange(self.n_pursuers)]
-
-        self.local_obs = np.zeros((self.n_pursuers, 3, self.obs_range, self.obs_range)) # Nagents X 3 X xsize X ysize
 
         self.evader_controller = kwargs.pop('evader_controller', RandomPolicy(n_act_purs))
         self.pursuer_controller = kwargs.pop('pursuer_controller', RandomPolicy(n_act_ev)) 
@@ -100,6 +91,23 @@ class CentralizedPursuitEvade():
 
         self.train_pursuit = kwargs.pop('train_pursuit', True)
 
+
+        if self.train_pursuit:
+            self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
+            self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
+            self.action_space = spaces.Discrete(n_act_purs**self.n_pursuers)
+            self.observation_space = spaces.Box(self.low, self.high)
+            self.local_obs = np.zeros((self.n_pursuers, 3, self.obs_range, self.obs_range)) # Nagents X 3 X xsize X ysize
+            self.act_dims = [n_act_purs for i in xrange(self.n_pursuers)]
+        else:
+            self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2 * self.n_evaders)])
+            self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2 * self.n_evaders)])
+            self.action_space = spaces.Discrete(n_act_purs**self.n_evaders)
+            self.observation_space = spaces.Box(self.low, self.high)
+            self.local_obs = np.zeros((self.n_evaders, 3, self.obs_range, self.obs_range)) # Nagents X 3 X xsize X ysize
+            self.act_dims = [n_act_purs for i in xrange(self.n_evaders)]
+
+
         self.initial_config = kwargs.pop('initial_config', {})
 
         self.model_dims = (4,) + map_matrix.shape
@@ -113,8 +121,12 @@ class CentralizedPursuitEvade():
     #################################################################
 
     def reset(self):
-        if self.random_evaders:
-            self.n_evaders = np.random.randint(1,10)
+        if self.random_opponents:
+            if self.train_pursuit:
+                self.n_evaders = np.random.randint(1,self.max_opponents)
+            else:
+                self.n_pursuers = np.random.randint(1,self.max_opponents)
+
         self.pursuer_layer = AgentLayer(self.xs, self.ys, 
                                 agent_utils.create_agents(self.n_pursuers, self.map_matrix, randinit=True))
         self.evader_layer = AgentLayer(self.xs, self.ys,
@@ -122,7 +134,10 @@ class CentralizedPursuitEvade():
         self.model_state[0] = self.map_matrix
         self.model_state[1] = self.pursuer_layer.get_state_matrix()
         self.model_state[2] = self.evader_layer.get_state_matrix()
-        return self.collect_obs(self.pursuer_layer)
+        if self.train_pursuit:
+            return self.collect_obs(self.pursuer_layer)
+        else:
+            return self.collect_obs(self.evader_layer)
 
 
 
@@ -142,6 +157,7 @@ class CentralizedPursuitEvade():
             opponent_layer = self.pursuer_layer
             opponent_controller = self.pursuer_controller
 
+        # move allies
         if actions is list:
             # move all agents
             for i, a in enumerate(actions):
@@ -152,11 +168,13 @@ class CentralizedPursuitEvade():
             for i, a in enumerate(act_idxs):
                 agent_layer.move_agent(i, a)
 
-        for i in xrange(self.evader_layer.n_agents()):
+        # move opponents
+        for i in xrange(opponent_layer.n_agents()):
             # controller input should be an observation, but doesn't matter right now
-            action = self.evader_controller.act(self.model_state)
-            self.evader_layer.move_agent(i, action)
+            action = opponent_controller.act(self.model_state)
+            opponent_layer.move_agent(i, action)
 
+        # model state always has form: map, purusers, opponents, current agent id
         self.model_state[0] = self.map_matrix
         self.model_state[1] = self.pursuer_layer.get_state_matrix()
         self.model_state[2] = self.evader_layer.get_state_matrix()
@@ -168,9 +186,10 @@ class CentralizedPursuitEvade():
         if self.train_pursuit:
             r += (ev_remove * self.term_pursuit)
         else:
-            r += (ev_remove * self.term_evade)
+            r += (pr_remove * self.term_evade)
+        r += self.urgency_reward
 
-        o = self.collect_obs(self.pursuer_layer)
+        o = self.collect_obs(agent_layer)
 
         done = self.is_terminal()
 
@@ -181,12 +200,17 @@ class CentralizedPursuitEvade():
         for i in xrange(self.pursuer_layer.n_agents()):
             x,y = self.pursuer_layer.get_position(i)
             plt.plot(x, y, "r*", markersize=12)
-            ax = plt.gca()
-            ofst = self.obs_range / 2.0
-            ax.add_patch(Rectangle((x-ofst,y-ofst), self.obs_range, self.obs_range, alpha=0.5, facecolor="#FF9848"))
+            if self.train_pursuit:
+                ax = plt.gca()
+                ofst = self.obs_range / 2.0
+                ax.add_patch(Rectangle((x-ofst,y-ofst), self.obs_range, self.obs_range, alpha=0.5, facecolor="#FF9848"))
         for i in xrange(self.evader_layer.n_agents()):
             x,y = self.evader_layer.get_position(i)
             plt.plot(x, y, "b*", markersize=12)
+            if not self.train_pursuit:
+                ax = plt.gca()
+                ofst = self.obs_range / 2.0
+                ax.add_patch(Rectangle((x-ofst,y-ofst), self.obs_range, self.obs_range, alpha=0.5, facecolor="#009ACD"))
         plt.pause(self.plt_delay)
         plt.clf()
 
@@ -224,12 +248,17 @@ class CentralizedPursuitEvade():
         for i in xrange(self.pursuer_layer.n_agents()):
             x,y = self.pursuer_layer.get_position(i)
             plt.plot(x, y, "r*", markersize=12)
-            ax = plt.gca()
-            ofst = self.obs_range / 2.0
-            ax.add_patch(Rectangle((x-ofst,y-ofst), self.obs_range, self.obs_range, alpha=0.5, facecolor="#FF9848"))
+            if self.train_pursuit:
+                ax = plt.gca()
+                ofst = self.obs_range / 2.0
+                ax.add_patch(Rectangle((x-ofst,y-ofst), self.obs_range, self.obs_range, alpha=0.5, facecolor="#FF9848"))
         for i in xrange(self.evader_layer.n_agents()):
             x,y = self.evader_layer.get_position(i)
             plt.plot(x, y, "b*", markersize=12) 
+            if not self.train_pursuit:
+                ax = plt.gca()
+                ofst = self.obs_range / 2.0
+                ax.add_patch(Rectangle((x-ofst,y-ofst), self.obs_range, self.obs_range, alpha=0.5, facecolor="#009ACD"))
 
         xl, xh = -self.obs_offset - 1, self.xs + self.obs_offset + 1 
         yl, yh = -self.obs_offset - 1, self.ys + self.obs_offset + 1 
