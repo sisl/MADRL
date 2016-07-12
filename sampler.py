@@ -136,7 +136,7 @@ class Sampler(object):
         """Collect samples"""
         raise NotImplementedError()
 
-    def process(self, itr, trajbatch):
+    def process(self, sess, itr, trajbatch):
         assert len(trajbatch) == self.batch_size
         trajlens = [len(traj) for traj in trajbatch]
         maxT = max(trajlens)
@@ -152,7 +152,7 @@ class Sampler(object):
         simplev = RaggedArray([simplev_B_T[i,:len(traj)] for i, traj in enumerate(trajbatch)])
 
         # State-dependent baseline
-        v_stacked = self.algo.baseline.predict(trajbatch); assert v_stacked.ndim == 1
+        v_stacked = self.algo.baseline.predict(sess, trajbatch); assert v_stacked.ndim == 1
         v = RaggedArray(v_stacked, lengths=trajlens)
         
         # Compare squared loss of value function to that of time-dependent value function
@@ -171,7 +171,7 @@ class Sampler(object):
         assert np.allclose(adv.padded(fill=0), adv_B_T)
 
         # Fit for the next time step
-        baseline_info = self.algo.baseline.fit(trajbatch, q.stacked)
+        baseline_info = self.algo.baseline.fit(sess, trajbatch, q.stacked)
 
         return dict(advantage=adv, qval=q, v_r=vfunc_r2, tv_r=simplev_r2), baseline_info
 

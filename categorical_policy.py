@@ -8,9 +8,9 @@ from distributions import Categorical
 
 
 class CategoricalMLPPolicy(StochasticPolicy):
-    def __init__(self, obsfeat_space, action_space, hidden_spec, tblog, varscope_name):
+    def __init__(self, obsfeat_space, action_space, hidden_spec, enable_obsnorm, tblog, varscope_name):
         self.hidden_spec = hidden_spec
-        super(CategoricalMLPPolicy, self).__init__(obsfeat_space, action_space, action_space.n, tblog, varscope_name)
+        super(CategoricalMLPPolicy, self).__init__(obsfeat_space, action_space, action_space.n, enable_obsnorm, tblog, varscope_name)
         self._dist = Categorical(self.action_space.n)
 
     @property
@@ -21,7 +21,7 @@ class CategoricalMLPPolicy(StochasticPolicy):
         with tf.variable_scope('hidden'):
             net = nn.FeedforwardNet(obsfeat_B_Df, self.obsfeat_space.shape, self.hidden_spec)
         with tf.variable_scope('out'):
-            out_layer = nn.AffineLayer(net.output, net.output_shape, (self.action_space.n,), initializer=tf.random_uniform_initializer(-.01, .01)) # TODO action_space
+            out_layer = nn.AffineLayer(net.output, net.output_shape, (self.action_space.n,), initializer=tf.zeros_initializer) # TODO action_space
 
         scores_B_Pa = out_layer.output
         actiondist_B_Pa = scores_B_Pa - tfutil.logsumexp(scores_B_Pa, axis=1)

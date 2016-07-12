@@ -50,17 +50,22 @@ class SamplingPolicyOptimizer(RLAlgorithm):
         with util.Timer() as t_all:
             # Sample trajs using current policy
             with util.Timer() as t_sample:
+                if itr == 0:
+                    # extra batch to init std
+                    trajbatch0, _ = self.sampler.sample(sess, itr)
+                    self.policy.update_obsnorm(sess, trajbatch0.obsfeat.stacked)
+                    self.baseline.update_obsnorm(sess, trajbatch0.obsfeat.stacked)
                 trajbatch, sample_info_fields = self.sampler.sample(sess, itr)
 
             # Compute baseline
             with util.Timer() as t_base:
-                trajbatch_vals, base_info_fields = self.sampler.process(itr, trajbatch)
+                trajbatch_vals, base_info_fields = self.sampler.process(sess, itr, trajbatch)
 
             # Take the policy grad step
             with util.Timer() as t_step:
                 params0_P = self.policy.get_params(sess)
                 step_print_fields = self.step_func(sess, self.policy, params0_P, trajbatch, trajbatch_vals['advantage'])
-
+                self.policy.update_obsnorm(sess, trajbatch.obsfeat.stacked)
 
         # LOG
         self.total_time += t_all.dt
@@ -81,7 +86,7 @@ class SamplingPolicyOptimizer(RLAlgorithm):
         return fields
 
 
-def TRPO(max_kl, subsample_hvp_frac=.1, damping=1e-2, grad_stop_tol=1e-6, max_cg_iter=10, enable_bt=True):
+def TRPO(max_kl, subsample_hvp_frac=.25, damping=1e-2, grad_stop_tol=1e-6, max_cg_iter=10, enable_bt=True):
 
     def trpo_step(sess, policy, params0_P, trajbatch, advantages):
         # standardize advantage
@@ -92,13 +97,12 @@ def TRPO(max_kl, subsample_hvp_frac=.1, damping=1e-2, grad_stop_tol=1e-6, max_cg
         reinfobj0, kl0, reinfobjgrad0 = policy.compute_reinfobj_kl_with_grad(sess, *feed)
         # info0 = policy.compute(sess, feed, reinfobj=True, kl=True, reinfobjgrad=True, klgrad=True)
         gnorm = util.maxnorm(reinfobjgrad0)
-        assert np.allclose(kl0, 0.0, atol=1e-06), "Initial KL divergence is %.7f, but should be 0" % (kl0)
-        # if np.allclose(info0.reinfobjgrad_P, 0):
+        assert np.allclose(kl0, 0.0, atol=1e-07), "Initial KL divergence is %.7f, but should be 0" % (kl0)
+
         # Terminate early if gradients are too small
         if gnorm < grad_stop_tol:
             reinfobj1 = reinfobj0
             kl1 = kl0
-            reinfobjgrad1 = reinfobjgrad0
             num_bt_steps = 0
         else:
             # Take constrained ng step
@@ -133,6 +137,7 @@ def TRPO(max_kl, subsample_hvp_frac=.1, damping=1e-2, grad_stop_tol=1e-6, max_cg
         return [
             ('dl', reinfobj1 - reinfobj0, float), # improvement of objective
             ('kl', kl1, float),                        # kl cost of solution
-            ('bt', num_bt_steps, int)                     # number of backtracking steps
+            ('bt', num_bt_steps, int),                     # number of backtracking steps
+            ('gnorm', gnorm, float)
         ]
     return trpo_step

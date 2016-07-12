@@ -101,7 +101,8 @@ class AffineLayer(Layer):
         self._output_shape = (output_shape[0],)
         with tf.variable_scope(type(self).__name__) as self.varscope:
             if initializer is None:
-                initializer = tf.truncated_normal_initializer(mean=0., stddev=np.sqrt(2./input_shape[0]))
+                # initializer = tf.truncated_normal_initializer(mean=0., stddev=np.sqrt(2./input_shape[0]))
+                initializer = tf.contrib.layers.xavier_initializer()
             self.W_Di_Do = tf.get_variable('W', shape=[input_shape[0], output_shape[0]], initializer=initializer)
             self.b_1_Do = tf.get_variable('b', shape=[1, output_shape[0]], initializer=tf.constant_initializer(0.))
             self.output_B_Do = tf.matmul(input_B_Di, self.W_Di_Do) + self.b_1_Do
@@ -156,10 +157,10 @@ def _parse_initializer(layerspec):
 
 class FeedforwardNet(Layer):
     def __init__(self, input_B_Di, input_shape, layerspec_json):
-        """        
+        """
         Args:
             layerspec (string): JSON string describing layers
-        """        
+        """
         assert len(input_shape) >= 1
         self.input_B_Di = input_B_Di
 
@@ -208,3 +209,91 @@ class FeedforwardNet(Layer):
     def output(self): return self._output
     @property
     def output_shape(self): return self._output_shape
+
+
+class NoOpStandardizer(object):
+    def __init__(self, dim, eps=1e-6): pass
+    def update(self, points_N_D): pass
+    def standardize_expr(self, x_B_D): return x_B_D
+    def unstandardize_expr(self, y_B_D): return y_B_D
+    def standardize(self, x_B_D): return x_B_D
+    def unstandardize(self, y_B_D): return y_B_D
+
+
+class Standardizer(Model):
+    def __init__(self, dim, eps=1e-6, init_count=0, init_mean=0., init_meansq=1.):
+        """
+        Args:
+            dim: dimension of the space of points to be standardized
+            eps: small constant to add to denominators to prevent division by 0
+            init_count, init_mean, init_meansq: initial values for accumulators
+
+        Note:
+            if init_count is 0, then init_mean and init_meansq have no effect beyond
+            the first call to update(), which will ignore their values and
+            replace them with values from a new batch of data.
+        """
+        self._eps = eps
+        self._dim = dim
+        with tf.variable_scope(type(self).__name__) as self.varscope:
+            self._count = tf.get_variable('count', shape=(1,), initializer=tf.constant_initializer(init_count), trainable=False)
+            self._mean_1_D = tf.get_variable('mean_1_D', shape=(1, self._dim), initializer=tf.constant_initializer(init_mean), trainable=False)
+            self._meansq_1_D = tf.get_variable('meansq_1_D', shape=(1, self._dim), initializer=tf.constant_initializer(init_meansq), trainable=False)
+            self._stdev_1_D = tf.sqrt(self._meansq_1_D - tf.square(self._mean_1_D) + self._eps)
+
+
+    def get_mean(self, sess):
+        return sess.run(self._mean_1_D)
+
+    def get_meansq(self, sess):
+        return sess.run(self._meansq_1_D)
+
+    def get_stdev(self, sess):
+         # TODO: return with shape (1,D)
+        return sess.run(self._stdev_1_D)
+
+    def get_count(self, sess):
+        return sess.run(self._count)
+
+    def update(self, sess, points_N_D):
+        assert points_N_D.ndim == 2 and points_N_D.shape[1] == self._dim
+        num = points_N_D.shape[0]
+        count = self.get_count(sess)
+        a = count/(count+num)
+        mean_ass = self._mean_1_D.assign(a*self.get_mean(sess) + (1.-a)*points_N_D.mean(axis=0, keepdims=True))
+        meansq_assign = self._meansq_1_D.assign(a*self.get_meansq(sess) + (1.-a)*(points_N_D**2).mean(axis=0, keepdims=True))
+        count_assign = self._count.assign(count+num)
+        sess.run([mean_ass, meansq_assign, count_assign])
+
+    def standardize_expr(self, x_B_D):
+        return (x_B_D - self._mean_1_D) / (self._stdev_1_D + self._eps)
+
+    def unstandardize_expr(self, y_B_D):
+        return y_B_D*(self._stdev_1_D + self._eps) + self._mean_1_D
+
+    def standardize(self, sess, x_B_D):
+        assert x_B_D.ndim == 2
+        return (x_B_D - self.get_mean(sess))/ (self.get_stdev(sess) + self._eps)
+
+    def unstandardize(self, sess, y_B_D):
+        assert y_B_D.ndim == 2
+        return y_B_D*(self.get_mean(sess) + self._eps) + self.get_mean(sess)
+
+
+def test_standardizer():
+    import numpy as np
+    D = 10
+    s = Standardizer(D, eps=0)
+
+    with tf.Session() as sess:
+        sess.run(tf.initialize_all_variables())
+        x_N_D = np.random.randn(200, D)
+        s.update(sess, x_N_D)
+
+        x2_N_D = np.random.rand(300, D)
+        s.update(sess, x2_N_D)
+
+        allx = np.concatenate([x_N_D, x2_N_D], axis=0)
+        assert np.allclose(s.get_mean(sess)[0,:], allx.mean(axis=0))
+        assert np.allclose(s.get_stdev(sess)[0,:], allx.std(axis=0))
+        print('standardizer ok')

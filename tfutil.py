@@ -8,7 +8,7 @@ def categorical_kl(logprobs1_B_A, logprobs2_B_A, name=None):
     """KL divergence between categorical distributions, specified as log probabilities"""
     with tf.op_scope([logprobs1_B_A, logprobs2_B_A], name, 'categorical_kl') as scope:
         kl_B = tf.reduce_sum(tf.exp(logprobs1_B_A) * (logprobs1_B_A - logprobs2_B_A), 1, name=scope)
-        return kl_B
+    return kl_B
 
 def logsumexp(a, axis, name=None):
     """

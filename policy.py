@@ -32,14 +32,17 @@ class Policy(nn.Model):
 
 
 class StochasticPolicy(Policy):
-    def __init__(self, obsfeat_space, action_space, num_actiondist_params, tblog, varscope_name):
+    def __init__(self, obsfeat_space, action_space, num_actiondist_params, enable_obsnorm, tblog, varscope_name):
         super(StochasticPolicy, self).__init__(obsfeat_space, action_space)
 
         with tf.variable_scope(varscope_name) as self.varscope:
             batch_size = None
             # Action distribution for current policy
             self._obsfeat_B_Df = tf.placeholder(tf.float32, [batch_size, self.obsfeat_space.shape[0]], name='obsfeat_B_Df') # Df = feature dimensions FIXME shape
-            self._actiondist_B_Pa = self._make_actiondist_ops(self._obsfeat_B_Df) # Pa = action distribution params
+            with tf.variable_scope('obsnorm'):
+                self.obsnorm = (nn.Standardizer if enable_obsnorm else nn.NoOpStandardizer)(self.obsfeat_space.shape[0])
+            self._normalized_obsfeat_B_Df = self.obsnorm.standardize_expr(self._obsfeat_B_Df)
+            self._actiondist_B_Pa = self._make_actiondist_ops(self._normalized_obsfeat_B_Df) # Pa = action distribution params
             self._input_action_B_Da = tf.placeholder(tf.int32, [batch_size, 1], name='input_actions_B_Da') # Action dims FIXME type
             self._logprobs_B = self._make_actiondist_logprobs_ops(self._actiondist_B_Pa, self._input_action_B_Da)
 
@@ -95,6 +98,10 @@ class StochasticPolicy(Policy):
     @property
     def distribution(self):
         raise NotImplementedError()
+    
+    def update_obsnorm(self, sess, obs_B_Do):
+        """Update norms using moving avg"""
+        self.obsnorm.update(sess, obs_B_Do)
 
     def _make_actiondist_ops(self, obsfeat_B_Df):
         """Ops to compute action distribution parameters
@@ -115,6 +122,9 @@ class StochasticPolicy(Policy):
 
     def _compute_actiondist_entropy(self, actiondist_B_Pa):
         raise NotImplementedError()
+    
+    def _compute_internal_normalized_obsfeat(self, sess, obsfeat_B_Df):
+        return sess.run(self._normalized_obsfeat_B_Df, {self._obsfeat_B_Df: obsfeat_B_Df})
 
     def compute_action_dist_params(self, sess, obsfeat_B_Df):
         """Actually evaluate action distribution params"""
@@ -154,20 +164,6 @@ class StochasticPolicy(Policy):
                                             self._proposal_actiondist_B_Pa: proposal_actiondist_B_Pa}) # TODO check if we need more
     
     # TODO penobj computes
-        
-
-    # Feed = namedtuple('Feed', 'obsfeat_B_Df, actions_B_Da, proposal_actiondist_B_Pa, advantage_B, kl_cost_coeff')
-    # Feed.__new__.__defaults__ = (None,) * len(Feed._fields) # all default to None
-    # @staticmethod
-    # def subsample_feed(feed, size):
-    #     assert feed.obsfeat_B_Df.shape[0] == feed.actions_B_Da.shape[0] == feed.proposal_actiondist_B_Pa.shape[0] == feed.advantage_B.shape[0]
-    #     subsamp_inds = np.random.choice(feed.obsfeat_B_Df.shape[0], size=size)
-    #     return StochasticPolicy.Feed(
-    #         feed.obsfeat_B_Df[subsamp_inds,:],
-    #         feed.actions_B_Da[subsamp_inds,:],
-    #         feed.proposal_actiondist_B_Pa[subsamp_inds,:],
-    #         feed.advantage_B[subsamp_inds],
-    #         feed.kl_cost_coeff)
 
     def set_params(self, sess, params_P):
         sess.run(self._assign_params, {self._flatparams_P: params_P})
