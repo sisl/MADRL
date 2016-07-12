@@ -57,6 +57,7 @@ def run_jobs(cmd_templates, output_filenames, argdicts, storage_dir, outputfile_
     assert len(cmd_templates) == len(output_filenames) == len(argdicts)
     num_cmds = len(cmd_templates)
     outputfile_dir = outputfile_dir if outputfile_dir is not None else 'logs_%s_%s' % (jobname, datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    rltools.util.mkdir_p(os.path.join(storage_dir, outputfile_dir))
     n_workers = mp.cpu_count() // 2
 
     cmds, outputfiles = [], []
