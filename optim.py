@@ -3,6 +3,7 @@ import scipy.sparse.linalg as ssl
 
 import nn
 import util
+import tfutil
 
 
 def btlinesearch(f, x0, fx0, g, dx, accept_ratio, shrink_factor, max_steps, verbose=False):
@@ -105,3 +106,63 @@ def ngstep(x0, obj0, objgrad0, obj_and_kl_func, hvpx0_func, max_kl, damping, max
         dx=fullstep,
         accept_ratio=.1, shrink_factor=.5, max_steps=10)
     return xnew, num_bt_steps
+
+
+def make_ngstep_func(model, compute_obj_kl, compute_obj_kl_with_grad, compute_hvp_helper):
+    """Make a wrapper for ngstep for classes that implement nn.Model
+
+    Subsamples inputs for faster Hessian-vector products
+    """
+    assert isinstance(model, nn.Model)
+
+    def wrapper(sess, feed, max_kl, damping,
+                subsample_hvp_frac=.1, grad_stop_tol=1e-6, max_cg_iter=10, enable_bt=True):
+        assert isinstance(feed, tuple)
+
+        params0 = model.get_params(sess)
+        obj0, kl0, objgrad0 = compute_obj_kl_with_grad(sess, *feed)
+        gnorm = util.maxnorm(objgrad0)
+        assert np.allclose(kl0, 0., atol=1e-6), 'Initial KL divergence is %.7f, but should be 0' % (kl0)
+
+        # Terminate early when gradient too small
+        if gnorm < grad_stop_tol:
+            obj1, kl1 = obj0, kl0
+            num_bt_steps = 0
+        else:
+            # Data subsampling for hvp
+            subsamp_feed = feed if subsample_hvp_frac is None else tfutil.subsample_feed(feed, subsample_hvp_frac)
+
+            def hvpx0_func(v):
+                def klgrad_func(p):
+                    with model.try_params(sess, params0):
+                        klgrad = compute_hvp_helper(sess, *subsamp_feed)
+                        return klgrad
+                return numdiff_hvp(v, klgrad_func, params0)
+
+            # Line search objective
+            def obj_and_kl_func(p):
+                with model.try_params(sess, p):
+                    obj, kl = compute_obj_kl(sess, *feed)
+                return -obj, kl
+
+            params1, num_bt_steps = ngstep(
+                x0=params0,
+                obj0=-obj0,
+                objgrad0=-objgrad0,
+                obj_and_kl_func=obj_and_kl_func,
+                hvpx0_func=hvpx0_func,
+                max_kl=max_kl,
+                damping=damping,
+                max_cg_iter=max_cg_iter,
+                enable_bt=enable_bt
+            )
+            model.set_params(sess, params1)
+            obj1, kl1 = compute_obj_kl(sess, *feed)
+        return [
+            ('dl', obj1 - obj0, float), # improvement of objective
+            ('kl', kl1, float),         # kl cost of solution
+            ('gnorm', gnorm, float),
+            ('bt', num_bt_steps, int),  # number of backtracking steps
+        ]
+
+    return wrapper

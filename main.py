@@ -7,14 +7,18 @@
 from __future__ import print_function
 from __future__ import absolute_import
 
+import sys
+sys.path.append('../rltools/')
+
 import numpy as np
 import tensorflow as tf
 
-import log
+import rltools.log
 import gym
-import algos
-from baseline import LinearFeatureBaseline, MLPBaseline
-from categorical_policy import CategoricalMLPPolicy
+import rltools.algos
+from rltools.baseline import LinearFeatureBaseline, MLPBaseline
+from rltools.categorical_policy import CategoricalMLPPolicy
+
 from madrl_environments.pursuit.centralized_pursuit_evade import CentralizedPursuitEvade
 from madrl_environments.pursuit.utils import TwoDMaps
 
@@ -39,8 +43,8 @@ def main():
     policy = CategoricalMLPPolicy(env.observation_space, env.action_space, hidden_spec=hidden_spec, enable_obsnorm=True, tblog=tboard_dir, varscope_name='catmlp_policy')
     baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True)
     # baseline = MLPBaseline(env.observation_space, val_spec, True, True, max_kl=0.001, time_scale=1., varscope_name='mlp_baseline')
-    step_func = algos.TRPO(max_kl=0.01)
-    popt = algos.SamplingPolicyOptimizer(
+    step_func = rltools.algos.TRPO(max_kl=0.01)
+    popt = rltools.algos.SamplingPolicyOptimizer(
         env=env,
         policy=policy,
         baseline=baseline,
@@ -50,7 +54,7 @@ def main():
     )
     save_file = '/tmp/s.h5'
     
-    log_f = log.TrainingLog(save_file, [])
+    log_f = rltools.log.TrainingLog(save_file, [])
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
         popt.train(sess, log_f)

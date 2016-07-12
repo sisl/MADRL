@@ -94,50 +94,7 @@ def TRPO(max_kl, subsample_hvp_frac=.25, damping=1e-2, grad_stop_tol=1e-6, max_c
 
         # Compute objective, KL divergence and gradietns at init point
         feed = (trajbatch.obsfeat.stacked, trajbatch.a.stacked, trajbatch.adist.stacked, advstacked_N)
-        reinfobj0, kl0, reinfobjgrad0 = policy.compute_reinfobj_kl_with_grad(sess, *feed)
-        # info0 = policy.compute(sess, feed, reinfobj=True, kl=True, reinfobjgrad=True, klgrad=True)
-        gnorm = util.maxnorm(reinfobjgrad0)
-        assert np.allclose(kl0, 0.0, atol=1e-07), "Initial KL divergence is %.7f, but should be 0" % (kl0)
 
-        # Terminate early if gradients are too small
-        if gnorm < grad_stop_tol:
-            reinfobj1 = reinfobj0
-            kl1 = kl0
-            num_bt_steps = 0
-        else:
-            # Take constrained ng step
-
-            # Data subsample for Hessain vector products
-            subsamp_feed = feed if subsample_hvp_frac is None else tfutil.subsample_feed(feed, subsample_hvp_frac)
-
-            def hvp_klgrad_func(p):
-                with policy.try_params(sess, p):
-                    return policy.compute_klgrad(sess, subsamp_feed[0], subsamp_feed[2])[0]
-
-            # Line search objective
-            def obj_and_kl_func(p):
-                with policy.try_params(sess, p):
-                    reinfobj, kl = policy.compute_reinfobj_kl(sess, *feed)
-                return -reinfobj, kl
-
-            params1_P, num_bt_steps = optim.ngstep(
-                x0=params0_P,    # current
-                obj0=-reinfobj0, # current
-                objgrad0=-reinfobjgrad0,
-                obj_and_kl_func=obj_and_kl_func,
-                hvpx0_func=hvp_klgrad_func,
-                max_kl=max_kl,
-                damping=damping,
-                max_cg_iter=max_cg_iter,
-                enable_bt=enable_bt
-            )
-            policy.set_params(sess, params1_P)
-            reinfobj1, kl1 = policy.compute_reinfobj_kl(sess, *feed)
-
-        return [
-            ('dl', reinfobj1 - reinfobj0, float), # improvement of objective
-            ('kl', kl1, float),                        # kl cost of solution
-            ('bt', num_bt_steps, int),                     # number of backtracking steps
-            ('gnorm', gnorm, float)
-        ]
+        step_info = policy._ngstep(sess, feed, max_kl=max_kl, damping=damping, subsample_hvp_frac=subsample_hvp_frac, grad_stop_tol=grad_stop_tol)
+        return step_info
     return trpo_step

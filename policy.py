@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 import nn
+import optim
 import util
 import tfutil
 
@@ -79,6 +80,10 @@ class StochasticPolicy(Policy):
             # KL gradient for TRPO
             self._kl_grad_P = tfutil.flatcat(tf.gradients(self._kl, self._param_vars))
 
+            self._ngstep = optim.make_ngstep_func(self, compute_obj_kl=self.compute_reinfobj_kl,
+                                         compute_obj_kl_with_grad=self.compute_reinfobj_kl_with_grad,
+                                         compute_hvp_helper=self.compute_klgrad)
+
             # # Check
             # self._check_numerics = tf.add_check_numeric_ops()
 
@@ -98,7 +103,7 @@ class StochasticPolicy(Policy):
     @property
     def distribution(self):
         raise NotImplementedError()
-    
+
     def update_obsnorm(self, sess, obs_B_Do):
         """Update norms using moving avg"""
         self.obsnorm.update(sess, obs_B_Do)
@@ -122,7 +127,7 @@ class StochasticPolicy(Policy):
 
     def _compute_actiondist_entropy(self, actiondist_B_Pa):
         raise NotImplementedError()
-    
+
     def _compute_internal_normalized_obsfeat(self, sess, obsfeat_B_Df):
         return sess.run(self._normalized_obsfeat_B_Df, {self._obsfeat_B_Df: obsfeat_B_Df})
 
@@ -144,25 +149,25 @@ class StochasticPolicy(Policy):
     def compute_kl_cost(self, sess, obsfeat_B_Df, proposal_actiondist_B_Pa):
         return sess.run(self._kl, {self._obsfeat_B_Df: obsfeat_B_Df,
                                    self._proposal_actiondist_B_Pa: proposal_actiondist_B_Pa})
-    
+
     def compute_reinfobj_kl(self, sess, obsfeat_B_Df, input_action_B_Da, proposal_actiondist_B_Pa, advantage_B):
         return sess.run([self._reinfobj, self._kl],
                         {self._obsfeat_B_Df: obsfeat_B_Df,
                          self._input_action_B_Da: input_action_B_Da,
                          self._proposal_actiondist_B_Pa: proposal_actiondist_B_Pa,
                          self._advantage_B: advantage_B})
-    
+
     def compute_reinfobj_kl_with_grad(self, sess, obsfeat_B_Df, input_action_B_Da, proposal_actiondist_B_Pa, advantage_B):
         return sess.run([self._reinfobj, self._kl, self._reinfobj_grad_P],
                         {self._obsfeat_B_Df: obsfeat_B_Df,
                          self._input_action_B_Da: input_action_B_Da,
                          self._proposal_actiondist_B_Pa: proposal_actiondist_B_Pa,
                          self._advantage_B: advantage_B})
-    
-    def compute_klgrad(self, sess, obsfeat_B_Df, proposal_actiondist_B_Pa):
-        return sess.run([self._kl_grad_P], {self._obsfeat_B_Df: obsfeat_B_Df,
+
+    def compute_klgrad(self, sess, obsfeat_B_Df, input_action_B_Da, proposal_actiondist_B_Pa, advantage_B):
+        return sess.run(self._kl_grad_P, {self._obsfeat_B_Df: obsfeat_B_Df,
                                             self._proposal_actiondist_B_Pa: proposal_actiondist_B_Pa}) # TODO check if we need more
-    
+
     # TODO penobj computes
 
     def set_params(self, sess, params_P):
@@ -182,4 +187,3 @@ class StochasticPolicy(Policy):
 
     def take_desent_step(self, sess, grad_P, learning_rate):
         sess.run(self._take_descent_step, {self._flatparams_P: grad_P, self._learning_rate: learning_rate})
-

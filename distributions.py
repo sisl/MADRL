@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 
 class Distribution(object):
@@ -34,3 +35,9 @@ class Categorical(Distribution):
         """Sample from N categorical distributions, each over K outcomes"""
         N, K = probs_N_K.shape
         return np.array([np.random.choice(K, p=probs_N_K[i,:]) for i in xrange(N)])
+
+    def kl_expr(self, logprobs1_B_A, logprobs2_B_A, name=None):
+        """KL divergence between categorical distributions, specified as log probabilities"""
+        with tf.op_scope([logprobs1_B_A, logprobs2_B_A], name, 'categorical_kl') as scope:
+            kl_B = tf.reduce_sum(tf.exp(logprobs1_B_A) * (logprobs1_B_A - logprobs2_B_A), 1, name=scope)
+        return kl_B
