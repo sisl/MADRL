@@ -1,0 +1,28 @@
+training:
+  runs: 1
+  baselines: ['linear', 'mlp']
+  algorithms:
+    - name: centralized
+      cmd: >
+        python simple.py --baseline_type {baseline_type}
+        --discount {discount}
+        --gae_lambda {gae_lambda}
+        --rectangle {rectangle}
+        --n_evaders {n_evaders}
+        --n_pursuers {n_pursuers}
+        --obs_range {obs_range}
+        --n_catch {n_catch}
+        --log {log}
+        
+rectangles: ['10,10', '16,16', '32,32']
+n_evaders: [5, 10, 15]
+n_pursuers: [2, 5, 10]
+obs_ranges: [3, 5, 7, 9]
+n_catches: [2, 3]
+discounts: [0.99, 0.95]
+gae_lambdas: [1, 0.99, 0.97]
+
+        
+options:
+  storagedir: /tmp/spec/
+  checkpt_subdir: checkpoints  
