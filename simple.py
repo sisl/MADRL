@@ -42,7 +42,7 @@ def main():
     tboard_dir = '/tmp/madrl_tb'
     policy = CategoricalMLPPolicy(env.observation_space, env.action_space, hidden_spec=hidden_spec, enable_obsnorm=True, tblog=tboard_dir, varscope_name='catmlp_policy')
     baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True)
-    # baseline = MLPBaseline(env.observation_space, val_spec, True, True, max_kl=0.001, time_scale=1., varscope_name='mlp_baseline')
+    #baseline = MLPBaseline(env.observation_space, val_spec, True, True, max_kl=0.01, damping=1e-2, time_scale=1., varscope_name='mlp_baseline')
     step_func = rltools.algos.TRPO(max_kl=0.01)
     popt = rltools.algos.SamplingPolicyOptimizer(
         env=env,
