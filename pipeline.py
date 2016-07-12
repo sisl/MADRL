@@ -103,7 +103,7 @@ def phase_train(spec, spec_file):
                                 for disc in spec['discounts']:
                                     for gae in spec['gae_lambdas']:
                                         for run in range(spec['training']['runs']):
-                                            strid = 'alg={},bline={},rect={},n_ev={},n_pu={},orng={},n_ca={},disc={},run={}'.format(alg['name'], bline, rect, n_ev, n_pu, orng, n_ca, disc, run)
+                                            strid = 'alg={},bline={},rect={},n_ev={},n_pu={},orng={},n_ca={},disc={},gae={},run={}'.format(alg['name'], bline, rect, n_ev, n_pu, orng, n_ca, disc, gae, run)
                                             cmd_templates.append(alg['cmd'].replace('\n', ' ').strip())
                                             output_filenames.append(strid + '.txt')
                                             argdicts.append({
