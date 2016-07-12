@@ -18,6 +18,11 @@ import yaml
 
 import rltools.util
 
+# Fix python 2.x
+try:
+    input = raw_input
+except NameError:
+    pass
 
 def runcommand(cmd):
     try:
@@ -64,7 +69,7 @@ def run_jobs(cmd_templates, output_filenames, argdicts, outputfile_dir=None, job
     for cmd, ofile in zip(cmds, outputfiles):
         work_queue.put(cmd)
         res_queue.put(ofile)
-        
+
     worker = []
     for i in range(n_workers):
         worker.append(Worker(work_queue, res_queue))
@@ -86,7 +91,13 @@ def phase_train(spec, spec_file):
                 for n_ev in spec['n_evaders']:
                     for n_pu in spec['n_pursuers']:
                         for orng in spec['obs_ranges']:
+                            # observation range can't be bigger than the board
+                            if orng > max(map(int, rect.split(','))):
+                                continue
                             for n_ca in spec['n_catches']:
+                                # number of simulataneous catches can't be bigger than numer of pusuers
+                                if n_ca > n_pu:
+                                    continue
                                 for disc in spec['discounts']:
                                     for gae in spec['gae_lambdas']:
                                         for run in range(spec['training']['runs']):
@@ -105,7 +116,13 @@ def phase_train(spec, spec_file):
                                                 'log': os.path.join(checkptdir, strid+'.h5')
                                             })
 
-    run_jobs(cmd_templates, output_filenames, argdicts)
+    rltools.util.ok('{} jobs to run...'.format(len(cmd_templates)))
+    rltools.util.warn('Continue? y/n')
+    if input() == 'y':
+        run_jobs(cmd_templates, output_filenames, argdicts)
+    else:
+        rltools.util.failure('Canceled.')
+        sys.exit(1)
 
     # Copy the pipeline yaml file to the output dir too
     shutil.copyfile(spec_file, os.path.join(checkptdir, 'pipeline.yaml'))
