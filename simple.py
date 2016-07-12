@@ -54,6 +54,7 @@ def main():
     parser.add_argument('--discount', type=float, default=0.95)
     parser.add_argument('--gae_lambda', type=float, default=0.99)
     parser.add_argument('--max_traj_len', type=int, default=200)
+    parser.add_argument('--adaptive_batch', action='store_true', default=False)
     parser.add_argument('--rectangle', type=str, default='10,10')
     parser.add_argument('--n_evaders', type=int, default=5)
     parser.add_argument('--n_pursuers', type=int, default=2)
@@ -96,7 +97,8 @@ def main():
         step_func=step_func,
         discount=args.discount,
         gae_lambda=args.gae_lambda,
-        batch_size=32
+        batch_size=32,
+        adaptive_batch=args.adaptive_batch
     )
     argstr = json.dumps(vars(args), separators=(',', ':'), indent=2)
     rltools.util.header(argstr)
