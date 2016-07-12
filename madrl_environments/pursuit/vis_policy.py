@@ -40,9 +40,14 @@ net = softmax_mlp(input_obs, env.action_space.n, layers=[128,128], activation=tf
 
 solver = TRPOSolver(env, config=config, policy_net=net, input_layer=input_obs)
 
-model_path = "data/obs_range_sweep_2layer/obs_range_5/run4/"
+#model_path = "data/obs_range_sweep_2layer/obs_range_9/run1/"
+model_path = "data/obs_range_sweep_2layer_random_evaders_urgency/obs_range_5/run1/"
 
 solver.load(model_path+"final_model.ckpt")
 d = solver.load_stats(model_path+"final_stats.txt")
+
+#ims = env.animate(solver, 100, "eval_scripts/results/animations/one_evader_two_pursuers_or_5.mp4", interval=500)
+solver.train = False # deterministic policy
+env.animate(solver, 100, "eval_scripts/results/animations/one_evader_two_pursuers_urgency_range_5.mp4", rate=1.5)
 
 #simulate(env, solver, 100, render=True)

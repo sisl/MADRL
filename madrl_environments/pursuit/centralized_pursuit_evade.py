@@ -6,7 +6,13 @@ from utils.Controllers import RandomPolicy
 from utils.AgentLayer import AgentLayer
 
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from matplotlib.patches import Rectangle
+
+import os
+import glob
+from os.path import join
+from subprocess import call
 
 
 #################################################################
@@ -170,6 +176,53 @@ class CentralizedPursuitEvade():
         plt.pause(self.plt_delay)
         plt.clf()
 
+
+    def animate(self, policy, nsteps, file_name, rate=1.5):
+        """
+            Save an animation to an mp4 file.
+        """
+        plt.figure(0)
+        # run sim loop
+        o = self.reset() 
+        file_path = "/".join(file_name.split("/")[0:-1])
+        temp_name = join(file_path, "temp_0.png")
+        # generate .pngs
+        self.save_image(temp_name)
+        for i in xrange(nsteps):
+            a, adist = policy.act(o)
+            o, r, done, _ = self.step(a)
+            temp_name = join(file_path, "temp_" + str(i+1) + ".png")
+            self.save_image(temp_name)
+            if done:
+                break
+        # use ffmpeg to create .pngs to .mp4 movie
+        ffmpeg_cmd = "ffmpeg -framerate " + str(rate) +  " -i " + join(file_path, "temp_%d.png") + " -c:v libx264 -pix_fmt yuv420p " + file_name
+        call(ffmpeg_cmd.split())
+        # clean-up by removing .pngs
+        map(os.remove, glob.glob(join(file_path, "temp_*")))
+
+
+    def save_image(self, file_name):
+        plt.cla()
+        plt.matshow(self.model_state[0].T, cmap=plt.get_cmap('Greys'), fignum=0)
+        x,y = self.pursuer_layer.get_position(0)
+        plt.plot(x, y, "r*", markersize=12)
+        for i in xrange(self.pursuer_layer.n_agents()):
+            x,y = self.pursuer_layer.get_position(i)
+            plt.plot(x, y, "r*", markersize=12)
+            ax = plt.gca()
+            ofst = self.obs_range / 2.0
+            ax.add_patch(Rectangle((x-ofst,y-ofst), self.obs_range, self.obs_range, alpha=0.5, facecolor="#FF9848"))
+        for i in xrange(self.evader_layer.n_agents()):
+            x,y = self.evader_layer.get_position(i)
+            plt.plot(x, y, "b*", markersize=12) 
+
+        xl, xh = -self.obs_offset - 1, self.xs + self.obs_offset + 1 
+        yl, yh = -self.obs_offset - 1, self.ys + self.obs_offset + 1 
+        plt.xlim([xl, xh])
+        plt.ylim([yl,yh])
+        plt.savefig(file_name)
+        
 
     def sample_action(self):
         # returns a list of actions
