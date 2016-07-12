@@ -53,7 +53,7 @@ class Worker(mp.Process):
                 f.write(rtn_val + '\n')
 
 
-def run_jobs(cmd_templates, output_filenames, argdicts, outputfile_dir=None, jobname=None):
+def run_jobs(cmd_templates, output_filenames, argdicts, storage_dir, outputfile_dir=None, jobname=None):
     assert len(cmd_templates) == len(output_filenames) == len(argdicts)
     num_cmds = len(cmd_templates)
     outputfile_dir = outputfile_dir if outputfile_dir is not None else 'logs_%s_%s' % (jobname, datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
@@ -62,7 +62,7 @@ def run_jobs(cmd_templates, output_filenames, argdicts, outputfile_dir=None, job
     cmds, outputfiles = [], []
     for i in range(num_cmds):
         cmds.append(cmd_templates[i].format(**argdicts[i]))
-        outputfiles.append(os.path.join(outputfile_dir, '{:04d}_{}'.format(i+1, output_filenames[i])))
+        outputfiles.append(os.path.join(storage_dir, outputfile_dir, '{:04d}_{}'.format(i+1, output_filenames[i])))
 
     work_queue = mp.Queue()
     res_queue = mp.Queue()
@@ -80,6 +80,7 @@ def phase_train(spec, spec_file):
     rltools.util.header('=== Running {} ==='.format(spec_file))
 
     # Make checkpoint dir. All outputs go here
+    storagedir = spec['options']['storagedir']
     checkptdir = os.path.join(spec['options']['storagedir'], spec['options']['checkpt_subdir'])
     rltools.util.mkdir_p(checkptdir)
     assert not os.listdir(checkptdir), 'Checkpoint directory {} is not empty!'.format(checkptdir)
@@ -119,7 +120,7 @@ def phase_train(spec, spec_file):
     rltools.util.ok('{} jobs to run...'.format(len(cmd_templates)))
     rltools.util.warn('Continue? y/n')
     if input() == 'y':
-        run_jobs(cmd_templates, output_filenames, argdicts)
+        run_jobs(cmd_templates, output_filenames, argdicts, storagedir)
     else:
         rltools.util.failure('Canceled.')
         sys.exit(1)
