@@ -19,7 +19,7 @@ from subprocess import call
 # Implements an Evade Pursuit Problem in 2D
 #################################################################
 
-class CentralizedPursuitEvade():
+class DecPursuitEvade():
 
     def __init__(self, map_matrix, **kwargs):
 
@@ -93,22 +93,26 @@ class CentralizedPursuitEvade():
 
 
         if self.train_pursuit:
-            self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
-            self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
-            self.action_space = spaces.Discrete(n_act_purs**self.n_pursuers)
+            self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2)])
+            self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2)])
+            self.action_space = spaces.Discrete(n_act_purs)
             self.observation_space = spaces.Box(self.low, self.high)
             self.local_obs = np.zeros((self.n_pursuers, 3, self.obs_range, self.obs_range)) # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_pursuers)]
+            self.n_agents = self.n_pursuers
         else:
-            self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2 * self.n_evaders)])
-            self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2 * self.n_evaders)])
-            self.action_space = spaces.Discrete(n_act_purs**self.n_evaders)
+            self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2)])
+            self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2)])
+            self.action_space = spaces.Discrete(n_act_ev)
             self.observation_space = spaces.Box(self.low, self.high)
             self.local_obs = np.zeros((self.n_evaders, 3, self.obs_range, self.obs_range)) # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_evaders)]
+            self.n_agents = self.n_evaders
 
 
         self.initial_config = kwargs.pop('initial_config', {})
+
+        self.current_agent = kwargs.pop('current_agent', 0)
 
         self.model_dims = (4,) + map_matrix.shape
 
@@ -140,7 +144,6 @@ class CentralizedPursuitEvade():
             return self.collect_obs(self.evader_layer)
 
 
-
     def step(self, actions):
         """
             Step the system forward. Actions is an iterable of action indecies.
@@ -158,15 +161,8 @@ class CentralizedPursuitEvade():
             opponent_controller = self.pursuer_controller
 
         # move allies
-        if actions is list:
-            # move all agents
-            for i, a in enumerate(actions):
-                agent_layer.move_agent(i, a)
-        else:
-            # ravel it up
-            act_idxs = np.unravel_index(actions, self.act_dims)
-            for i, a in enumerate(act_idxs):
-                agent_layer.move_agent(i, a)
+        for i, a in enumerate(actions):
+            agent_layer.move_agent(i, a)
 
         # move opponents
         for i in xrange(opponent_layer.n_agents()):
@@ -302,21 +298,27 @@ class CentralizedPursuitEvade():
 
     #################################################################
 
-
     def collect_obs(self, agent_layer):
+        obs = []
+        for i in xrange(agent_layer.n_agents()):
+            o = self.collect_obs_by_idx(agent_layer, i)
+            obs.append(o)
+        return obs
+
+
+    def collect_obs_by_idx(self, agent_layer, agent_idx):
         # returns a flattened array of all the observations
         n = agent_layer.n_agents()
         self.local_obs.fill(-0.1) # border walls set to -0.1?
         # loop through agents
-        for i in xrange(n):
-            # get the obs bounds
-            xp, yp = agent_layer.get_position(i)
-            
-            xlo,xhi,ylo,yhi, xolo,xohi,yolo,yohi = self.obs_clip(xp, yp)
+        # get the obs bounds
+        xp, yp = agent_layer.get_position(agent_idx)
+        
+        xlo,xhi,ylo,yhi, xolo,xohi,yolo,yohi = self.obs_clip(xp, yp)
 
-            self.local_obs[i, :, xolo:xohi, yolo:yohi] = self.model_state[0:3, xlo:xhi, ylo:yhi]
+        self.local_obs[agent_idx, :, xolo:xohi, yolo:yohi] = self.model_state[0:3, xlo:xhi, ylo:yhi]
         if self.flatten: return self.local_obs.flatten() / self.layer_norm
-        return self.local_obs / self.layer_norm
+        return self.local_obs[agent_idx] / self.layer_norm
         
 
     def obs_clip(self, x, y):
