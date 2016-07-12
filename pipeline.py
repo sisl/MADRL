@@ -53,12 +53,11 @@ class Worker(mp.Process):
                 f.write(rtn_val + '\n')
 
 
-def run_jobs(cmd_templates, output_filenames, argdicts, storage_dir, outputfile_dir=None, jobname=None):
+def run_jobs(cmd_templates, output_filenames, argdicts, storage_dir, outputfile_dir=None, jobname=None, n_workers=4):
     assert len(cmd_templates) == len(output_filenames) == len(argdicts)
     num_cmds = len(cmd_templates)
     outputfile_dir = outputfile_dir if outputfile_dir is not None else 'logs_%s_%s' % (jobname, datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
     rltools.util.mkdir_p(os.path.join(storage_dir, outputfile_dir))
-    n_workers = mp.cpu_count() // 2
 
     cmds, outputfiles = [], []
     for i in range(num_cmds):
@@ -103,7 +102,7 @@ def phase_train(spec, spec_file):
                                 for disc in spec['discounts']:
                                     for gae in spec['gae_lambdas']:
                                         for run in range(spec['training']['runs']):
-                                            strid = 'alg={},bline={},rect={},n_ev={},n_pu={},orng={},n_ca={},disc={},run={}'.format(alg['name'], bline, rect, n_ev, n_pu, orng, n_ca, disc, run)
+                                            strid = 'alg={},bline={},rect={},n_ev={},n_pu={},orng={},n_ca={},disc={},gae={},run={}'.format(alg['name'], bline, rect, n_ev, n_pu, orng, n_ca, disc, gae, run)
                                             cmd_templates.append(alg['cmd'].replace('\n', ' ').strip())
                                             output_filenames.append(strid + '.txt')
                                             argdicts.append({
