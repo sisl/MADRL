@@ -116,9 +116,9 @@ def main():
                                          enable_obsnorm=True,
                                          tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
         evade_policy = PursuitCentralMLPPolicy(env.observation_space, env.action_space,
-                                      hidden_spec=args.policy_hidden_spec,
-                                      enable_obsnorm=True,
-                                      tblog=tboard_dir, varscope_name='evade_catmlp_policy')
+                                         hidden_spec=args.policy_hidden_spec,
+                                         enable_obsnorm=True,
+                                         tblog=args.tblog, varscope_name='evade_catmlp_policy')
     else:
         pursuit_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
                                       hidden_spec=args.policy_hidden_spec,
@@ -128,7 +128,7 @@ def main():
         evade_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
                                       hidden_spec=args.policy_hidden_spec,
                                       enable_obsnorm=True,
-                                      tblog=tboard_dir, varscope_name='evade_catmlp_policy')
+                                      tblog=args.tblog, varscope_name='evade_catmlp_policy')
 
     if args.baseline_type == 'linear':
         pursuit_baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True,
