@@ -41,12 +41,12 @@ class CentralizedPursuitEvade():
             initial_config['allies']: the initial ally confidguration (matrix)
             initial_config['opponents']: the initial opponent confidguration (matrix)
         """
-        
+
         xs, ys = map_matrix.shape
         self.map_matrix = map_matrix
         self.xs = xs
         self.ys = ys
-        
+
         self.n_evaders = kwargs.pop('n_evaders', 1)
         self.n_pursuers = kwargs.pop('n_pursuers', 1)
 
@@ -58,14 +58,14 @@ class CentralizedPursuitEvade():
         evaders = agent_utils.create_agents(self.n_evaders, map_matrix)
 
         self.pursuer_layer = kwargs.pop('ally_layer', AgentLayer(xs, ys, pursuers))
-        self.evader_layer = kwargs.pop('opponent_layer', AgentLayer(xs, ys, evaders)) 
+        self.evader_layer = kwargs.pop('opponent_layer', AgentLayer(xs, ys, evaders))
 
         self.layer_norm = kwargs.pop('layer_norm', 10)
         self.flatten = kwargs.pop('flatten', True)
 
         self.n_catch = kwargs.pop('n_catch', 2)
 
-        self.plt_delay = kwargs.pop('plt_delay', 1.0) 
+        self.plt_delay = kwargs.pop('plt_delay', 1.0)
 
         self.random_opponents = kwargs.pop('random_opponents', False)
         self.max_opponents = kwargs.pop('max_opponents', 10)
@@ -74,7 +74,7 @@ class CentralizedPursuitEvade():
         n_act_ev = self.evader_layer.get_nactions(0)
 
         self.evader_controller = kwargs.pop('evader_controller', RandomPolicy(n_act_purs))
-        self.pursuer_controller = kwargs.pop('pursuer_controller', RandomPolicy(n_act_ev)) 
+        self.pursuer_controller = kwargs.pop('pursuer_controller', RandomPolicy(n_act_ev))
 
         self.current_agent_layer = np.zeros((xs, ys), dtype=np.int32)
 
@@ -117,7 +117,7 @@ class CentralizedPursuitEvade():
         self.model_state = np.zeros(self.model_dims, dtype=np.float32)
 
     #################################################################
-    # The functions below are the interface with MultiAgentSiulator # 
+    # The functions below are the interface with MultiAgentSiulator #
     #################################################################
 
     def reset(self):
@@ -127,7 +127,7 @@ class CentralizedPursuitEvade():
             else:
                 self.n_pursuers = np.random.randint(1,self.max_opponents)
 
-        self.pursuer_layer = AgentLayer(self.xs, self.ys, 
+        self.pursuer_layer = AgentLayer(self.xs, self.ys,
                                 agent_utils.create_agents(self.n_pursuers, self.map_matrix, randinit=True))
         self.evader_layer = AgentLayer(self.xs, self.ys,
                                   agent_utils.create_agents(self.n_evaders, self.map_matrix, randinit=True))
@@ -215,20 +215,20 @@ class CentralizedPursuitEvade():
         plt.clf()
 
 
-    def animate(self, policy, nsteps, file_name, rate=1.5):
+    def animate(self, act_fn, nsteps, file_name, rate=1.5):
         """
             Save an animation to an mp4 file.
         """
         plt.figure(0)
         # run sim loop
-        o = self.reset() 
+        o = self.reset()
         file_path = "/".join(file_name.split("/")[0:-1])
         temp_name = join(file_path, "temp_0.png")
         # generate .pngs
         self.save_image(temp_name)
         for i in xrange(nsteps):
-            a, adist = policy.act(o)
-            o, r, done, _ = self.step(a)
+            a, adist = act_fn(o)
+            o, r, done, _ = self.step(a[0,0])
             temp_name = join(file_path, "temp_" + str(i+1) + ".png")
             self.save_image(temp_name)
             if done:
@@ -254,18 +254,19 @@ class CentralizedPursuitEvade():
                 ax.add_patch(Rectangle((x-ofst,y-ofst), self.obs_range, self.obs_range, alpha=0.5, facecolor="#FF9848"))
         for i in xrange(self.evader_layer.n_agents()):
             x,y = self.evader_layer.get_position(i)
-            plt.plot(x, y, "b*", markersize=12) 
+            plt.plot(x, y, "b*", markersize=12)
             if not self.train_pursuit:
                 ax = plt.gca()
                 ofst = self.obs_range / 2.0
                 ax.add_patch(Rectangle((x-ofst,y-ofst), self.obs_range, self.obs_range, alpha=0.5, facecolor="#009ACD"))
 
-        xl, xh = -self.obs_offset - 1, self.xs + self.obs_offset + 1 
-        yl, yh = -self.obs_offset - 1, self.ys + self.obs_offset + 1 
+        xl, xh = -self.obs_offset - 1, self.xs + self.obs_offset + 1
+        yl, yh = -self.obs_offset - 1, self.ys + self.obs_offset + 1
         plt.xlim([xl, xh])
         plt.ylim([yl,yh])
-        plt.savefig(file_name)
-        
+        plt.axis('off')
+        plt.savefig(file_name, dpi=200)
+
 
     def sample_action(self):
         # returns a list of actions
@@ -311,13 +312,13 @@ class CentralizedPursuitEvade():
         for i in xrange(n):
             # get the obs bounds
             xp, yp = agent_layer.get_position(i)
-            
+
             xlo,xhi,ylo,yhi, xolo,xohi,yolo,yohi = self.obs_clip(xp, yp)
 
             self.local_obs[i, :, xolo:xohi, yolo:yohi] = self.model_state[0:3, xlo:xhi, ylo:yhi]
         if self.flatten: return self.local_obs.flatten() / self.layer_norm
         return self.local_obs / self.layer_norm
-        
+
 
     def obs_clip(self, x, y):
         # :( this is a mess, beter way to do the slicing?
@@ -326,7 +327,7 @@ class CentralizedPursuitEvade():
         yld = y - self.obs_offset
         yhd = y + self.obs_offset
         xlo, xhi, ylo, yhi = (np.clip(xld, 0, self.xs-1), np.clip(xhd, 0, self.xs-1), np.clip(yld, 0, self.ys-1), np.clip(yhd, 0, self.ys-1))
-        xolo, yolo = abs(np.clip(xld, -self.obs_offset, 0)), abs(np.clip(yld, -self.obs_offset, 0)) 
+        xolo, yolo = abs(np.clip(xld, -self.obs_offset, 0)), abs(np.clip(yld, -self.obs_offset, 0))
         xohi, yohi = xolo + (xhi - xlo), yolo + (yhi - ylo)
         return xlo, xhi+1, ylo, yhi+1, xolo, xohi+1, yolo, yohi+1
 
@@ -340,7 +341,7 @@ class CentralizedPursuitEvade():
         es = self.evader_layer.get_state_matrix() # evader positions
         tagged = np.sum((ps > 0) * es) # number of tagged evaders
         rtot = self.catchr * tagged
-        return rtot 
+        return rtot
 
 
     def evader_reward(self):
@@ -352,7 +353,7 @@ class CentralizedPursuitEvade():
         es = self.evader_layer.get_state_matrix() # evader positions
         tagged = np.sum((ps > 0) * es) # number of tagged evaders
         rtot = self.caughtr * tagged
-        return rtot 
+        return rtot
 
 
     def remove_agents(self):
@@ -402,7 +403,7 @@ class CentralizedPursuitEvade():
         self.model_state[0] = self.map_matrix
         self.model_state[1], self.model_state[2] = self.opponent_layer.get_state_matrix(), self.ally_layer.get_state_matrix()
         self.model_state[3] = agent_state
-        return self.model_state 
+        return self.model_state
 
     def get_layers_evader(self, agent_idx):
         """
@@ -435,7 +436,7 @@ class CentralizedPursuitEvade():
         for i in xrange(self.n_evaders):
             state = self.get_layers_evader(i)
             evader_actions[i] = self.opponent_controller.action(state)
-        
+
         # evolve the system
         for i in xrange(self.n_pursuers):
             if i == agent_idx: continue
@@ -464,7 +465,7 @@ class CentralizedPursuitEvade():
             if i == agent_idx: continue
             state = self.get_layers_evader(i)
             evader_actions[i] = self.opponent_controller.action(state)
-        
+
         # evolve the system
         for i in xrange(self.n_pursuers):
             pursuers.move_agent(i, pursuer_actions[i])
@@ -491,10 +492,9 @@ class CentralizedPursuitEvade():
         for i in xrange(self.n_evaders):
             state = self.get_layers_evader(i)
             evader_actions[i] = self.opponent_controller.action(state)
-        
+
         # evolve the system
         for i in xrange(self.n_pursuers):
             pursuers.move_agent(i, pursuer_actions[i])
         for i in xrange(self.n_evaders):
             evaders.move_agent(i, evader_actions[i])
-

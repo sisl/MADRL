@@ -47,7 +47,7 @@ class Worker(mp.Process):
                 outfile = self.result_queue.get_nowait()
             except:
                 break
-
+            print 'Starting job:', job
             rtn_val = runcommand(job)
             with open(outfile, 'w') as f:
                 f.write(rtn_val + '\n')

@@ -13,6 +13,20 @@ training:
         --obs_range {obs_range}
         --n_catch {n_catch}
         --log {log}
+        --no-debug
+    - name: decentralized
+      cmd: >
+        python simple.py --baseline_type {baseline_type}
+        --control decentralized
+        --discount {discount}
+        --gae_lambda {gae_lambda}
+        --rectangle {rectangle}
+        --n_evaders {n_evaders}
+        --n_pursuers {n_pursuers}
+        --obs_range {obs_range}
+        --n_catch {n_catch}
+        --log {log}
+        --no-debug
         
 rectangles: ['10,10', '16,16', '32,32']
 n_evaders: [5, 10, 15]

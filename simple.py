@@ -54,6 +54,7 @@ def main():
     parser.add_argument('--discount', type=float, default=0.95)
     parser.add_argument('--gae_lambda', type=float, default=0.99)
 
+    parser.add_argument('--n_iter', type=int, default=250)
     parser.add_argument('--sampler', type=str, default='simple')
     parser.add_argument('--max_traj_len', type=int, default=200)
     parser.add_argument('--adaptive_batch', action='store_true', default=False)
@@ -85,6 +86,11 @@ def main():
 
     parser.add_argument('--save_freq', type=int, default=20)
     parser.add_argument('--log', type=str, required=False)
+    parser.add_argument('--tblog', type=str, default='/tmp/madrl_tb')
+    parser.add_argument('--debug', dest='debug', action='store_true')
+    parser.add_argument('--no-debug', dest='debug', action='store_false')
+    parser.set_defaults(debug=True)
+
     args = parser.parse_args()
 
     if args.control == 'centralized':
@@ -106,7 +112,7 @@ def main():
     pursuit_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
                                   hidden_spec=args.policy_hidden_spec,
                                   enable_obsnorm=True,
-                                  tblog=tboard_dir, varscope_name='pursuit_catmlp_policy')
+                                  tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
 
     evade_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
                                   hidden_spec=args.policy_hidden_spec,
@@ -114,8 +120,10 @@ def main():
                                   tblog=tboard_dir, varscope_name='evade_catmlp_policy')
 
     if args.baseline_type == 'linear':
-        pursuit_baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True)
-        evade_baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True)
+        pursuit_baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True,
+                               varscope_name='pursuit_linear_baseline')
+        evade_baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True,
+                               varscope_name='evade_linear_baseline')
     elif args.baseline_type == 'mlp':
         pursuit_baseline = MLPBaseline(env.observation_space, args.baseline_hidden_spec,
                                True, True, max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
@@ -165,10 +173,11 @@ def main():
         gae_lambda=args.gae_lambda,
         sampler_cls=sampler_cls,
         sampler_args=sampler_args,
+        n_iter=args.n_iter
     )
     argstr = json.dumps(vars(args), separators=(',', ':'), indent=2)
     rltools.util.header(argstr)
-    log_f = rltools.log.TrainingLog(args.log, [('args', argstr)])
+    log_f = rltools.log.TrainingLog(args.log, [('args', argstr)], debug=args.debug)
 
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
