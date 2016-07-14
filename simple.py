@@ -85,17 +85,18 @@ def main():
 
     parser.add_argument('--save_freq', type=int, default=20)
     parser.add_argument('--log', type=str, required=False)
+    parser.add_argument('--tblog', type=str, default='/tmp/madrl_tb')
+
     args = parser.parse_args()
     env = CentralizedPursuitEvade(TwoDMaps.rectangle_map(*map(int, args.rectangle.split(','))),
                                   n_evaders=args.n_evaders,
                                   n_pursuers=args.n_pursuers,
                                   obs_range=args.obs_range,
                                   n_catch=args.n_catch)
-    tboard_dir = '/tmp/madrl_tb'
     policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
                                   hidden_spec=args.policy_hidden_spec,
                                   enable_obsnorm=True,
-                                  tblog=tboard_dir, varscope_name='catmlp_policy')
+                                  tblog=args.tblog, varscope_name='catmlp_policy')
 
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True)
