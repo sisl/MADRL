@@ -99,7 +99,7 @@ class DecPursuitEvade():
             self.observation_space = spaces.Box(self.low, self.high)
             self.local_obs = np.zeros((self.n_pursuers, 3, self.obs_range, self.obs_range)) # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_pursuers)]
-            self.n_agents = self.n_pursuers
+            self.agent_gone = np.array([False for i in xrange(self.n_pursuers)])
         else:
             self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2)])
             self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2)])
@@ -107,7 +107,7 @@ class DecPursuitEvade():
             self.observation_space = spaces.Box(self.low, self.high)
             self.local_obs = np.zeros((self.n_evaders, 3, self.obs_range, self.obs_range)) # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_evaders)]
-            self.n_agents = self.n_evaders
+            self.agent_gone = np.array([False for i in xrange(self.n_evaders)])
 
 
         self.initial_config = kwargs.pop('initial_config', {})
@@ -125,6 +125,7 @@ class DecPursuitEvade():
     #################################################################
 
     def reset(self):
+        self.agent_gone.fill(False)
         if self.random_opponents:
             if self.train_pursuit:
                 self.n_evaders = np.random.randint(1,self.max_opponents)
@@ -298,6 +299,10 @@ class DecPursuitEvade():
 
     #################################################################
 
+    def n_agents(self):
+        n = self.pursuer_layer.n_agents() if self.train_pursuit else self.evader_layer.n_agents()
+        return n
+
     def collect_obs(self, agent_layer):
         obs = []
         for i in xrange(agent_layer.n_agents()):
@@ -307,6 +312,7 @@ class DecPursuitEvade():
 
 
     def collect_obs_by_idx(self, agent_layer, agent_idx):
+        if self.agent_gone[agent_idx]: return None
         # returns a flattened array of all the observations
         n = agent_layer.n_agents()
         self.local_obs.fill(-0.1) # border walls set to -0.1?
@@ -317,7 +323,7 @@ class DecPursuitEvade():
         xlo,xhi,ylo,yhi, xolo,xohi,yolo,yohi = self.obs_clip(xp, yp)
 
         self.local_obs[agent_idx, :, xolo:xohi, yolo:yohi] = self.model_state[0:3, xlo:xhi, ylo:yhi]
-        if self.flatten: return self.local_obs.flatten() / self.layer_norm
+        if self.flatten: return self.local_obs[agent_idx].flatten() / self.layer_norm
         return self.local_obs[agent_idx] / self.layer_norm
         
 
@@ -388,6 +394,10 @@ class DecPursuitEvade():
         for ridx in removed_pursuit:
             self.pursuer_layer.remove_agent(ridx)
             n_pursuer_removed += 1
+        if self.train_pursuit:
+            self.agent_gone[removed_pursuit] = True
+        else:
+            self.agent_gone[removed_evade] = True
         return n_evader_removed, n_pursuer_removed
 
 
