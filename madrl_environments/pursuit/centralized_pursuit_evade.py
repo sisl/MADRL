@@ -215,7 +215,7 @@ class CentralizedPursuitEvade():
         plt.clf()
 
 
-    def animate(self, policy, nsteps, file_name, rate=1.5):
+    def animate(self, act_fn, nsteps, file_name, rate=1.5):
         """
             Save an animation to an mp4 file.
         """
@@ -227,8 +227,8 @@ class CentralizedPursuitEvade():
         # generate .pngs
         self.save_image(temp_name)
         for i in xrange(nsteps):
-            a, adist = policy.act(o)
-            o, r, done, _ = self.step(a)
+            a, adist = act_fn(o)
+            o, r, done, _ = self.step(a[0,0])
             temp_name = join(file_path, "temp_" + str(i+1) + ".png")
             self.save_image(temp_name)
             if done:
