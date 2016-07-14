@@ -18,9 +18,8 @@ import gym
 import rltools.algos
 import rltools.log
 import rltools.util
-from rltools.sampler import SimpleSampler, ImportanceWeightedSampler
-from madrl_environments.pursuit.centralized_pursuit_evade import \
-    CentralizedPursuitEvade
+from rltools.sampler import SimpleSampler, ImportanceWeightedSampler, DecSampler
+from madrl_environments.pursuit import CentralizedPursuitEvade, DecPursuitEvade
 from madrl_environments.pursuit.utils import TwoDMaps
 from rltools.baseline import LinearFeatureBaseline, MLPBaseline, ZeroBaseline
 from rltools.categorical_policy import CategoricalMLPPolicy
@@ -68,6 +67,7 @@ def main():
     parser.add_argument('--is_skip_is', action='store_true', default=False)
     parser.add_argument('--is_max_is_ratio', type=float, default=0)
 
+    parser.add_argument('--control', type=str, default='centralized')
     parser.add_argument('--rectangle', type=str, default='10,10')
     parser.add_argument('--n_evaders', type=int, default=5)
     parser.add_argument('--n_pursuers', type=int, default=2)
@@ -88,11 +88,23 @@ def main():
     parser.add_argument('--tblog', type=str, default='/tmp/madrl_tb')
 
     args = parser.parse_args()
-    env = CentralizedPursuitEvade(TwoDMaps.rectangle_map(*map(int, args.rectangle.split(','))),
-                                  n_evaders=args.n_evaders,
-                                  n_pursuers=args.n_pursuers,
-                                  obs_range=args.obs_range,
-                                  n_catch=args.n_catch)
+
+    if args.control == 'centralized':
+        env = CentralizedPursuitEvade(TwoDMaps.rectangle_map(*map(int, args.rectangle.split(','))),
+                                      n_evaders=args.n_evaders,
+                                      n_pursuers=args.n_pursuers,
+                                      obs_range=args.obs_range,
+                                      n_catch=args.n_catch)
+    elif args.control == 'decentralized':
+        env = DecPursuitEvade(TwoDMaps.rectangle_map(*map(int, args.rectangle.split(','))),
+                                      n_evaders=args.n_evaders,
+                                      n_pursuers=args.n_pursuers,
+                                      obs_range=args.obs_range,
+                                      n_catch=args.n_catch)
+    else:
+        raise NotImplementedError()
+
+    tboard_dir = '/tmp/madrl_tb'
     policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
                                   hidden_spec=args.policy_hidden_spec,
                                   enable_obsnorm=True,
@@ -108,7 +120,12 @@ def main():
         baseline = ZeroBaseline(env.observation_space)
 
     if args.sampler == 'simple':
-        sampler_cls = SimpleSampler
+        if args.control == "centralized":
+            sampler_cls = SimpleSampler
+        elif args.control == "decentralized":
+            sampler_cls = DecSampler
+        else:
+            raise NotImplementedError()
         sampler_args = dict(max_traj_len=args.max_traj_len,
                             batch_size=args.batch_size,
                             min_batch_size=args.min_batch_size,
