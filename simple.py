@@ -103,19 +103,29 @@ def main():
         raise NotImplementedError()
 
     tboard_dir = '/tmp/madrl_tb'
-    policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
+    pursuit_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
                                   hidden_spec=args.policy_hidden_spec,
                                   enable_obsnorm=True,
-                                  tblog=tboard_dir, varscope_name='catmlp_policy')
+                                  tblog=tboard_dir, varscope_name='pursuit_catmlp_policy')
+
+    evade_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
+                                  hidden_spec=args.policy_hidden_spec,
+                                  enable_obsnorm=True,
+                                  tblog=tboard_dir, varscope_name='evade_catmlp_policy')
 
     if args.baseline_type == 'linear':
-        baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True)
+        pursuit_baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True)
+        evade_baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True)
     elif args.baseline_type == 'mlp':
-        baseline = MLPBaseline(env.observation_space, args.baseline_hidden_spec,
+        pursuit_baseline = MLPBaseline(env.observation_space, args.baseline_hidden_spec,
                                True, True, max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
-                               time_scale=1./args.max_traj_len, varscope_name='mlp_baseline')
+                               time_scale=1./args.max_traj_len, varscope_name='pursuit_mlp_baseline')
+        evade_baseline = MLPBaseline(env.observation_space, args.baseline_hidden_spec,
+                               True, True, max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
+                               time_scale=1./args.max_traj_len, varscope_name='evade_mlp_baseline')
     else:
-        baseline = ZeroBaseline(env.observation_space)
+        pursuit_baseline = ZeroBaseline(env.observation_space)
+        evade_baseline = ZeroBaseline(env.observation_space)
 
     if args.sampler == 'simple':
         if args.control == "centralized":
@@ -148,8 +158,8 @@ def main():
     step_func = rltools.algos.TRPO(max_kl=args.max_kl)
     popt = rltools.algos.SamplingPolicyOptimizer(
         env=env,
-        policy=policy,
-        baseline=baseline,
+        policy=pursuit_policy,
+        baseline=pursuit_baseline,
         step_func=step_func,
         discount=args.discount,
         gae_lambda=args.gae_lambda,
