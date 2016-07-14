@@ -47,6 +47,7 @@ class CentralizedPursuitEvade():
         self.xs = xs
         self.ys = ys
 
+        self.factored = kwargs.pop('factored', False)
         self.n_evaders = kwargs.pop('n_evaders', 1)
         self.n_pursuers = kwargs.pop('n_pursuers', 1)
 
@@ -95,7 +96,10 @@ class CentralizedPursuitEvade():
         if self.train_pursuit:
             self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
             self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
-            self.action_space = spaces.Discrete(n_act_purs**self.n_pursuers)
+            if self.factored:
+                self.action_space = spaces.Discrete(n_act_purs*self.n_pursuers)
+            else:
+                self.action_space = spaces.Discrete(n_act_purs**self.n_pursuers)
             self.observation_space = spaces.Box(self.low, self.high)
             self.local_obs = np.zeros((self.n_pursuers, 3, self.obs_range, self.obs_range)) # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_pursuers)]

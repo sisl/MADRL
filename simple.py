@@ -23,7 +23,7 @@ from madrl_environments.pursuit import CentralizedPursuitEvade, DecPursuitEvade
 from madrl_environments.pursuit.utils import TwoDMaps
 from rltools.baseline import LinearFeatureBaseline, MLPBaseline, ZeroBaseline
 from rltools.categorical_policy import CategoricalMLPPolicy
-
+from pursuit_policy import PursuitCentralMLPPolicy
 
 
 SIMPLE_POLICY_ARCH = '''[
@@ -69,6 +69,7 @@ def main():
     parser.add_argument('--is_max_is_ratio', type=float, default=0)
 
     parser.add_argument('--control', type=str, default='centralized')
+    parser.add_argument('--factored', action='store_true', default=False)
     parser.add_argument('--rectangle', type=str, default='10,10')
     parser.add_argument('--n_evaders', type=int, default=5)
     parser.add_argument('--n_pursuers', type=int, default=2)
@@ -98,7 +99,8 @@ def main():
                                       n_evaders=args.n_evaders,
                                       n_pursuers=args.n_pursuers,
                                       obs_range=args.obs_range,
-                                      n_catch=args.n_catch)
+                                      n_catch=args.n_catch,
+                                      factored=args.factored)
     elif args.control == 'decentralized':
         env = DecPursuitEvade(TwoDMaps.rectangle_map(*map(int, args.rectangle.split(','))),
                                       n_evaders=args.n_evaders,
@@ -108,16 +110,25 @@ def main():
     else:
         raise NotImplementedError()
 
-    tboard_dir = '/tmp/madrl_tb'
-    pursuit_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
-                                  hidden_spec=args.policy_hidden_spec,
-                                  enable_obsnorm=True,
-                                  tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
+    if args.factored:
+        pursuit_policy = PursuitCentralMLPPolicy(env.observation_space, env.action_space, args.n_pursuers,
+                                         hidden_spec=args.policy_hidden_spec,
+                                         enable_obsnorm=True,
+                                         tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
+        evade_policy = PursuitCentralMLPPolicy(env.observation_space, env.action_space,
+                                      hidden_spec=args.policy_hidden_spec,
+                                      enable_obsnorm=True,
+                                      tblog=tboard_dir, varscope_name='evade_catmlp_policy')
+    else:
+        pursuit_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
+                                      hidden_spec=args.policy_hidden_spec,
+                                      enable_obsnorm=True,
+                                      tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
 
-    evade_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
-                                  hidden_spec=args.policy_hidden_spec,
-                                  enable_obsnorm=True,
-                                  tblog=tboard_dir, varscope_name='evade_catmlp_policy')
+        evade_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
+                                      hidden_spec=args.policy_hidden_spec,
+                                      enable_obsnorm=True,
+                                      tblog=tboard_dir, varscope_name='evade_catmlp_policy')
 
     if args.baseline_type == 'linear':
         pursuit_baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True,
