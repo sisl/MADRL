@@ -98,6 +98,8 @@ class CentralizedWaterWorld(object):
         is_colliding_po_Np_Npo = podists_Np_Npo <= self.radius*2
         num_poison_collisions = is_colliding_po_Np_Npo.sum()
 
+        # TODO: Check if for loops can be vectorized
+        # Check if the logic is correct
         # Find sensed objects
 
         # Evaders
@@ -124,7 +126,6 @@ class CentralizedWaterWorld(object):
         sensorvals_Np_K_Np = np.c_[sensorvals]
         sensorvals_Np_K_Np[(sensorvals_Np_K_Np < 0) | (sensorvals_Np_K_Np > self.sensor_range) | ((relpos_pu_Np_Np_2**2).sum(axis=2).T[:,None,...] - sensorvals_Np_K_Np**2 > self.radius**2)] = np.inf
 
-        # TODO (other pursuers)
         # dist features
         closest_ev_idx_Np_K = np.argmin(sensorvals_Np_K_Ne, axis=2)
         sensedmask_ev_Np_K = np.isfinite(closest_ev_idx_Np_K)
@@ -227,6 +228,7 @@ class CentralizedWaterWorld(object):
                     int(self.radius*screen_size),
                     (255,0,0),
                     -1, lineType=cv2.CV_AA)
+        # Evaders
         for iev, evaderx_2 in enumerate(self.evadersx_Ne_2):
             color = (0,255,0)
             cv2.circle(
@@ -236,7 +238,7 @@ class CentralizedWaterWorld(object):
                 color,
                 -1, lineType=cv2.CV_AA
             )
-
+        # Poison
         for ipo, poisonx_2 in enumerate(self.poisonx_Npo_2):
             color = (0,0,255)
             cv2.circle(

@@ -52,7 +52,7 @@ def main():
         sess.run(tf.initialize_all_variables())
         policy.load_h5(sess, filename, file_key)
 
-        rew = env.animate(act_fn=lambda o: policy.sample_actions(sess, o[None,...]), nsteps=500, file_name=args.vid)
+        rew = env.animate(act_fn=lambda o: policy.sample_actions(sess, o[None,...], deterministic=True), nsteps=500, file_name=args.vid)
         print(rew)
 
 if __name__ == '__main__':
