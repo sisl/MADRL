@@ -28,6 +28,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', type=str) # defaultIS.h5/snapshots/iter0000480
     parser.add_argument('--vid', type=str, default='/tmp/madrl.mp4')
+    parser.add_argument('--deterministic', action='store_true', default=False)
     args = parser.parse_args()
 
     # Load file
@@ -52,7 +53,7 @@ def main():
         sess.run(tf.initialize_all_variables())
         policy.load_h5(sess, filename, file_key)
 
-        rew = env.animate(act_fn=lambda o: policy.sample_actions(sess, o[None,...], deterministic=True), nsteps=500, file_name=args.vid)
+        rew = env.animate(act_fn=lambda o: policy.sample_actions(sess, o[None,...], deterministic=args.deterministic), nsteps=500, file_name=args.vid)
         print(rew)
 
 if __name__ == '__main__':
