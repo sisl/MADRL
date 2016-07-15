@@ -40,3 +40,4 @@ gae_lambdas: [1, 0.99, 0.97]
 options:
   storagedir: /tmp/spec/
   checkpt_subdir: checkpoints  
+  n_workers: 4
