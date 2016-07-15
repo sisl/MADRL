@@ -230,5 +230,7 @@ if __name__ == '__main__':
     env = CentralizedWaterWorld(3, 5)
     obs = env.reset()
     while True:
-        env.step(np.random.randn(3, 2)*.5)
+        obs, rew, _, _ = env.step(np.random.randn(3, 2)*.5)
+        if rew > 0:
+            print(rew)
         env.render()
