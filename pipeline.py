@@ -81,6 +81,7 @@ def phase_train(spec, spec_file):
 
     # Make checkpoint dir. All outputs go here
     storagedir = spec['options']['storagedir']
+    n_workers = spec['options']['n_workers']
     checkptdir = os.path.join(spec['options']['storagedir'], spec['options']['checkpt_subdir'])
     rltools.util.mkdir_p(checkptdir)
     assert not os.listdir(checkptdir), 'Checkpoint directory {} is not empty!'.format(checkptdir)
@@ -120,7 +121,7 @@ def phase_train(spec, spec_file):
     rltools.util.ok('{} jobs to run...'.format(len(cmd_templates)))
     rltools.util.warn('Continue? y/n')
     if input() == 'y':
-        run_jobs(cmd_templates, output_filenames, argdicts, storagedir)
+        run_jobs(cmd_templates, output_filenames, argdicts, storagedir, n_workers=n_workers)
     else:
         rltools.util.failure('Canceled.')
         sys.exit(1)
