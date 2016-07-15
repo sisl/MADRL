@@ -31,6 +31,14 @@ SIMPLE_POLICY_ARCH = '''[
     ]
     '''
 
+TINY_VAL_ARCH = '''[
+        {"type": "fc", "n": 32},
+        {"type": "nonlin", "func": "relu"},
+        {"type": "fc", "n": 32},
+        {"type": "nonlin", "func": "relu"}
+    ]
+    '''
+
 SIMPLE_VAL_ARCH = '''[
         {"type": "fc", "n": 128},
         {"type": "nonlin", "func": "tanh"},
@@ -39,6 +47,26 @@ SIMPLE_VAL_ARCH = '''[
     ]
     '''
 
+GAE_TYPE_VAL_ARCH = '''[
+        {"type": "fc", "n": 128},
+        {"type": "nonlin", "func": "tanh"},
+        {"type": "fc", "n": 64},
+        {"type": "nonlin", "func": "tanh"},
+        {"type": "fc", "n": 32},
+        {"type": "nonlin", "func": "tanh"}
+]
+'''
+
+GAE_ARCH = '''[
+        {"type": "fc", "n": 100},
+        {"type": "nonlin", "func": "tanh"},
+        {"type": "fc", "n": 50},
+        {"type": "nonlin", "func": "tanh"},
+        {"type": "fc", "n": 25},
+        {"type": "nonlin", "func": "tanh"}
+]
+'''
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--discount', type=float, default=0.95)
@@ -46,7 +74,7 @@ def main():
 
     parser.add_argument('--n_iter', type=int, default=250)
     parser.add_argument('--sampler', type=str, default='simple')
-    parser.add_argument('--max_traj_len', type=int, default=200)
+    parser.add_argument('--max_traj_len', type=int, default=500)
     parser.add_argument('--adaptive_batch', action='store_true', default=False)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--min_batch_size', type=int, default=4)
@@ -63,11 +91,12 @@ def main():
     parser.add_argument('--n_poison', type=int, default=10)
     parser.add_argument('--n_coop', type=int, default=2)
     parser.add_argument('--n_sensors', type=int, default=30)
+    parser.add_argument('--food_reward', type=int, default=3)
 
-    parser.add_argument('--policy_hidden_spec', type=str, default=SIMPLE_POLICY_ARCH)
+    parser.add_argument('--policy_hidden_spec', type=str, default=GAE_ARCH)
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
-    parser.add_argument('--baseline_hidden_spec', type=str, default=SIMPLE_VAL_ARCH)
+    parser.add_argument('--baseline_hidden_spec', type=str, default=GAE_ARCH)
 
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--vf_max_kl', type=float, default=0.01)
@@ -82,7 +111,7 @@ def main():
 
     args = parser.parse_args()
 
-    env = CentralizedWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison, n_sensors=args.n_sensors)
+    env = CentralizedWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison, n_sensors=args.n_sensors, food_reward=args.food_reward)
     policy = GaussianMLPPolicy(env.observation_space, env.action_space, hidden_spec=args.policy_hidden_spec,
                                enable_obsnorm=True,
                                min_stdev=0.,
