@@ -75,6 +75,10 @@ def main():
     parser.add_argument('--n_pursuers', type=int, default=2)
     parser.add_argument('--obs_range', type=int, default=3)
     parser.add_argument('--n_catch', type=int, default=2)
+    parser.add_argument('--urgency', type=float, default=0.0)
+    parser.add_argument('--pursuit', dest='train_pursuit', action='store_true')
+    parser.add_argument('--evade', dest='train_pursuit', action='store_false')
+    parser.set_defaults(train_pursuit=True)
 
     parser.add_argument('--policy_hidden_spec', type=str, default=SIMPLE_POLICY_ARCH)
 
@@ -100,13 +104,17 @@ def main():
                                       n_pursuers=args.n_pursuers,
                                       obs_range=args.obs_range,
                                       n_catch=args.n_catch,
+                                      train_pursuit=args.train_pursuit,
+                                      urgency_reward=args.urgency,
                                       factored=args.factored)
     elif args.control == 'decentralized':
         env = DecPursuitEvade(TwoDMaps.rectangle_map(*map(int, args.rectangle.split(','))),
                                       n_evaders=args.n_evaders,
                                       n_pursuers=args.n_pursuers,
                                       obs_range=args.obs_range,
-                                      n_catch=args.n_catch)
+                                      n_catch=args.n_catch,
+                                      train_pursuit=args.train_pursuit,
+                                      urgency_reward=args.urgency)
     else:
         raise NotImplementedError()
 
