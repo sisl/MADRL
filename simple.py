@@ -125,14 +125,16 @@ def main():
         raise NotImplementedError()
 
     if args.factored:
-        pursuit_policy = PursuitCentralMLPPolicy(env.observation_space, env.action_space, args.n_pursuers,
-                                         hidden_spec=args.policy_hidden_spec,
-                                         enable_obsnorm=True,
-                                         tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
-        evade_policy = PursuitCentralMLPPolicy(env.observation_space, env.action_space,
-                                         hidden_spec=args.policy_hidden_spec,
-                                         enable_obsnorm=True,
-                                         tblog=args.tblog, varscope_name='evade_catmlp_policy')
+        pursuit_policy = PursuitCentralMLPPolicy(env.observation_space, env.action_space, tf.int32,
+                                                 args.n_pursuers,
+                                                 hidden_spec=args.policy_hidden_spec,
+                                                 enable_obsnorm=True,
+                                                 tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
+        evade_policy = PursuitCentralMLPPolicy(env.observation_space, env.action_space, tf.int32,
+                                               args.n_pursuers,
+                                               hidden_spec=args.policy_hidden_spec,
+                                               enable_obsnorm=True,
+                                               tblog=args.tblog, varscope_name='evade_catmlp_policy')
     else:
         pursuit_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
                                       hidden_spec=args.policy_hidden_spec,

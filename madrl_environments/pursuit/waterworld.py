@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 
 
 class CentralizedWaterWorld(object):
-    def __init__(self, n_pursuers, n_evaders, n_coop=2, radius=0.015, ev_speed=0.01,
-                 n_poison=10, poison_speed=0.01,
+    def __init__(self, n_pursuers, n_evaders, n_coop=2, n_poison=10,
+                 radius=0.015, ev_speed=0.01, poison_speed=0.01,
                  n_sensors=30, sensor_range=0.2, action_scale=0.01,
-                 poison_reward=-1., food_reward=1., control_penalty=-1., **kwargs):
+                 poison_reward=-1., food_reward=1., control_penalty=-.5, **kwargs):
         self.n_pursuers = n_pursuers
         self.n_evaders = n_evaders
         self.n_coop = n_coop
@@ -56,7 +56,7 @@ class CentralizedWaterWorld(object):
         self.poisonx_Npo_2 = np.random.rand(self.n_poison, 2)
         self.poisonv_Npo_2 = (np.random.rand(self.n_poison, 2)-.5)*self.poison_speed # Random speeds
 
-        return self.step(np.zeros((self.n_pursuers, 2)))
+        return self.step(np.zeros((self.n_pursuers, 2)))[0]
 
     @property
     def is_terminal(self):
