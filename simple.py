@@ -33,6 +33,12 @@ SIMPLE_POLICY_ARCH = '''[
         {"type": "nonlin", "func": "tanh"}
     ]
     '''
+
+CONV_POLICY_ARCH = '''[
+        {"type": "conv", "chanout": 8, "filtzie:" 3, "stride:" 1, "padding:" "SAME"},
+        {"type": "nonlin", "func": "relu"},
+    ]
+    '''
 TINY_VAL_ARCH = '''[
         {"type": "fc", "n": 32},
         {"type": "nonlin", "func": "relu"},
