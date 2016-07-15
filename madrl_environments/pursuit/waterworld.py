@@ -25,9 +25,9 @@ class CentralizedWaterWorld(object):
         self.control_penalty = control_penalty
 
         # Number of observation coordinates from each senser
-        self.sensor_obscoord = 5
+        self.sensor_obscoord = 4
         self.obscoord_from_sensors = n_sensors * self.sensor_obscoord
-        self._obs_dim = self.obscoord_from_sensors + 2 # 2 for type of catch
+        self._obs_dim = self.obscoord_from_sensors + 2 #2 for type
 
 
     @property
@@ -68,7 +68,8 @@ class CentralizedWaterWorld(object):
         catches = is_caught_Ne.sum()
         return catches, is_caught_Ne
 
-    def step(self, action_Np_2):
+    def step(self, action_Np2):
+        action_Np_2 = action_Np2.reshape(self.n_pursuers, 2)
         # Players
         actions_Np_2 = action_Np_2 * self.action_scale
 
@@ -98,40 +99,87 @@ class CentralizedWaterWorld(object):
         num_poison_collisions = is_colliding_po_Np_Npo.sum()
 
         # Find sensed objects
+        
         # Evaders
         relpos_ev_Ne_Np_2 = self.evadersx_Ne_2[:,None,:] - self.pursuersx_Np_2
-        relpos_ev_Ne_2_Np = relpos_ev_Ne_Np_2.transpose(0,2,1)
-        sensorvals_Np_K_Ne_Np = self.sensor_vecs_Np_K_2.dot(relpos_ev_Ne_2_Np)
-        sensorvals_Np_K_Ne_Np[(sensorvals_Np_K_Ne_Np < 0) | (sensorvals_Np_K_Ne_Np > self.sensor_range) | ((relpos_ev_Ne_2_Np**2).sum(axis=1)[None,...] - sensorvals_Np_K_Ne_Np**2 > self.radius**2)] = np.inf # TODO: check
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot(relpos_ev_Ne_Np_2[:,inp,:].T))
+        sensorvals_Np_K_Ne = np.c_[sensorvals]
+        sensorvals_Np_K_Ne[(sensorvals_Np_K_Ne < 0) | (sensorvals_Np_K_Ne > self.sensor_range) | ((relpos_ev_Ne_Np_2**2).sum(axis=2).T[:,None,...] - sensorvals_Np_K_Ne**2 > self.radius**2)] = np.inf # TODO: check
+
         # Poison
         relpos_po_Npo_Np_2 = self.poisonx_Npo_2[:,None,:] - self.pursuersx_Np_2
-        relpos_po_Npo_2_Np = relpos_po_Npo_Np_2.transpose(0,2,1)
-        sensorvals_Np_K_Npo_Np = self.sensor_vecs_Np_K_2.dot(relpos_po_Npo_2_Np)
-        sensorvals_Np_K_Npo_Np[(sensorvals_Np_K_Npo_Np < 0) | (sensorvals_Np_K_Npo_Np > self.sensor_range) | ((relpos_po_Npo_2_Np**2).sum(axis=1)[None,...] - sensorvals_Np_K_Npo_Np**2 > self.radius**2)] = np.inf # TODO: check
-        
-        # TODO
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot(relpos_po_Npo_Np_2[:,inp,:].T))
+        sensorvals_Np_K_Npo = np.c_[sensorvals]
+        sensorvals_Np_K_Npo[(sensorvals_Np_K_Npo < 0) | (sensorvals_Np_K_Npo > self.sensor_range) | ((relpos_po_Npo_Np_2**2).sum(axis=2).T[:,None,...] - sensorvals_Np_K_Npo**2 > self.radius**2)] = np.inf # TODO: check
+
+        # TODO (other pursuers)
         # dist features
+        closest_ev_idx_Np_K = np.argmin(sensorvals_Np_K_Ne, axis=2)
+        sensedmask_ev_Np_K = np.isfinite(closest_ev_idx_Np_K)
+        sensed_evdistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
+        sensed_evdistfeatures_Np_K[sensedmask_ev_Np_K] = closest_ev_idx_Np_K[sensedmask_ev_Np_K]
+        closest_po_idx_Np_K = np.argmin(sensorvals_Np_K_Npo, axis=2)
+        sensedmask_po_Np_K = np.isfinite(closest_po_idx_Np_K)
+        sensed_podistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
+        sensed_podistfeatures_Np_K[sensedmask_po_Np_K] = closest_po_idx_Np_K[sensedmask_po_Np_K]
 
         # speed features
-        
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot((self.evadersv_Ne_2 - self.pursuersv_Np_2[inp,...]).T))
+        sensed_evspeed_Np_K_Ne = np.c_[sensorvals]
+        sensed_evspeedfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(sensed_evspeed_Np_K_Ne[inp,:,:][np.arange(self.n_sensors), closest_ev_idx_Np_K[inp,:]])
+        sensed_evspeedfeatures_Np_K[sensedmask_ev_Np_K] = np.c_[sensorvals][sensedmask_ev_Np_K]
+
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot((self.poisonv_Npo_2 - self.pursuersv_Np_2[inp,...]).T))
+        sensed_pospeed_Np_K_Npo = np.c_[sensorvals]
+        sensed_pospeedfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(sensed_pospeed_Np_K_Npo[inp,:,:][np.arange(self.n_sensors), closest_po_idx_Np_K[inp,:]])
+        sensed_pospeedfeatures_Np_K[sensedmask_ev_Np_K] = np.c_[sensorvals][sensedmask_po_Np_K]
+
         # Process collisions
         # If object collided with required number of players, reset its position and velocity
         # Effectively the same as removing it and adding it back
-        
-        
+        self.evadersx_Ne_2[ev_caught_Ne,:] = np.random.rand(ev_catches, 2)
+        self.evadersv_Ne_2[ev_caught_Ne,:] = (np.random.rand(ev_catches, 2)-.5)*self.ev_speed
+
+        po_catches, po_caught_Npo = self.caught(is_colliding_po_Np_Npo, 1)
+        self.poisonx_Npo_2[po_caught_Npo,:] = np.random.rand(po_catches, 2)
+        self.poisonv_Npo_2[po_caught_Npo,:] = (np.random.rand(po_catches, 2)-.5)*self.poison_speed
+
         # Update reward based on these collisions
-        
+        reward += ev_catches*self.food_reward + po_catches*self.poison_reward
+
         # Add features together
-        
-        
+        sensorfeatures_Np_K_O = np.c_[sensed_evdistfeatures_Np_K, sensed_evspeedfeatures_Np_K, sensed_podistfeatures_Np_K, sensed_pospeedfeatures_Np_K]
+
         # Move objects
-        
+        self.evadersx_Ne_2 += self.evadersv_Ne_2
+        self.poisonx_Npo_2 += self.poisonv_Npo_2
+
         # Bounce object if it hits a wall
-        
+        self.evadersv_Ne_2[np.clip(self.evadersx_Ne_2, 0, 1) != self.evadersx_Ne_2] *= -1
+        self.poisonv_Npo_2[np.clip(self.poisonx_Npo_2, 0, 1) != self.poisonx_Npo_2] *= -1
+
+        obslist = []
+        for inp in range(self.n_pursuers):
+            obslist.append(np.concatenate([sensorfeatures_Np_K_O[inp,...].ravel(), [float((is_colliding_ev_Np_Ne[inp,:]).sum() > 0), float((is_colliding_po_Np_Npo[inp,:]).sum() > 0)]]))
+        obs = np.c_[obslist].ravel()
+        assert obs.shape == self.observation_space.shape
         done = self.is_terminal
         info = None
         return obs, reward, done, info
-        
 
     def render(self, screen_size=800):
         import cv2
@@ -180,6 +228,7 @@ class CentralizedWaterWorld(object):
 
 if __name__ == '__main__':
     env = CentralizedWaterWorld(3, 5)
+    obs = env.reset()
     while True:
-        obs = env.reset()
+        env.step(np.random.randn(3, 2)*.5)
         env.render()
