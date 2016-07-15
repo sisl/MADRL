@@ -252,15 +252,17 @@ class CentralizedWaterWorld(object):
     def animate(self, act_fn, nsteps, file_name, rate=20):
         o = self.reset()
         self.render(rate=rate)
+        rew = 0
         for i in range(nsteps):
             a, adist = act_fn(o)
             o, r, done, _ = self.step(a)
+            rew += r
             if r > 0:
                 print(r)
             self.render(rate=rate)
             if done:
                 break
-
+        return rew
 
 if __name__ == '__main__':
     env = CentralizedWaterWorld(3, 5)
