@@ -25,7 +25,7 @@ class CentralizedWaterWorld(object):
         self.control_penalty = control_penalty
 
         # Number of observation coordinates from each senser
-        self.sensor_obscoord = 4
+        self.sensor_obscoord = 6
         self.obscoord_from_sensors = n_sensors * self.sensor_obscoord
         self._obs_dim = self.obscoord_from_sensors + 2 #2 for type
 
@@ -99,7 +99,7 @@ class CentralizedWaterWorld(object):
         num_poison_collisions = is_colliding_po_Np_Npo.sum()
 
         # Find sensed objects
-        
+
         # Evaders
         relpos_ev_Ne_Np_2 = self.evadersx_Ne_2[:,None,:] - self.pursuersx_Np_2
         sensorvals = []
@@ -116,16 +116,30 @@ class CentralizedWaterWorld(object):
         sensorvals_Np_K_Npo = np.c_[sensorvals]
         sensorvals_Np_K_Npo[(sensorvals_Np_K_Npo < 0) | (sensorvals_Np_K_Npo > self.sensor_range) | ((relpos_po_Npo_Np_2**2).sum(axis=2).T[:,None,...] - sensorvals_Np_K_Npo**2 > self.radius**2)] = np.inf # TODO: check
 
+        # Allies
+        relpos_pu_Np_Np_2 = self.pursuersx_Np_2[:,None,:] - self.pursuersx_Np_2
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot(relpos_pu_Np_Np_2[:,inp,:].T))
+        sensorvals_Np_K_Np = np.c_[sensorvals]
+        sensorvals_Np_K_Np[(sensorvals_Np_K_Np < 0) | (sensorvals_Np_K_Np > self.sensor_range) | ((relpos_pu_Np_Np_2**2).sum(axis=2).T[:,None,...] - sensorvals_Np_K_Np**2 > self.radius**2)] = np.inf
+
         # TODO (other pursuers)
         # dist features
         closest_ev_idx_Np_K = np.argmin(sensorvals_Np_K_Ne, axis=2)
         sensedmask_ev_Np_K = np.isfinite(closest_ev_idx_Np_K)
         sensed_evdistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
         sensed_evdistfeatures_Np_K[sensedmask_ev_Np_K] = closest_ev_idx_Np_K[sensedmask_ev_Np_K]
+
         closest_po_idx_Np_K = np.argmin(sensorvals_Np_K_Npo, axis=2)
         sensedmask_po_Np_K = np.isfinite(closest_po_idx_Np_K)
         sensed_podistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
         sensed_podistfeatures_Np_K[sensedmask_po_Np_K] = closest_po_idx_Np_K[sensedmask_po_Np_K]
+
+        closest_pu_idx_Np_K = np.argpartition(sensorvals_Np_K_Np, 2, axis=2)[2].T # Smallest would be itself? TODO check
+        sensedmask_pu_Np_K = np.isfinite(closest_pu_idx_Np_K)
+        sensed_pudistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
+        sensed_pudistfeatures_Np_K[sensedmask_pu_Np_K] = closest_pu_idx_Np_K[sensedmask_pu_Np_K]
 
         # speed features
         sensorvals = []
@@ -148,6 +162,16 @@ class CentralizedWaterWorld(object):
             sensorvals.append(sensed_pospeed_Np_K_Npo[inp,:,:][np.arange(self.n_sensors), closest_po_idx_Np_K[inp,:]])
         sensed_pospeedfeatures_Np_K[sensedmask_ev_Np_K] = np.c_[sensorvals][sensedmask_po_Np_K]
 
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot((self.pursuersv_Np_2 - self.pursuersv_Np_2[inp,...]).T))
+        sensed_puspeed_Np_K_Np = np.c_[sensorvals]
+        sensed_puspeedfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(sensed_puspeed_Np_K_Np[inp,:,:][np.arange(self.n_sensors), closest_pu_idx_Np_K[inp,:]])
+        sensed_puspeedfeatures_Np_K[sensedmask_pu_Np_K] = np.c_[sensorvals][sensedmask_pu_Np_K]
+
         # Process collisions
         # If object collided with required number of players, reset its position and velocity
         # Effectively the same as removing it and adding it back
@@ -162,7 +186,7 @@ class CentralizedWaterWorld(object):
         reward += ev_catches*self.food_reward + po_catches*self.poison_reward
 
         # Add features together
-        sensorfeatures_Np_K_O = np.c_[sensed_evdistfeatures_Np_K, sensed_evspeedfeatures_Np_K, sensed_podistfeatures_Np_K, sensed_pospeedfeatures_Np_K]
+        sensorfeatures_Np_K_O = np.c_[sensed_evdistfeatures_Np_K, sensed_evspeedfeatures_Np_K, sensed_podistfeatures_Np_K, sensed_pospeedfeatures_Np_K, sensed_pudistfeatures_Np_K, sensed_puspeedfeatures_Np_K]
 
         # Move objects
         self.evadersx_Ne_2 += self.evadersv_Ne_2
