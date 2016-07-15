@@ -54,13 +54,12 @@ def main():
     policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
                                   hidden_spec=train_args['policy_hidden_spec'],
                                   enable_obsnorm=True,
-                                  tblog=train_args['tblog'], varscope_name='catmlp_policy')
+                                  tblog=train_args['tblog'], varscope_name='pursuit_catmlp_policy')
 
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
         policy.load_h5(sess, filename, file_key)
-        
-        env._animate(act_fn=lambda o: policy.sample_actions(sess, o[None,...], deterministic=args.deterministic), nsteps=200, file_name=args.vid)
-        
+        env.animate(act_fn=lambda o: policy.sample_actions(sess, o[None,...], deterministic=args.deterministic), nsteps=200, file_name=args.vid)
+
 if __name__ == '__main__':
     main()
