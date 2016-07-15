@@ -205,7 +205,7 @@ class CentralizedWaterWorld(object):
         info = None
         return obs, reward, done, info
 
-    def render(self, screen_size=800):
+    def render(self, screen_size=800, rate=10):
         import cv2
         img = np.empty((screen_size, screen_size, 3), dtype=np.uint8)
         img[...] = 255
@@ -247,7 +247,19 @@ class CentralizedWaterWorld(object):
                 -1, lineType=cv2.CV_AA
             )
         cv2.imshow('Waterworld', img)
-        cv2.waitKey(10)
+        cv2.waitKey(rate)
+
+    def animate(self, act_fn, nsteps, file_name, rate=20):
+        o = self.reset()
+        self.render(rate=rate)
+        for i in range(nsteps):
+            a, adist = act_fn(o)
+            o, r, done, _ = self.step(a)
+            if r > 0:
+                print(r)
+            self.render(rate=rate)
+            if done:
+                break
 
 
 if __name__ == '__main__':
