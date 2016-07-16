@@ -21,7 +21,9 @@ import rltools.util
 from rltools.sampler import SimpleSampler, ImportanceWeightedSampler, DecSampler
 from madrl_environments.pursuit import CentralizedPursuitEvade, DecPursuitEvade
 from madrl_environments.pursuit.utils import TwoDMaps
-from rltools.baseline import LinearFeatureBaseline, MLPBaseline, ZeroBaseline
+from rltools.baselines.linear import LinearFeatureBaseline
+from rltools.baselines.mlp import MLPBaseline
+from rltools.baselines.zero import ZeroBaseline
 from rltools.policy.categorical import CategoricalMLPPolicy
 from pursuit_policy import PursuitCentralMLPPolicy
 
