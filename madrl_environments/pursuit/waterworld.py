@@ -9,7 +9,8 @@ class CentralizedWaterWorld(object):
     def __init__(self, n_pursuers, n_evaders, n_coop=2, n_poison=10,
                  radius=0.015, ev_speed=0.01, poison_speed=0.01,
                  n_sensors=30, sensor_range=0.2, action_scale=0.01,
-                 poison_reward=-1., food_reward=1., control_penalty=-.5, **kwargs):
+                 poison_reward=-1., food_reward=1., encounter_reward=.25, control_penalty=-.5,
+                 **kwargs):
         self.n_pursuers = n_pursuers
         self.n_evaders = n_evaders
         self.n_coop = n_coop
@@ -23,6 +24,7 @@ class CentralizedWaterWorld(object):
         self.poison_reward = poison_reward
         self.food_reward = food_reward
         self.control_penalty = control_penalty
+        self.encounter_reward = encounter_reward
 
         # Number of observation coordinates from each senser
         self.sensor_obscoord = 6
@@ -183,8 +185,9 @@ class CentralizedWaterWorld(object):
         self.poisonx_Npo_2[po_caught_Npo,:] = np.random.rand(po_catches, 2)
         self.poisonv_Npo_2[po_caught_Npo,:] = (np.random.rand(po_catches, 2)-.5)*self.poison_speed
 
+        ev_encounters, _ = self.caught(is_colliding_ev_Np_Ne, 1)
         # Update reward based on these collisions
-        reward += ev_catches*self.food_reward + po_catches*self.poison_reward
+        reward += ev_catches*self.food_reward + po_catches*self.poison_reward + ev_encounters*self.encounter_reward
 
         # Add features together
         sensorfeatures_Np_K_O = np.c_[sensed_evdistfeatures_Np_K, sensed_evspeedfeatures_Np_K, sensed_podistfeatures_Np_K, sensed_pospeedfeatures_Np_K, sensed_pudistfeatures_Np_K, sensed_puspeedfeatures_Np_K]
