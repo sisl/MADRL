@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from rltools import nn
 from rltools import tfutil
-from rltools.policy import StochasticPolicy
+from rltools.policy.stochastic import StochasticPolicy
 from rltools.distributions import Distribution
 
 

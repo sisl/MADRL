@@ -21,7 +21,7 @@ import rltools.util
 from rltools.sampler import SimpleSampler, ImportanceWeightedSampler, DecSampler
 from madrl_environments.pursuit import CentralizedWaterWorld
 from rltools.baseline import LinearFeatureBaseline, MLPBaseline, ZeroBaseline
-from rltools.gaussian_policy import GaussianMLPPolicy
+from rltools.policy.gaussian import GaussianMLPPolicy
 
 SIMPLE_POLICY_ARCH = '''[
         {"type": "fc", "n": 128},
