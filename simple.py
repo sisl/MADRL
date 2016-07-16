@@ -15,7 +15,7 @@ import numpy as np
 import tensorflow as tf
 
 import gym
-import rltools.algos
+import rltools.algos.policyopt
 import rltools.log
 import rltools.util
 from rltools.sampler import SimpleSampler, ImportanceWeightedSampler, DecSampler
@@ -190,8 +190,8 @@ def main():
                             max_is_ratio=args.is_max_is_ratio)
     else:
         raise NotImplementedError()
-    step_func = rltools.algos.TRPO(max_kl=args.max_kl)
-    popt = rltools.algos.SamplingPolicyOptimizer(
+    step_func = rltools.algos.policyopt.TRPO(max_kl=args.max_kl)
+    popt = rltools.algos.policyopt.SamplingPolicyOptimizer(
         env=env,
         policy=pursuit_policy,
         baseline=pursuit_baseline,
