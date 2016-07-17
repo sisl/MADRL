@@ -70,6 +70,30 @@ class CentralizedWaterWorld(object):
         catches = is_caught_Ne.sum()
         return catches, is_caught_Ne
 
+    def _sensed(self, objx_N_2):
+        relpos_obj_N_Np_2 = objx_N_2[:, None, :] - self.pursuersx_Np_2
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(self.sensor_vecs_Np_K_2[inp, ...].dot(relpos_obj_N_Np_2[:, inp, :].T))
+
+        sensorvals_Np_K_N = np.c_[sensorvals]
+        sensorvals_Np_K_N[(sensorvals_Np_K_N < 0) | (sensorvals_Np_K_N > self.sensor_range) | ((relpos_obj_N_Np_2**2).sum(axis=2).T[:, None, ...] - sensorvals_Np_K_N**2 > self.radius**2)] = np.inf
+        return sensorvals_Np_K_N
+
+    def _extract_speed_features(self, objv_N_2, closest_obj_idx_N_K, sensedmask_obj_Np_K):
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot((objv_N_2 - self.pursuersv_Np_2[inp,...]).T))
+        sensed_objspeed_Np_K_N = np.c_[sensorvals]
+        sensed_objspeedfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
+
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(sensed_objspeed_Np_K_N[inp,:,:][np.arange(self.n_sensors), closest_obj_idx_N_K[inp,:]])
+        sensed_objspeedfeatures_Np_K[sensedmask_obj_Np_K] = np.c_[sensorvals][sensedmask_obj_Np_K]
+
+        return sensed_objspeedfeatures_Np_K
+
     def step(self, action_Np2):
         action_Np_2 = action_Np2.reshape(self.n_pursuers, 2)
         # Players
@@ -95,38 +119,24 @@ class CentralizedWaterWorld(object):
         is_colliding_ev_Np_Ne = evdists_Np_Ne <= self.radius*2
         # num_collisions depends on how many needed to catch an evader
         ev_catches, ev_caught_Ne = self.caught(is_colliding_ev_Np_Ne, self.n_coop)
+
         # Poisons
         podists_Np_Npo = ssd.cdist(self.pursuersx_Np_2, self.poisonx_Npo_2)
         is_colliding_po_Np_Npo = podists_Np_Npo <= self.radius*2
         num_poison_collisions = is_colliding_po_Np_Npo.sum()
 
         # TODO: Check if for loops can be vectorized
-        # Check if the logic is correct
-        # Find sensed objects
+        # TODO: Check if the logic is correct, especially for allies
 
+        # Find sensed objects
         # Evaders
-        relpos_ev_Ne_Np_2 = self.evadersx_Ne_2[:,None,:] - self.pursuersx_Np_2
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot(relpos_ev_Ne_Np_2[:,inp,:].T))
-        sensorvals_Np_K_Ne = np.c_[sensorvals]
-        sensorvals_Np_K_Ne[(sensorvals_Np_K_Ne < 0) | (sensorvals_Np_K_Ne > self.sensor_range) | ((relpos_ev_Ne_Np_2**2).sum(axis=2).T[:,None,...] - sensorvals_Np_K_Ne**2 > self.radius**2)] = np.inf # TODO: check
+        sensorvals_Np_K_Ne = self._sensed(self.evadersx_Ne_2)
 
         # Poison
-        relpos_po_Npo_Np_2 = self.poisonx_Npo_2[:,None,:] - self.pursuersx_Np_2
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot(relpos_po_Npo_Np_2[:,inp,:].T))
-        sensorvals_Np_K_Npo = np.c_[sensorvals]
-        sensorvals_Np_K_Npo[(sensorvals_Np_K_Npo < 0) | (sensorvals_Np_K_Npo > self.sensor_range) | ((relpos_po_Npo_Np_2**2).sum(axis=2).T[:,None,...] - sensorvals_Np_K_Npo**2 > self.radius**2)] = np.inf # TODO: check
+        sensorvals_Np_K_Npo = self._sensed(self.poisonx_Npo_2)
 
         # Allies
-        relpos_pu_Np_Np_2 = self.pursuersx_Np_2[:,None,:] - self.pursuersx_Np_2
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot(relpos_pu_Np_Np_2[:,inp,:].T))
-        sensorvals_Np_K_Np = np.c_[sensorvals]
-        sensorvals_Np_K_Np[(sensorvals_Np_K_Np < 0) | (sensorvals_Np_K_Np > self.sensor_range) | ((relpos_pu_Np_Np_2**2).sum(axis=2).T[:,None,...] - sensorvals_Np_K_Np**2 > self.radius**2)] = np.inf
+        sensorvals_Np_K_Np = self._sensed(self.pursuersx_Np_2)
 
         # dist features
         closest_ev_idx_Np_K = np.argmin(sensorvals_Np_K_Ne, axis=2)
@@ -145,35 +155,15 @@ class CentralizedWaterWorld(object):
         sensed_pudistfeatures_Np_K[sensedmask_pu_Np_K] = closest_pu_idx_Np_K[sensedmask_pu_Np_K]
 
         # speed features
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot((self.evadersv_Ne_2 - self.pursuersv_Np_2[inp,...]).T))
-        sensed_evspeed_Np_K_Ne = np.c_[sensorvals]
-        sensed_evspeedfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(sensed_evspeed_Np_K_Ne[inp,:,:][np.arange(self.n_sensors), closest_ev_idx_Np_K[inp,:]])
-        sensed_evspeedfeatures_Np_K[sensedmask_ev_Np_K] = np.c_[sensorvals][sensedmask_ev_Np_K]
-
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot((self.poisonv_Npo_2 - self.pursuersv_Np_2[inp,...]).T))
-        sensed_pospeed_Np_K_Npo = np.c_[sensorvals]
-        sensed_pospeedfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(sensed_pospeed_Np_K_Npo[inp,:,:][np.arange(self.n_sensors), closest_po_idx_Np_K[inp,:]])
-        sensed_pospeedfeatures_Np_K[sensedmask_ev_Np_K] = np.c_[sensorvals][sensedmask_po_Np_K]
-
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(self.sensor_vecs_Np_K_2[inp,...].dot((self.pursuersv_Np_2 - self.pursuersv_Np_2[inp,...]).T))
-        sensed_puspeed_Np_K_Np = np.c_[sensorvals]
-        sensed_puspeedfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(sensed_puspeed_Np_K_Np[inp,:,:][np.arange(self.n_sensors), closest_pu_idx_Np_K[inp,:]])
-        sensed_puspeedfeatures_Np_K[sensedmask_pu_Np_K] = np.c_[sensorvals][sensedmask_pu_Np_K]
+        # Evaders
+        sensed_evspeedfeatures_Np_K = self._extract_speed_features(self.evadersv_Ne_2,
+                                                                   closest_ev_idx_Np_K, sensedmask_ev_Np_K)
+        # Poison
+        sensed_pospeedfeatures_Np_K = self._extract_speed_features(self.poisonv_Npo_2,
+                                                                    closest_po_idx_Np_K, sensedmask_po_Np_K)
+        # Allies
+        sensed_puspeedfeatures_Np_K = self._extract_speed_features(self.pursuersv_Np_2,
+                                                                   closest_pu_idx_Np_K, sensedmask_pu_Np_K)
 
         # Process collisions
         # If object collided with required number of players, reset its position and velocity
