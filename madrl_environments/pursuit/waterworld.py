@@ -80,6 +80,12 @@ class CentralizedWaterWorld(object):
         sensorvals_Np_K_N[(sensorvals_Np_K_N < 0) | (sensorvals_Np_K_N > self.sensor_range) | ((relpos_obj_N_Np_2**2).sum(axis=2).T[:, None, ...] - sensorvals_Np_K_N**2 > self.radius**2)] = np.inf
         return sensorvals_Np_K_N
 
+    def _closest_dist(self, closest_obj_idx_Np_K, sensorvals_Np_K_N):
+        sensorvals = []
+        for inp in range(self.n_pursuers):
+            sensorvals.append(sensorvals_Np_K_N[inp,...][np.arange(self.n_sensors), closest_obj_idx_Np_K[inp,...]])
+        return np.c_[sensorvals]
+
     def _extract_speed_features(self, objv_N_2, closest_obj_idx_N_K, sensedmask_obj_Np_K):
         sensorvals = []
         for inp in range(self.n_pursuers):
@@ -139,18 +145,22 @@ class CentralizedWaterWorld(object):
         sensorvals_Np_K_Np = self._sensed(self.pursuersx_Np_2)
 
         # dist features
+        # Evaders
         closest_ev_idx_Np_K = np.argmin(sensorvals_Np_K_Ne, axis=2)
-        sensedmask_ev_Np_K = np.isfinite(closest_ev_idx_Np_K)
+        closest_ev_dist_Np_K = self._closest_dist(closest_ev_idx_Np_K, sensorvals_Np_K_Ne) # np.c_[sensorvals]
+        sensedmask_ev_Np_K = np.isfinite(closest_ev_dist_Np_K)
         sensed_evdistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
         sensed_evdistfeatures_Np_K[sensedmask_ev_Np_K] = closest_ev_idx_Np_K[sensedmask_ev_Np_K]
-
+        # Poison
         closest_po_idx_Np_K = np.argmin(sensorvals_Np_K_Npo, axis=2)
-        sensedmask_po_Np_K = np.isfinite(closest_po_idx_Np_K)
+        closest_po_dist_Np_K = self._closest_dist(closest_po_idx_Np_K, sensorvals_Np_K_Npo) # np.c_[sensorvals]
+        sensedmask_po_Np_K = np.isfinite(closest_po_dist_Np_K)
         sensed_podistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
         sensed_podistfeatures_Np_K[sensedmask_po_Np_K] = closest_po_idx_Np_K[sensedmask_po_Np_K]
-
-        closest_pu_idx_Np_K = np.argpartition(sensorvals_Np_K_Np, 2, axis=2)[2].T # Smallest would be itself? TODO check
-        sensedmask_pu_Np_K = np.isfinite(closest_pu_idx_Np_K)
+        # Allies
+        closest_pu_idx_Np_K = sensorvals_Np_K_Np.argsort(axis=2)[1].T#np.argpartition(sensorvals_Np_K_Np, 2, axis=2)[2].T # Smallest would be itself? TODO check
+        closest_pu_dist_Np_K = self._closest_dist(closest_pu_idx_Np_K, sensorvals_Np_K_Np) # np.c_[sensorvals]
+        sensedmask_pu_Np_K = np.isfinite(closest_pu_dist_Np_K)
         sensed_pudistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
         sensed_pudistfeatures_Np_K[sensedmask_pu_Np_K] = closest_pu_idx_Np_K[sensedmask_pu_Np_K]
 
