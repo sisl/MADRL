@@ -18,7 +18,7 @@ import gym
 import rltools.algos.policyopt
 import rltools.log
 import rltools.util
-from rltools.sampler import SimpleSampler, ImportanceWeightedSampler, DecSampler
+from rltools.samplers.serial import SimpleSampler, ImportanceWeightedSampler, DecSampler
 from madrl_environments.pursuit import CentralizedPursuitEvade, DecPursuitEvade
 from madrl_environments.pursuit.utils import TwoDMaps
 from rltools.baselines.linear import LinearFeatureBaseline

@@ -1,10 +1,9 @@
 import numpy as np
 import tensorflow as tf
 
-from rltools import nn
-from rltools import tfutil
-from rltools.policy.stochastic import StochasticPolicy
+from rltools import nn, tfutil
 from rltools.distributions import Distribution
+from rltools.policy.stochastic import StochasticPolicy
 
 
 class FactoredCategorical(Distribution):
