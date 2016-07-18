@@ -94,6 +94,8 @@ def main():
     parser.add_argument('--n_coop', type=int, default=2)
     parser.add_argument('--n_sensors', type=int, default=30)
     parser.add_argument('--food_reward', type=int, default=3)
+    parser.add_argument('--poison_reward', type=int, default=-1)
+    parser.add_argument('--encounter_reward', type=int, default=0.05)
 
     parser.add_argument('--policy_hidden_spec', type=str, default=GAE_ARCH)
 
@@ -113,7 +115,7 @@ def main():
 
     args = parser.parse_args()
 
-    env = CentralizedWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison, n_sensors=args.n_sensors, food_reward=args.food_reward)
+    env = CentralizedWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison, n_sensors=args.n_sensors, food_reward=args.food_reward, poison_reward=args.poison_reward, encounter_reward=args.encounter_reward)
     policy = GaussianMLPPolicy(env.observation_space, env.action_space, hidden_spec=args.policy_hidden_spec,
                                enable_obsnorm=True,
                                min_stdev=0.,

@@ -22,7 +22,7 @@ except NameError:
 
 def phase_train(spec, spec_file):
     rltools.util.header('=== Running {} ==='.format(spec_file))
-    
+
     # Make checkpoint dir. All outputs go here
     storagedir = spec['options']['storagedir']
     n_workers = spec['options']['n_workers']
@@ -40,32 +40,43 @@ def phase_train(spec, spec_file):
                             # Number of cooperating agents can't be greater than pursuers
                             if n_co > n_pu:
                                 continue
-                            for disc in spec['discounts']:
-                                for gae in spec['gae_lambdas']:
-                                    for run in range(spec['training']['runs']):
-                                        strid = 'alg={},bline={},n_ev={},n_pu={},n_se={},n_co={},disc={},gae={},run={}'.format(alg['name'], bline, n_ev, n_pu, n_se, n_co, disc, gae, run)
-                                        cmd_templates.append(alg['cmd'].replace('\n', ' ').strip())
-                                        output_filenames.append(strid + '.txt')
-                                        argdicts.append({
-                                            'baseline_type': bline,
-                                            'n_evaders': n_ev,
-                                            'n_pursuers': n_pu,
-                                            'n_sensors': n_se,
-                                            'n_coop': n_co,
-                                            'discount': disc,
-                                            'gae_lambda': gae,
-                                            'log': os.path.join(checkptdir, strid+'.h5')
-                                        })
-    
+                            for f_rew in spec['food_reward']:
+                                for p_rew in spec['poison_reward']:
+                                    for e_rew in spec['encounter_reward']:
+                                        for disc in spec['discounts']:
+                                            for gae in spec['gae_lambdas']:
+                                                for run in range(spec['training']['runs']):
+                                                    strid = 'alg={},bline={},n_ev={},n_pu={},n_se={},n_co={},f_rew={},p_rew={},e_rew={},disc={},gae={},run={}'.format(
+                                                        alg['name'], bline, n_ev, n_pu, n_se, n_co,
+                                                        f_rew, p_rew, e_rew, disc, gae, run)
+                                                    cmd_templates.append(alg['cmd'].replace(
+                                                        '\n', ' ').strip())
+                                                    output_filenames.append(strid + '.txt')
+                                                    argdicts.append({
+                                                        'baseline_type': bline,
+                                                        'n_evaders': n_ev,
+                                                        'n_pursuers': n_pu,
+                                                        'n_sensors': n_se,
+                                                        'n_coop': n_co,
+                                                        'discount': disc,
+                                                        'food_reward': f_rew,
+                                                        'poison_reward': p_rew,
+                                                        'encounter_reward': e_rew,
+                                                        'gae_lambda': gae,
+                                                        'log': os.path.join(checkptdir,
+                                                                            strid + '.h5')
+                                                    })
+
     rltools.util.ok('{} jobs to run...'.format(len(cmd_templates)))
     rltools.util.warn('Continue? y/n')
     if input() == 'y':
-        pipeline.run_jobs(cmd_templates, output_filenames, argdicts, storagedir, n_workers=n_workers)
+        pipeline.run_jobs(cmd_templates, output_filenames, argdicts, storagedir,
+                          n_workers=n_workers)
     else:
         rltools.util.failure('Canceled.')
         sys.exit(1)
-        
-    # Copy the pipeline yaml file to the output dir too
+
+        # Copy the pipeline yaml file to the output dir too
     shutil.copyfile(spec_file, os.path.join(checkptdir, 'pipeline.yaml'))
     # Keep git commit
     import subprocess
@@ -78,7 +89,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('spec', type=str)
     args = parser.parse_args()
-    
+
     with open(args.spec, 'r') as f:
         spec = yaml.load(f)
 
