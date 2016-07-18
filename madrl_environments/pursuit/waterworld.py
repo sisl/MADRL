@@ -8,7 +8,7 @@ class CentralizedWaterWorld(object):
 
     def __init__(self, n_pursuers, n_evaders, n_coop=2, n_poison=10, radius=0.015, ev_speed=0.01,
                  poison_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
-                 poison_reward=-1., food_reward=1., encounter_reward=.25, control_penalty=-.5,
+                 poison_reward=-1., food_reward=1., encounter_reward=.05, control_penalty=-.5,
                  **kwargs):
         self.n_pursuers = n_pursuers
         self.n_evaders = n_evaders
@@ -25,7 +25,7 @@ class CentralizedWaterWorld(object):
         self.control_penalty = control_penalty
         self.encounter_reward = encounter_reward
 
-        # Number of observation coordinates from each senser
+        # Number of observation coordinates from each sensor
         self.sensor_obscoord = 6
         self.obscoord_from_sensors = n_sensors * self.sensor_obscoord
         self._obs_dim = self.obscoord_from_sensors + 2  #2 for type

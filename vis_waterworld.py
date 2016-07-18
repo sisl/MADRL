@@ -21,12 +21,15 @@ import rltools.algos
 import rltools.log
 import rltools.util
 from madrl_environments.pursuit import CentralizedWaterWorld
-from rltools.baseline import LinearFeatureBaseline, MLPBaseline, ZeroBaseline
-from rltools.gaussian_policy import GaussianMLPPolicy
+from rltools.baselines.linear import LinearFeatureBaseline
+from rltools.baselines.mlp import MLPBaseline
+from rltools.baselines.zero import ZeroBaseline
+from rltools.policy.gaussian import GaussianMLPPolicy
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('filename', type=str) # defaultIS.h5/snapshots/iter0000480
+    parser.add_argument('filename', type=str)  # defaultIS.h5/snapshots/iter0000480
     parser.add_argument('--vid', type=str, default='/tmp/madrl.mp4')
     parser.add_argument('--deterministic', action='store_true', default=False)
     args = parser.parse_args()
@@ -40,21 +43,24 @@ def main():
 
         pprint.pprint(dict(dset.attrs))
 
-    env = CentralizedWaterWorld(train_args['n_pursuers'], train_args['n_evaders'], train_args['n_coop'], train_args['n_poison'], n_sensors=train_args['n_sensors'])
+    env = CentralizedWaterWorld(train_args['n_pursuers'], train_args['n_evaders'],
+                                train_args['n_coop'], train_args['n_poison'],
+                                n_sensors=train_args['n_sensors'])
 
-    policy = GaussianMLPPolicy(env.observation_space, env.action_space, hidden_spec=train_args['policy_hidden_spec'],
-                               enable_obsnorm=True,
-                               min_stdev=0.,
-                               init_logstdev=0.,
-                               tblog=train_args['tblog'],
+    policy = GaussianMLPPolicy(env.observation_space, env.action_space,
+                               hidden_spec=train_args['policy_hidden_spec'], enable_obsnorm=True,
+                               min_stdev=0., init_logstdev=0., tblog=train_args['tblog'],
                                varscope_name='gaussmlp_policy')
 
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
         policy.load_h5(sess, filename, file_key)
 
-        rew = env.animate(act_fn=lambda o: policy.sample_actions(sess, o[None,...], deterministic=args.deterministic), nsteps=500, file_name=args.vid)
+        rew = env.animate(
+            act_fn=lambda o: policy.sample_actions(sess, o[None, ...], deterministic=args.deterministic),
+            nsteps=500, file_name=args.vid)
         print(rew)
+
 
 if __name__ == '__main__':
     main()
