@@ -77,11 +77,13 @@ class CentralizedWaterWorld(object):
     def _sensed(self, objx_N_2):
         """Whether `obj` would be sensed by the pursuers"""
         relpos_obj_N_Np_2 = objx_N_2[:, None, :] - self.pursuersx_Np_2
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(self.sensor_vecs_Np_K_2[inp, ...].dot(relpos_obj_N_Np_2[:, inp, :].T))
+        # sensorvals = []
+        # for inp in range(self.n_pursuers):
+        #     sensorvals.append(self.sensor_vecs_Np_K_2[inp, ...].dot(relpos_obj_N_Np_2[:, inp, :].T))
 
-        sensorvals_Np_K_N = np.c_[sensorvals]
+        # sensorvals_Np_K_N = np.c_[sensorvals]
+        sensorvals_Np_K_N = np.tensordot(self.sensor_vecs_Np_K_2, relpos_obj_N_Np_2.transpose(1, 0, 2), axes=(2,2))[0].transpose(1,0,2)
+
         sensorvals_Np_K_N[(sensorvals_Np_K_N < 0) | (sensorvals_Np_K_N > self.sensor_range) | (
             (relpos_obj_N_Np_2**2).sum(axis=2).T[:, None, ...] - sensorvals_Np_K_N**2 > self.radius
             **2)] = np.inf
@@ -96,11 +98,12 @@ class CentralizedWaterWorld(object):
         return np.c_[sensorvals]
 
     def _extract_speed_features(self, objv_N_2, closest_obj_idx_N_K, sensedmask_obj_Np_K):
-        sensorvals = []
-        for inp in range(self.n_pursuers):
-            sensorvals.append(self.sensor_vecs_Np_K_2[inp, ...].dot((objv_N_2 - self.pursuersv_Np_2[
-                inp, ...]).T))
-        sensed_objspeed_Np_K_N = np.c_[sensorvals]
+        # sensorvals = []
+        # for inp in range(self.n_pursuers):
+        #     sensorvals.append(self.sensor_vecs_Np_K_2[inp, ...].dot((objv_N_2 - self.pursuersv_Np_2[
+        #         inp, ...]).T))
+        # sensed_objspeed_Np_K_N = np.c_[sensorvals]
+        sensed_objspeed_Np_K_N = np.tensordot(self.sensor_vecs_Np_K_2, (objv_N_2[:, None, ...] - self.pursuersv_Np_2).transpose(1,0,2), axes=(2,2))[0].transpose(1,0,2)
         sensed_objspeedfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
 
         sensorvals = []
