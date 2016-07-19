@@ -45,7 +45,10 @@ def main():
 
     env = CentralizedWaterWorld(train_args['n_pursuers'], train_args['n_evaders'],
                                 train_args['n_coop'], train_args['n_poison'],
-                                n_sensors=train_args['n_sensors'])
+                                n_sensors=train_args['n_sensors'],
+                                food_reward=train_args['food_reward'],
+                                poison_reward=train_args['poison_reward'],
+                                encounter_reward=train_args['encounter_reward'])
 
     policy = GaussianMLPPolicy(env.observation_space, env.action_space,
                                hidden_spec=train_args['policy_hidden_spec'], enable_obsnorm=True,
