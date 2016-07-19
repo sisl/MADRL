@@ -172,7 +172,7 @@ class CentralizedWaterWorld(object):
         sensed_podistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
         sensed_podistfeatures_Np_K[sensedmask_po_Np_K] = closest_po_idx_Np_K[sensedmask_po_Np_K]
         # Allies
-        closest_pu_idx_Np_K = sensorvals_Np_K_Np.argsort(axis=2)[1].T
+        closest_pu_idx_Np_K = sensorvals_Np_K_Np.argsort(axis=2)[...,1]
         closest_pu_dist_Np_K = self._closest_dist(closest_pu_idx_Np_K, sensorvals_Np_K_Np)
         sensedmask_pu_Np_K = np.isfinite(closest_pu_dist_Np_K)
         sensed_pudistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
