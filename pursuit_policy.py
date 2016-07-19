@@ -77,8 +77,9 @@ class PursuitCentralMLPPolicy(StochasticPolicy):
         else:
             action_B_N = self.distribution.sample(probs_B_N_A)
 
-        return action_B_N
+        return action_B_N[None,:]
 
     def _compute_actiondist_entropy(self, actiondist_B_NPa):
         actiondist_B_N_Pa = actiondist_B_NPa.reshape((-1, self._n_agents, self.action_space.n/self._n_agents))
         return self.distribution.entropy(np.exp(actiondist_B_N_Pa))
+

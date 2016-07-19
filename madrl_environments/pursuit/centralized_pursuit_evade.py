@@ -97,6 +97,7 @@ class CentralizedPursuitEvade():
             self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2 * self.n_pursuers)])
             if self.factored:
                 self.action_space = spaces.Discrete(n_act_purs * self.n_pursuers)
+                self.action_space.ndim = self.n_pursuers
             else:
                 self.action_space = spaces.Discrete(n_act_purs**self.n_pursuers)
             self.observation_space = spaces.Box(self.low, self.high)
@@ -107,7 +108,8 @@ class CentralizedPursuitEvade():
             self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2 * self.n_evaders)])
             self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2 * self.n_evaders)])
             if self.factored:
-                self.action_space = spaces.Discrete(n_act_purs * self.n_pursuers)
+                self.action_space = spaces.Discrete(n_act_purs * self.n_evaders)
+                self.action_space.ndim = self.n_evaders
             else:
                 self.action_space = spaces.Discrete(n_act_purs**self.n_evaders)
             self.observation_space = spaces.Box(self.low, self.high)
@@ -165,7 +167,7 @@ class CentralizedPursuitEvade():
             opponent_controller = self.pursuer_controller
 
         # move allies
-        if actions is list:
+        if actions is list or isinstance(actions, np.ndarray):
             # move all agents
             for i, a in enumerate(actions):
                 agent_layer.move_agent(i, a)
