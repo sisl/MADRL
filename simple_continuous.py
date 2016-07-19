@@ -19,6 +19,7 @@ import rltools.algos.policyopt
 import rltools.log
 import rltools.util
 from rltools.samplers.serial import SimpleSampler, ImportanceWeightedSampler, DecSampler
+from rltools.samplers.parallel import ThreadedSampler, ParallelSampler
 from madrl_environments.pursuit import CentralizedWaterWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
@@ -140,6 +141,14 @@ def main():
                             max_batch_size=args.max_batch_size,
                             batch_rate=args.batch_rate,
                             adaptive=args.adaptive_batch)
+    elif args.sampler == 'thread':
+        sampler_cls = ThreadedSampler
+        sampler_args = dict(max_traj_len=args.max_traj_len,
+                            batch_size=args.batch_size,
+                            min_batch_size=args.min_batch_size,
+                            max_batch_size=args.max_batch_size,
+                            batch_rate=args.batch_rate,
+                            adaptive=args.adaptive_batch)
     elif args.sampler == 'imp':
         sampler_cls = ImportanceWeightedSampler
         sampler_args = dict(max_traj_len=args.max_traj_len,
@@ -178,4 +187,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
