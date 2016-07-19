@@ -19,7 +19,7 @@ import rltools.algos.policyopt
 import rltools.log
 import rltools.util
 from rltools.samplers.serial import SimpleSampler, ImportanceWeightedSampler, DecSampler
-from rltools.samplers.parallel import ThreadedSampler, ParallelSampler
+from rltools.samplers.parallel import ThreadedSampler
 from madrl_environments.pursuit import CentralizedWaterWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
