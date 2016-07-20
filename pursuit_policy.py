@@ -68,7 +68,7 @@ class PursuitCentralMLPPolicy(StochasticPolicy):
         actiondist_B_N_Pa = tf.reshape(actiondist_B_NPa,
                                        (-1, self._n_agents, self.action_space.n / self._n_agents))
         logprob_B_N = tfutil.lookup_last_idx(actiondist_B_N_Pa, input_actions_B_N)
-        return tf.reduce_sum(logprob_B_N, 1)  # XXX STUPID FIXME
+        return tf.reduce_sum(logprob_B_N, 1)  # Product of probabilities
 
     def _make_actiondist_kl_ops(self, proposal_actiondist_B_NPa, actiondist_B_NPa):
         proposal_actiondist_B_N_Pa = tf.reshape(proposal_actiondist_B_NPa,
