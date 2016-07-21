@@ -175,6 +175,7 @@ class CentralizedPursuitEvade():
             # ravel it up
             act_idxs = np.unravel_index(actions, self.act_dims)
             for i, a in enumerate(act_idxs):
+                print i, a
                 agent_layer.move_agent(i, a)
 
         # move opponents

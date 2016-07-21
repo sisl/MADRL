@@ -97,7 +97,7 @@ class DecPursuitEvade():
             self.local_obs = np.zeros(
                 (self.n_pursuers, 3, self.obs_range, self.obs_range))  # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_pursuers)]
-            self.agent_gone = np.array([False for i in xrange(self.n_pursuers)])
+            self.total_agents = self.n_pursuers
         else:
             self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2)])
             self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2)])
@@ -106,7 +106,9 @@ class DecPursuitEvade():
             self.local_obs = np.zeros(
                 (self.n_evaders, 3, self.obs_range, self.obs_range))  # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_evaders)]
-            self.agent_gone = np.array([False for i in xrange(self.n_evaders)])
+            self.total_agents = self.n_evaders
+        self.pursuers_gone = np.array([False for i in xrange(self.n_pursuers)])
+        self.evaders_gone = np.array([False for i in xrange(self.n_evaders)])
 
         self.initial_config = kwargs.pop('initial_config', {})
 
@@ -123,7 +125,8 @@ class DecPursuitEvade():
     #################################################################
 
     def reset(self):
-        self.agent_gone.fill(False)
+        self.pursuers_gone.fill(False)
+        self.evaders_gone.fill(False)
         if self.random_opponents:
             if self.train_pursuit:
                 self.n_evaders = np.random.randint(1, self.max_opponents)
@@ -140,25 +143,26 @@ class DecPursuitEvade():
         self.model_state[1] = self.pursuer_layer.get_state_matrix()
         self.model_state[2] = self.evader_layer.get_state_matrix()
         if self.train_pursuit:
-            return self.collect_obs(self.pursuer_layer)
+            return self.collect_obs(self.pursuer_layer, self.pursuers_gone)
         else:
-            return self.collect_obs(self.evader_layer)
+            return self.collect_obs(self.evader_layer, self.evaders_gone)
 
     def step(self, actions):
         """
             Step the system forward. Actions is an iterable of action indecies.
         """
-
         r = self.reward()
 
         if self.train_pursuit:
             agent_layer = self.pursuer_layer
             opponent_layer = self.evader_layer
             opponent_controller = self.evader_controller
+            gone_flags = self.pursuers_gone
         else:
             agent_layer = self.evader_layer
             opponent_layer = self.pursuer_layer
             opponent_controller = self.pursuer_controller
+            gone_flags = self.evaders_gone
 
         # move allies
         for i, a in enumerate(actions):
@@ -178,14 +182,14 @@ class DecPursuitEvade():
         # remove agents that are caught
         ev_remove, pr_remove = self.remove_agents()
 
+        o = self.collect_obs(agent_layer, gone_flags)
+
         # add caught rewards
         if self.train_pursuit:
             r += (ev_remove * self.term_pursuit)
         else:
             r += (pr_remove * self.term_evade)
         r += self.urgency_reward
-
-        o = self.collect_obs(agent_layer)
 
         done = self.is_terminal()
 
@@ -277,8 +281,9 @@ class DecPursuitEvade():
         return r
 
     def is_terminal(self):
-        ev = self.evader_layer.get_state_matrix()  # evader positions
-        if np.sum(ev) == 0.0:
+        #ev = self.evader_layer.get_state_matrix()  # evader positions
+        #if np.sum(ev) == 0.0:
+        if self.evader_layer.n_agents() == 0:
             return True
         return False
 
@@ -300,16 +305,19 @@ class DecPursuitEvade():
         n = self.pursuer_layer.n_agents() if self.train_pursuit else self.evader_layer.n_agents()
         return n
 
-    def collect_obs(self, agent_layer):
+    def collect_obs(self, agent_layer, gone_flags):
         obs = []
-        for i in xrange(agent_layer.n_agents()):
-            o = self.collect_obs_by_idx(agent_layer, i)
-            obs.append(o)
+        nage = 0
+        for i in xrange(self.total_agents):
+            if gone_flags[i]: 
+                obs.append(None)
+            else:
+                o = self.collect_obs_by_idx(agent_layer, nage)
+                obs.append(o)
+                nage += 1
         return obs
 
     def collect_obs_by_idx(self, agent_layer, agent_idx):
-        if self.agent_gone[agent_idx]:
-            return None
         # returns a flattened array of all the observations
         n = agent_layer.n_agents()
         self.local_obs.fill(-0.1)  # border walls set to -0.1?
@@ -366,16 +374,24 @@ class DecPursuitEvade():
         n_evader_removed = 0
         removed_evade = []
         removed_pursuit = []
+
+        ai = 0
         rems = 0
-        for i in xrange(self.evader_layer.n_agents()):
-            x, y = self.evader_layer.get_position(i)
+        for i in xrange(self.n_evaders):
+            if self.evaders_gone[i]: continue
+            x, y = self.evader_layer.get_position(ai)
             if self.model_state[1, x, y] >= self.n_catch:
                 # add prob remove?
-                removed_evade.append(i - rems)
+                removed_evade.append(ai - rems)
+                self.evaders_gone[i] = True
                 rems += 1
-        rems = 0
+            ai += 1
+
+
+        ai = 0
         for i in xrange(self.pursuer_layer.n_agents()):
-            x, y = self.pursuer_layer.get_position(i)
+            if self.pursuers_gone[i]: continue
+            x, y = self.pursuer_layer.get_position(ai)
             # number of evaders > 0 and number of pursuers < n_catch
             #if self.model_state[2,x,y] > 0 and self.model_state[1,x,y] < self.n_catch:
             # probabilistic model for this
@@ -389,10 +405,6 @@ class DecPursuitEvade():
         for ridx in removed_pursuit:
             self.pursuer_layer.remove_agent(ridx)
             n_pursuer_removed += 1
-        if self.train_pursuit:
-            self.agent_gone[removed_pursuit] = True
-        else:
-            self.agent_gone[removed_evade] = True
         return n_evader_removed, n_pursuer_removed
 
     def get_layers_pursuer(self, agent_idx):
