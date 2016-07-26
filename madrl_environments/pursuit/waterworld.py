@@ -4,7 +4,6 @@ import scipy.spatial.distance as ssd
 from gym import spaces
 
 
-
 class MAWaterWorld(object):
 
     def __init__(self, n_pursuers, n_evaders, n_coop=2, n_poison=10, radius=0.015, ev_speed=0.01,
@@ -36,7 +35,7 @@ class MAWaterWorld(object):
         # Number of observation coordinates from each sensor
         self.sensor_obscoord = 6
         self.obscoord_from_sensors = n_sensors * self.sensor_obscoord
-        self._obs_dim = self.obscoord_from_sensors + 2  #2 for type
+        self._obs_dim = self.obscoord_from_sensors + 2 + 1  #2 for type, 1 for id
 
     @property
     def observation_space(self):
@@ -247,8 +246,7 @@ class MAWaterWorld(object):
             obslist.append(
                 np.concatenate([sensorfeatures_Np_K_O[inp, ...].ravel(), [float((
                     is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((is_colliding_po_Np_Npo[inp, :]
-                                                                     ).sum() > 0)]]))
-
+                                                                     ).sum() > 0)], [inp + 1]]))
         if self.centralized:
             obs = np.c_[obslist].ravel()
             assert obs.shape == self.observation_space.shape
