@@ -33,6 +33,7 @@ def main():
     parser.add_argument('--vid', type=str, default='/tmp/madrl.mp4')
     parser.add_argument('--centralized', action='store_true', default=False)
     parser.add_argument('--deterministic', action='store_true', default=False)
+    parser.add_argument('--n_steps', type=int, default=500)
     args = parser.parse_args()
 
     # Load file
@@ -62,7 +63,7 @@ def main():
 
         rew = env.animate(
             act_fn=lambda o: policy.sample_actions(sess, o[None, ...], deterministic=args.deterministic),
-            nsteps=500, file_name=args.vid)
+            nsteps=args.n_steps, file_name=args.vid)
         print(rew)
 
 
