@@ -4,12 +4,13 @@ import scipy.spatial.distance as ssd
 from gym import spaces
 
 
-class CentralizedWaterWorld(object):
+
+class MAWaterWorld(object):
 
     def __init__(self, n_pursuers, n_evaders, n_coop=2, n_poison=10, radius=0.015, ev_speed=0.01,
                  poison_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
                  poison_reward=-1., food_reward=1., encounter_reward=.05, control_penalty=-.5,
-                 **kwargs):
+                 centralized=True, **kwargs):
         self.n_pursuers = n_pursuers
         self.n_evaders = n_evaders
         self.n_coop = n_coop
@@ -24,6 +25,13 @@ class CentralizedWaterWorld(object):
         self.food_reward = food_reward
         self.control_penalty = control_penalty
         self.encounter_reward = encounter_reward
+        # So the way it works is that you have the waterworld environment
+        # In the centralized setting all observations from each agent are joined together in a single 1D array
+        # However, in the decentralized setting we get a list of actions for each agent 
+        # and output observations for each agent
+        # TODO: not sure if the observation shape should include the number of agent.
+        # IMHO not
+        self.centralized = centralized
 
         # Number of observation coordinates from each sensor
         self.sensor_obscoord = 6
@@ -32,11 +40,21 @@ class CentralizedWaterWorld(object):
 
     @property
     def observation_space(self):
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(self.n_pursuers * self._obs_dim,))
+        if self.centralized:
+            return spaces.Box(low=-np.inf, high=np.inf, shape=(self.n_pursuers * self._obs_dim,))
+        else:
+            return spaces.Box(low=-np.inf, high=np.inf, shape=(self._obs_dim,))
 
     @property
     def action_space(self):
-        return spaces.Box(low=-10, high=10, shape=(self.n_pursuers * 2))
+        if self.centralized:
+            return spaces.Box(low=-10, high=10, shape=(self.n_pursuers * 2))
+        else:
+            return spaces.Box(low=-10, high=10, shape=(2,))
+
+    @property
+    def total_agents(self):
+        return self.n_pursuers
 
     def reset(self):
         # Initialize pursuers
@@ -82,7 +100,9 @@ class CentralizedWaterWorld(object):
         #     sensorvals.append(self.sensor_vecs_Np_K_2[inp, ...].dot(relpos_obj_N_Np_2[:, inp, :].T))
 
         # sensorvals_Np_K_N = np.c_[sensorvals]
-        sensorvals_Np_K_N = np.tensordot(self.sensor_vecs_Np_K_2, relpos_obj_N_Np_2.transpose(1, 0, 2), axes=(2,2))[0].transpose(1,0,2)
+        sensorvals_Np_K_N = np.tensordot(self.sensor_vecs_Np_K_2, relpos_obj_N_Np_2.transpose(1, 0,
+                                                                                              2),
+                                         axes=(2, 2))[0].transpose(1, 0, 2)
 
         sensorvals_Np_K_N[(sensorvals_Np_K_N < 0) | (sensorvals_Np_K_N > self.sensor_range) | (
             (relpos_obj_N_Np_2**2).sum(axis=2).T[:, None, ...] - sensorvals_Np_K_N**2 > self.radius
@@ -103,7 +123,9 @@ class CentralizedWaterWorld(object):
         #     sensorvals.append(self.sensor_vecs_Np_K_2[inp, ...].dot((objv_N_2 - self.pursuersv_Np_2[
         #         inp, ...]).T))
         # sensed_objspeed_Np_K_N = np.c_[sensorvals]
-        sensed_objspeed_Np_K_N = np.tensordot(self.sensor_vecs_Np_K_2, (objv_N_2[:, None, ...] - self.pursuersv_Np_2).transpose(1,0,2), axes=(2,2))[0].transpose(1,0,2)
+        sensed_objspeed_Np_K_N = np.tensordot(self.sensor_vecs_Np_K_2, (
+            objv_N_2[:, None, ...] - self.pursuersv_Np_2).transpose(1, 0, 2),
+                                              axes=(2, 2))[0].transpose(1, 0, 2)
         sensed_objspeedfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
 
         sensorvals = []
@@ -172,7 +194,7 @@ class CentralizedWaterWorld(object):
         sensed_podistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
         sensed_podistfeatures_Np_K[sensedmask_po_Np_K] = closest_po_idx_Np_K[sensedmask_po_Np_K]
         # Allies
-        closest_pu_idx_Np_K = sensorvals_Np_K_Np.argsort(axis=2)[...,1]
+        closest_pu_idx_Np_K = sensorvals_Np_K_Np.argsort(axis=2)[..., 1]
         closest_pu_dist_Np_K = self._closest_dist(closest_pu_idx_Np_K, sensorvals_Np_K_Np)
         sensedmask_pu_Np_K = np.isfinite(closest_pu_dist_Np_K)
         sensed_pudistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
@@ -222,11 +244,17 @@ class CentralizedWaterWorld(object):
 
         obslist = []
         for inp in range(self.n_pursuers):
-            obslist.append(np.concatenate([sensorfeatures_Np_K_O[inp, ...].ravel(), [float((
-                is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((is_colliding_po_Np_Npo[inp, :]
-                                                                 ).sum() > 0)]]))
-        obs = np.c_[obslist].ravel()
-        assert obs.shape == self.observation_space.shape
+            obslist.append(
+                np.concatenate([sensorfeatures_Np_K_O[inp, ...].ravel(), [float((
+                    is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((is_colliding_po_Np_Npo[inp, :]
+                                                                     ).sum() > 0)]]))
+
+        if self.centralized:
+            obs = np.c_[obslist].ravel()
+            assert obs.shape == self.observation_space.shape
+        else:
+            obs = obslist
+
         done = self.is_terminal
         info = None
         return obs, reward, done, info
@@ -275,10 +303,10 @@ class CentralizedWaterWorld(object):
 
 
 if __name__ == '__main__':
-    env = CentralizedWaterWorld(3, 5)
+    env = MAWaterWorld(3, 5)
     obs = env.reset()
     while True:
-        obs, rew, _, _ = env.step(np.random.randn(3, 2) * .5)
+        obs, rew, _, _ = env.step(np.random.randn(6) * .5)
         if rew > 0:
             print(rew)
         env.render()
