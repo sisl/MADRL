@@ -26,7 +26,7 @@ class MAWaterWorld(object):
         self.encounter_reward = encounter_reward
         # So the way it works is that you have the waterworld environment
         # In the centralized setting all observations from each agent are joined together in a single 1D array
-        # However, in the decentralized setting we get a list of actions for each agent 
+        # However, in the decentralized setting we get a list of actions for each agent
         # and output observations for each agent
         # TODO: not sure if the observation shape should include the number of agent.
         # IMHO not
@@ -289,7 +289,15 @@ class MAWaterWorld(object):
         self.render(rate=rate)
         rew = 0
         for i in range(nsteps):
-            a, adist = act_fn(o)
+            if self.centralized:
+                a, adist = act_fn(o)
+            else:
+                a = []
+                for i, agent_o in enumerate(o):
+                    agent_a, adist = act_fn(agent_o)
+                    a.append(agent_a)
+                a = np.asarray(a)
+
             o, r, done, _ = self.step(a)
             rew += r
             if r > 0:
