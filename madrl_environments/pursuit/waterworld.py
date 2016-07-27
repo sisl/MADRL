@@ -6,7 +6,8 @@ from gym import spaces
 
 class MAWaterWorld(object):
 
-    def __init__(self, n_pursuers, n_evaders, n_coop=2, n_poison=10, radius=0.015, ev_speed=0.01,
+    def __init__(self, n_pursuers, n_evaders, n_coop=2, n_poison=10, radius=0.015,
+                 obstacle_radius=0.2, obstacle_loc=np.array([0.5, 0.5]), ev_speed=0.01,
                  poison_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
                  poison_reward=-1., food_reward=1., encounter_reward=.05, control_penalty=-.5,
                  centralized=True, **kwargs):
@@ -14,6 +15,8 @@ class MAWaterWorld(object):
         self.n_evaders = n_evaders
         self.n_coop = n_coop
         self.n_poison = n_poison
+        self.obstacle_radius = obstacle_radius
+        self.obstacle_loc = obstacle_loc
         self.poison_speed = poison_speed
         self.radius = radius
         self.ev_speed = ev_speed
@@ -24,6 +27,8 @@ class MAWaterWorld(object):
         self.food_reward = food_reward
         self.control_penalty = control_penalty
         self.encounter_reward = encounter_reward
+
+        self.n_obstacles = 1
         # So the way it works is that you have the waterworld environment
         # In the centralized setting all observations from each agent are joined together in a single 1D array
         # However, in the decentralized setting we get a list of actions for each agent
@@ -33,7 +38,7 @@ class MAWaterWorld(object):
         self.centralized = centralized
 
         # Number of observation coordinates from each sensor
-        self.sensor_obscoord = 6
+        self.sensor_obscoord = 7
         self.obscoord_from_sensors = n_sensors * self.sensor_obscoord
         self._obs_dim = self.obscoord_from_sensors + 2 + 1  #2 for type, 1 for id
 
@@ -55,9 +60,25 @@ class MAWaterWorld(object):
     def total_agents(self):
         return self.n_pursuers
 
+    def _respawn(self, objx_N_2):
+        for i in range(len(objx_N_2)):
+            while ssd.cdist(objx_N_2[i, None, :],
+                            self.obstaclesx_No_2) <= self.radius + self.obstacle_radius:
+                objx_N_2[i, :] = np.random.rand(2)
+        return objx_N_2
+
     def reset(self):
+        # Initialize obstacles
+        if self.obstacle_loc is None:
+            self.obstaclesx_No_2 = np.random.rand(self.n_obstacles, 2)
+        else:
+            self.obstaclesx_No_2 = self.obstacle_loc[None, :]
+        self.obstaclesv_No_2 = np.zeros((self.n_obstacles, 2))
+
         # Initialize pursuers
         self.pursuersx_Np_2 = np.random.rand(self.n_pursuers, 2)
+        # Avoid spawning where the obstacles lie
+        self.pursuersx_Np_2 = self._respawn(self.pursuersx_Np_2)
         self.pursuersv_Np_2 = np.zeros((self.n_pursuers, 2))
 
         # Sensors
@@ -67,11 +88,13 @@ class MAWaterWorld(object):
 
         # Initialize evaders
         self.evadersx_Ne_2 = np.random.rand(self.n_evaders, 2)
+        self.evadersx_Ne_2 = self._respawn(self.evadersx_Ne_2)
         self.evadersv_Ne_2 = (
             np.random.rand(self.n_evaders, 2) - .5) * self.ev_speed  # Random speeds TODO policy?
 
         # Initialize poisons
         self.poisonx_Npo_2 = np.random.rand(self.n_poison, 2)
+        self.poisonx_Npo_2 = self._respawn(self.poisonx_Npo_2)
         self.poisonv_Npo_2 = (
             np.random.rand(self.n_poison, 2) - .5) * self.poison_speed  # Random speeds
 
@@ -154,6 +177,26 @@ class MAWaterWorld(object):
         self.pursuersv_Np_2[self.pursuersx_Np_2 != clippedx_Np_2] = 0
         self.pursuersx_Np_2 = clippedx_Np_2
 
+        # Particles rebound on hitting an obstacle
+        obsdists_Np_No = ssd.cdist(self.pursuersx_Np_2, self.obstaclesx_No_2)
+        is_colliding_obs_Np_No = obsdists_Np_No <= self.radius + self.obstacle_radius
+        num_obs_collisions = is_colliding_obs_Np_No.sum()
+
+        is_colliding_obs_Np = is_colliding_obs_Np_No.any(axis=1)
+        self.pursuersv_Np_2[is_colliding_obs_Np] *= -1
+
+        obsdists_Ne_No = ssd.cdist(self.evadersx_Ne_2, self.obstaclesx_No_2)
+        is_colliding_obs_Ne_No = obsdists_Ne_No <= self.radius + self.obstacle_radius
+
+        is_colliding_obs_Ne = is_colliding_obs_Ne_No.any(axis=1)
+        self.evadersv_Ne_2[is_colliding_obs_Ne] *= -1
+
+        obsdists_Npo_No = ssd.cdist(self.poisonx_Npo_2, self.obstaclesx_No_2)
+        is_colliding_obs_Npo_No = obsdists_Npo_No <= self.radius + self.obstacle_radius
+
+        is_colliding_obs_Npo = is_colliding_obs_Npo_No.any(axis=1)
+        self.poisonv_Npo_2[is_colliding_obs_Npo] *= -1
+
         # Find collisions
         # Evaders
         evdists_Np_Ne = ssd.cdist(self.pursuersx_Np_2, self.evadersx_Ne_2)
@@ -170,6 +213,9 @@ class MAWaterWorld(object):
         # TODO: Check if the logic is correct, especially for allies
 
         # Find sensed objects
+        # Obstacles
+        sensorvals_Np_K_No = self._sensed(self.obstaclesx_No_2)
+
         # Evaders
         sensorvals_Np_K_Ne = self._sensed(self.evadersx_Ne_2)
 
@@ -180,6 +226,11 @@ class MAWaterWorld(object):
         sensorvals_Np_K_Np = self._sensed(self.pursuersx_Np_2)
 
         # dist features
+        closest_ob_idx_Np_K = np.argmin(sensorvals_Np_K_No, axis=2)
+        closest_ob_dist_Np_K = self._closest_dist(closest_ob_idx_Np_K, sensorvals_Np_K_No)
+        sensedmask_ob_Np_K = np.isfinite(closest_ob_dist_Np_K)
+        sensed_obdistfeatures_Np_K = np.zeros((self.n_pursuers, self.n_sensors))
+        sensed_obdistfeatures_Np_K[sensedmask_ob_Np_K] = closest_ob_idx_Np_K[sensedmask_ob_Np_K]
         # Evaders
         closest_ev_idx_Np_K = np.argmin(sensorvals_Np_K_Ne, axis=2)
         closest_ev_dist_Np_K = self._closest_dist(closest_ev_idx_Np_K, sensorvals_Np_K_Ne)
@@ -217,10 +268,12 @@ class MAWaterWorld(object):
         # If object collided with required number of players, reset its position and velocity
         # Effectively the same as removing it and adding it back
         self.evadersx_Ne_2[ev_caught_Ne, :] = np.random.rand(ev_catches, 2)
+        self.evadersx_Ne_2[ev_caught_Ne, :] = self._respawn(self.evadersx_Ne_2[ev_caught_Ne, :])
         self.evadersv_Ne_2[ev_caught_Ne, :] = (np.random.rand(ev_catches, 2) - .5) * self.ev_speed
 
         po_catches, po_caught_Npo = self._caught(is_colliding_po_Np_Npo, 1)
         self.poisonx_Npo_2[po_caught_Npo, :] = np.random.rand(po_catches, 2)
+        self.poisonx_Npo_2[po_caught_Npo, :] = self._respawn(self.poisonx_Npo_2[po_caught_Npo, :])
         self.poisonv_Npo_2[po_caught_Npo, :] = (
             np.random.rand(po_catches, 2) - .5) * self.poison_speed
 
@@ -229,9 +282,10 @@ class MAWaterWorld(object):
         reward += ev_catches * self.food_reward + po_catches * self.poison_reward + ev_encounters * self.encounter_reward
 
         # Add features together
-        sensorfeatures_Np_K_O = np.c_[sensed_evdistfeatures_Np_K, sensed_evspeedfeatures_Np_K,
-                                      sensed_podistfeatures_Np_K, sensed_pospeedfeatures_Np_K,
-                                      sensed_pudistfeatures_Np_K, sensed_puspeedfeatures_Np_K]
+        sensorfeatures_Np_K_O = np.c_[sensed_obdistfeatures_Np_K, sensed_evdistfeatures_Np_K,
+                                      sensed_evspeedfeatures_Np_K, sensed_podistfeatures_Np_K,
+                                      sensed_pospeedfeatures_Np_K, sensed_pudistfeatures_Np_K,
+                                      sensed_puspeedfeatures_Np_K]
 
         # Move objects
         self.evadersx_Ne_2 += self.evadersv_Ne_2
@@ -249,7 +303,8 @@ class MAWaterWorld(object):
                                                                      ).sum() > 0)], [inp + 1]]))
         if self.centralized:
             obs = np.c_[obslist].ravel()
-            assert obs.shape == self.observation_space.shape
+
+            assert obs.shape == self.observation_space.shape, "{}".format(obs.shape)
         else:
             obs = obslist
 
@@ -261,6 +316,12 @@ class MAWaterWorld(object):
         import cv2
         img = np.empty((screen_size, screen_size, 3), dtype=np.uint8)
         img[...] = 255
+        # Obstacles
+        for iobs, obstaclex_2 in enumerate(self.obstaclesx_No_2):
+            assert obstaclex_2.shape == (2,)
+            color = (128, 128, 0)
+            cv2.circle(img, tuple((obstaclex_2 * screen_size).astype(int)),
+                       int(self.obstacle_radius * screen_size), color, -1, lineType=cv2.CV_AA)
         # Pursuers
         for ipur, pursuerx_2 in enumerate(self.pursuersx_Np_2):
             assert pursuerx_2.shape == (2,)
