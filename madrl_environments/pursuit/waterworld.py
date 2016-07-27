@@ -18,7 +18,7 @@ class MAWaterWorld(object):
         self.radius = radius
         self.ev_speed = ev_speed
         self.n_sensors = n_sensors
-        self.sensor_range = sensor_range
+        self.sensor_range = np.ones(self.n_pursuers) * sensor_range
         self.action_scale = action_scale
         self.poison_reward = poison_reward
         self.food_reward = food_reward
@@ -103,9 +103,9 @@ class MAWaterWorld(object):
                                                                                               2),
                                          axes=(2, 2))[0].transpose(1, 0, 2)
 
-        sensorvals_Np_K_N[(sensorvals_Np_K_N < 0) | (sensorvals_Np_K_N > self.sensor_range) | (
-            (relpos_obj_N_Np_2**2).sum(axis=2).T[:, None, ...] - sensorvals_Np_K_N**2 > self.radius
-            **2)] = np.inf
+        sensorvals_Np_K_N[(sensorvals_Np_K_N < 0) | (
+            sensorvals_Np_K_N > self.sensor_range[:, None, None]) | ((relpos_obj_N_Np_2**2).sum(
+                axis=2).T[:, None, ...] - sensorvals_Np_K_N**2 > self.radius**2)] = np.inf
         return sensorvals_Np_K_N
 
     def _closest_dist(self, closest_obj_idx_Np_K, sensorvals_Np_K_N):
@@ -267,7 +267,7 @@ class MAWaterWorld(object):
             for k in range(self.n_sensors):
                 color = (0, 0, 0)
                 cv2.line(img, tuple((pursuerx_2 * screen_size).astype(int)),
-                         tuple(((pursuerx_2 + self.sensor_range * self.sensor_vecs_Np_K_2[
+                         tuple(((pursuerx_2 + self.sensor_range[ipur] * self.sensor_vecs_Np_K_2[
                              ipur, k, :]) * screen_size).astype(int)), color, 1, lineType=cv2.CV_AA)
                 cv2.circle(img, tuple((pursuerx_2 * screen_size).astype(int)),
                            int(self.radius * screen_size), (255, 0, 0), -1, lineType=cv2.CV_AA)
