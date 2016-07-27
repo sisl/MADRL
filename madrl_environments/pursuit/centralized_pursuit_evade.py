@@ -278,7 +278,7 @@ class CentralizedPursuitEvade():
             file_path, "temp_%d.png") + " -c:v libx264 -pix_fmt yuv420p " + file_name
         call(ffmpeg_cmd.split())
         # clean-up by removing .pngs
-        map(os.remove, glob.glob(join(file_path, "temp_*")))
+        map(os.remove, glob.glob(join(file_path, "temp_*.png")))
 
     def save_image(self, file_name):
         plt.cla()

@@ -84,6 +84,8 @@ class DecPursuitEvade():
 
         self.urgency_reward = kwargs.pop('urgency_reward', 0.0)
 
+        self.include_id = kwargs.pop('include_id', True)
+
         self.ally_actions = np.zeros(n_act_purs, dtype=np.int32)
         self.opponent_actions = np.zeros(n_act_ev, dtype=np.int32)
 
@@ -92,6 +94,9 @@ class DecPursuitEvade():
         if self.train_pursuit:
             self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2)])
             self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2)])
+            if self.include_id:
+                self.low = np.append(self.low, 0.0)
+                self.high = np.append(self.high, 1.0)
             self.action_space = spaces.Discrete(n_act_purs)
             self.observation_space = spaces.Box(self.low, self.high)
             self.local_obs = np.zeros(
@@ -101,6 +106,9 @@ class DecPursuitEvade():
         else:
             self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2)])
             self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2)])
+            if include_id:
+                np.append(self.low, 0.0)
+                np.append(self.high, 1.0)
             self.action_space = spaces.Discrete(n_act_ev)
             self.observation_space = spaces.Box(self.low, self.high)
             self.local_obs = np.zeros(
@@ -195,6 +203,7 @@ class DecPursuitEvade():
 
         return o, r, done, None
 
+
     def render(self):
         plt.matshow(self.model_state[0].T, cmap=plt.get_cmap('Greys'), fignum=1)
         for i in xrange(self.pursuer_layer.n_agents()):
@@ -216,7 +225,36 @@ class DecPursuitEvade():
         plt.pause(self.plt_delay)
         plt.clf()
 
-    def animate(self, policy, nsteps, file_name, rate=1.5):
+    def _render(self, rate=10):
+        import cv2
+        img = np.repeat(self.model_state[0].T[:, :, None], 3, axis=2)
+        print(img.shape)
+        for i in range(self.pursuer_layer.n_agents()):
+            x, y = self.pursuer_layer.get_position(i)
+            cv2.circle(img, (x, y), 1, (255, 0, 0), -1, lineType=cv2.CV_AA)
+        for i in range(self.evader_layer.n_agents()):
+            x, y = self.pursuer_layer.get_position(i)
+            cv2.circle(img, (x, y), 1, (0, 0, 255), 1, lineType=cv2.CV_AA)
+        cv2.imshow('pursue', img)
+        cv2.waitKey(rate)
+
+    def _animate(self, act_fn, nsteps, file_name, rate=10):
+        o = self.reset()
+        rew = 0
+        self._render(rate=rate)
+        for i in range(nsteps):
+            a, adist = act_fn(o)
+            o, r, done, _ = self.step(a)
+
+            rew += r
+            if r > 0:
+                print(r)
+            self._render(rate=rate)
+            if done:
+                break
+        return rew
+
+    def animate(self, act_fn, nsteps, file_name, rate=1.5):
         """
             Save an animation to an mp4 file.
         """
@@ -228,8 +266,11 @@ class DecPursuitEvade():
         # generate .pngs
         self.save_image(temp_name)
         for i in xrange(nsteps):
-            a, adist = policy.act(o)
-            o, r, done, _ = self.step(a)
+            action_list = []
+            for agent_obs in o:
+                a, adist = act_fn(agent_obs)
+                action_list.append(a[0,0])
+            o, r, done, _ = self.step(action_list)
             temp_name = join(file_path, "temp_" + str(i + 1) + ".png")
             self.save_image(temp_name)
             if done:
@@ -239,7 +280,7 @@ class DecPursuitEvade():
             file_path, "temp_%d.png") + " -c:v libx264 -pix_fmt yuv420p " + file_name
         call(ffmpeg_cmd.split())
         # clean-up by removing .pngs
-        map(os.remove, glob.glob(join(file_path, "temp_*")))
+        map(os.remove, glob.glob(join(file_path, "temp_*.png")))
 
     def save_image(self, file_name):
         plt.cla()
@@ -267,7 +308,9 @@ class DecPursuitEvade():
         yl, yh = -self.obs_offset - 1, self.ys + self.obs_offset + 1
         plt.xlim([xl, xh])
         plt.ylim([yl, yh])
-        plt.savefig(file_name)
+        plt.axis('off')
+        plt.savefig(file_name, dpi=200)
+
 
     def sample_action(self):
         # returns a list of actions
@@ -313,6 +356,8 @@ class DecPursuitEvade():
                 obs.append(None)
             else:
                 o = self.collect_obs_by_idx(agent_layer, nage)
+                if self.include_id:
+                    o = np.append(o, float(i)/self.total_agents)
                 obs.append(o)
                 nage += 1
         return obs
