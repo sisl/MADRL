@@ -281,6 +281,10 @@ class MAWaterWorld(object):
             color = (0, 0, 255)
             cv2.circle(img, tuple((poisonx_2 * screen_size).astype(int)),
                        int(self.radius * screen_size), color, -1, lineType=cv2.CV_AA)
+
+        opacity = 0.4
+        bg = np.ones((screen_size, screen_size, 3), dtype=np.uint8) * 255
+        cv2.addWeighted(bg, opacity, img, 1 - opacity, 0, img)
         cv2.imshow('Waterworld', img)
         cv2.waitKey(rate)
 
