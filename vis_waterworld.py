@@ -20,7 +20,7 @@ import tensorflow as tf
 import rltools.algos
 import rltools.log
 import rltools.util
-from madrl_environments.pursuit import CentralizedWaterWorld
+from madrl_environments.pursuit import MAWaterWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
@@ -31,7 +31,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', type=str)  # defaultIS.h5/snapshots/iter0000480
     parser.add_argument('--vid', type=str, default='/tmp/madrl.mp4')
+    parser.add_argument('--centralized', action='store_true', default=False)
     parser.add_argument('--deterministic', action='store_true', default=False)
+    parser.add_argument('--n_steps', type=int, default=500)
     args = parser.parse_args()
 
     # Load file
@@ -43,12 +45,12 @@ def main():
 
         pprint.pprint(dict(dset.attrs))
 
-    env = CentralizedWaterWorld(train_args['n_pursuers'], train_args['n_evaders'],
-                                train_args['n_coop'], train_args['n_poison'],
-                                n_sensors=train_args['n_sensors'],
-                                food_reward=train_args['food_reward'],
-                                poison_reward=train_args['poison_reward'],
-                                encounter_reward=train_args['encounter_reward'])
+    env = MAWaterWorld(train_args['n_pursuers'], train_args['n_evaders'], train_args['n_coop'],
+                       train_args['n_poison'], n_sensors=train_args['n_sensors'],
+                       food_reward=train_args['food_reward'],
+                       poison_reward=train_args['poison_reward'],
+                       encounter_reward=train_args['encounter_reward'],
+                       centralized=args.centralized)
 
     policy = GaussianMLPPolicy(env.observation_space, env.action_space,
                                hidden_spec=train_args['policy_hidden_spec'], enable_obsnorm=True,
@@ -61,7 +63,7 @@ def main():
 
         rew = env.animate(
             act_fn=lambda o: policy.sample_actions(sess, o[None, ...], deterministic=args.deterministic),
-            nsteps=500, file_name=args.vid)
+            nsteps=args.n_steps, file_name=args.vid)
         print(rew)
 
 

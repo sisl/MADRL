@@ -20,7 +20,7 @@ import rltools.log
 import rltools.util
 from rltools.samplers.serial import SimpleSampler, ImportanceWeightedSampler, DecSampler
 from rltools.samplers.parallel import ThreadedSampler
-from madrl_environments.pursuit import CentralizedWaterWorld
+from madrl_environments.pursuit import MAWaterWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
@@ -70,6 +70,7 @@ GAE_ARCH = '''[
 ]
 '''
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--discount', type=float, default=0.95)
@@ -89,6 +90,7 @@ def main():
     parser.add_argument('--is_skip_is', action='store_true', default=False)
     parser.add_argument('--is_max_is_ratio', type=float, default=0)
 
+    parser.add_argument('--control', type=str, default='centralized')
     parser.add_argument('--n_evaders', type=int, default=5)
     parser.add_argument('--n_pursuers', type=int, default=3)
     parser.add_argument('--n_poison', type=int, default=10)
@@ -116,66 +118,60 @@ def main():
 
     args = parser.parse_args()
 
-    env = CentralizedWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison, n_sensors=args.n_sensors, food_reward=args.food_reward, poison_reward=args.poison_reward, encounter_reward=args.encounter_reward)
-    policy = GaussianMLPPolicy(env.observation_space, env.action_space, hidden_spec=args.policy_hidden_spec,
-                               enable_obsnorm=True,
-                               min_stdev=0.,
-                               init_logstdev=0.,
-                               tblog=args.tblog,
+    centralized = True if args.control == 'centralized' else False
+
+    env = MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
+                       n_sensors=args.n_sensors, food_reward=args.food_reward,
+                       poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
+                       centralized=centralized)
+    policy = GaussianMLPPolicy(env.observation_space, env.action_space,
+                               hidden_spec=args.policy_hidden_spec, enable_obsnorm=True,
+                               min_stdev=0., init_logstdev=0., tblog=args.tblog,
                                varscope_name='gaussmlp_policy')
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True,
                                          varscope_name='pursuit_linear_baseline')
     elif args.baseline_type == 'mlp':
-        baseline = MLPBaseline(env.observation_space, args.baseline_hidden_spec,
-                               True, True, max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
-                               time_scale=1./args.max_traj_len, varscope_name='pursuit_mlp_baseline')
+        baseline = MLPBaseline(env.observation_space, args.baseline_hidden_spec, True, True,
+                               max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
+                               time_scale=1. / args.max_traj_len,
+                               varscope_name='pursuit_mlp_baseline')
     else:
         baseline = ZeroBaseline(env.observation_space)
 
     if args.sampler == 'simple':
-        sampler_cls = SimpleSampler
-        sampler_args = dict(max_traj_len=args.max_traj_len,
-                            batch_size=args.batch_size,
-                            min_batch_size=args.min_batch_size,
-                            max_batch_size=args.max_batch_size,
-                            batch_rate=args.batch_rate,
-                            adaptive=args.adaptive_batch)
+        if centralized:
+            sampler_cls = SimpleSampler
+        elif args.control == 'decentralized':
+            sampler_cls = DecSampler
+        else:
+            raise NotImplementedError()
+        sampler_args = dict(max_traj_len=args.max_traj_len, batch_size=args.batch_size,
+                            min_batch_size=args.min_batch_size, max_batch_size=args.max_batch_size,
+                            batch_rate=args.batch_rate, adaptive=args.adaptive_batch)
     elif args.sampler == 'thread':
         sampler_cls = ThreadedSampler
-        sampler_args = dict(max_traj_len=args.max_traj_len,
-                            batch_size=args.batch_size,
-                            min_batch_size=args.min_batch_size,
-                            max_batch_size=args.max_batch_size,
-                            batch_rate=args.batch_rate,
-                            adaptive=args.adaptive_batch)
+        sampler_args = dict(max_traj_len=args.max_traj_len, batch_size=args.batch_size,
+                            min_batch_size=args.min_batch_size, max_batch_size=args.max_batch_size,
+                            batch_rate=args.batch_rate, adaptive=args.adaptive_batch)
     elif args.sampler == 'imp':
         sampler_cls = ImportanceWeightedSampler
-        sampler_args = dict(max_traj_len=args.max_traj_len,
-                            batch_size=args.batch_size,
-                            min_batch_size=args.min_batch_size,
-                            max_batch_size=args.max_batch_size,
-                            batch_rate=args.batch_rate,
-                            adaptive=args.adaptive_batch,
-                            n_backtrack=args.is_n_backtrack,
-                            randomize_draw=args.is_randomize_draw,
-                            n_pretrain=args.is_n_pretrain,
-                            skip_is=args.is_skip_is,
+        sampler_args = dict(max_traj_len=args.max_traj_len, batch_size=args.batch_size,
+                            min_batch_size=args.min_batch_size, max_batch_size=args.max_batch_size,
+                            batch_rate=args.batch_rate, adaptive=args.adaptive_batch,
+                            n_backtrack=args.is_n_backtrack, randomize_draw=args.is_randomize_draw,
+                            n_pretrain=args.is_n_pretrain, skip_is=args.is_skip_is,
                             max_is_ratio=args.is_max_is_ratio)
     else:
         raise NotImplementedError()
     step_func = rltools.algos.policyopt.TRPO(max_kl=args.max_kl)
-    popt = rltools.algos.policyopt.SamplingPolicyOptimizer(
-        env=env,
-        policy=policy,
-        baseline=baseline,
-        step_func=step_func,
-        discount=args.discount,
-        gae_lambda=args.gae_lambda,
-        sampler_cls=sampler_cls,
-        sampler_args=sampler_args,
-        n_iter=args.n_iter
-    )
+    popt = rltools.algos.policyopt.SamplingPolicyOptimizer(env=env, policy=policy,
+                                                           baseline=baseline, step_func=step_func,
+                                                           discount=args.discount,
+                                                           gae_lambda=args.gae_lambda,
+                                                           sampler_cls=sampler_cls,
+                                                           sampler_args=sampler_args,
+                                                           n_iter=args.n_iter)
     argstr = json.dumps(vars(args), separators=(',', ':'), indent=2)
     rltools.util.header(argstr)
     log_f = rltools.log.TrainingLog(args.log, [('args', argstr)], debug=args.debug)
