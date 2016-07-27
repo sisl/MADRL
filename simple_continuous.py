@@ -126,7 +126,7 @@ def main():
     env = MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
                        n_sensors=args.n_sensors, food_reward=args.food_reward,
                        poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
-                       centralized=centralized, sensor_range=sensor_range)
+                       centralized=centralized, sensor_range=sensor_range, obstacle_loc=None)
     policy = GaussianMLPPolicy(env.observation_space, env.action_space,
                                hidden_spec=args.policy_hidden_spec, enable_obsnorm=True,
                                min_stdev=0., init_logstdev=0., tblog=args.tblog,
