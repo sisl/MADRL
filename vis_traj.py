@@ -52,7 +52,8 @@ def main():
                                       n_evaders=train_args['n_evaders'],
                                       n_pursuers=train_args['n_pursuers'],
                                       obs_range=train_args['obs_range'],
-                                      n_catch=train_args['n_catch'])
+                                      n_catch=train_args['n_catch'],
+                                      include_id=False)
     elif train_args['control'] == 'centralized':
         env = CentralizedPursuitEvade(TwoDMaps.rectangle_map(*map(int, train_args['rectangle'].split(','))),
                                       n_evaders=train_args['n_evaders'],
