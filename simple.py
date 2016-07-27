@@ -79,6 +79,7 @@ def main():
     parser.add_argument('--control', type=str, default='centralized')
     parser.add_argument('--factored', action='store_true', default=False)
     parser.add_argument('--rectangle', type=str, default='10,10')
+    parser.add_argument('--map_type', type=str, default='rectangle')
     parser.add_argument('--n_evaders', type=int, default=5)
     parser.add_argument('--n_pursuers', type=int, default=2)
     parser.add_argument('--obs_range', type=int, default=3)
@@ -106,8 +107,16 @@ def main():
 
     args = parser.parse_args()
 
+    if args.map_type == 'rectangle':
+        env_map = TwoDMaps.rectangle_map(*map(int, args.rectangle.split(',')))
+    elif args.map_type == 'complex':
+        env_map = TwoDMaps.complex_map(*map(int, args.rectangle.split(',')))
+    else:
+        raise NotImplementedError()
+
+
     if args.control == 'centralized':
-        env = CentralizedPursuitEvade(TwoDMaps.rectangle_map(*map(int, args.rectangle.split(','))),
+        env = CentralizedPursuitEvade(env_map,
                                       n_evaders=args.n_evaders,
                                       n_pursuers=args.n_pursuers,
                                       obs_range=args.obs_range,
@@ -116,13 +125,13 @@ def main():
                                       urgency_reward=args.urgency,
                                       factored=args.factored)
     elif args.control == 'decentralized':
-        env = DecPursuitEvade(TwoDMaps.rectangle_map(*map(int, args.rectangle.split(','))),
-                                      n_evaders=args.n_evaders,
-                                      n_pursuers=args.n_pursuers,
-                                      obs_range=args.obs_range,
-                                      n_catch=args.n_catch,
-                                      train_pursuit=args.train_pursuit,
-                                      urgency_reward=args.urgency)
+        env = DecPursuitEvade(env_map,
+                              n_evaders=args.n_evaders,
+                              n_pursuers=args.n_pursuers,
+                              obs_range=args.obs_range,
+                              n_catch=args.n_catch,
+                              train_pursuit=args.train_pursuit,
+                              urgency_reward=args.urgency)
     else:
         raise NotImplementedError()
 
