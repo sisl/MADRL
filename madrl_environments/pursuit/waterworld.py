@@ -81,7 +81,7 @@ class MAWaterWorld(object):
     def is_terminal(self):
         return False
 
-    def caught(self, is_colliding_Np_Ne, n_coop):
+    def _caught(self, is_colliding_Np_Ne, n_coop):
         """ Checke whether collision results in catching the object
 
         This is because you need `n_coop` agents to collide with the object to actually catch it
@@ -159,7 +159,7 @@ class MAWaterWorld(object):
         evdists_Np_Ne = ssd.cdist(self.pursuersx_Np_2, self.evadersx_Ne_2)
         is_colliding_ev_Np_Ne = evdists_Np_Ne <= self.radius * 2
         # num_collisions depends on how many needed to catch an evader
-        ev_catches, ev_caught_Ne = self.caught(is_colliding_ev_Np_Ne, self.n_coop)
+        ev_catches, ev_caught_Ne = self._caught(is_colliding_ev_Np_Ne, self.n_coop)
 
         # Poisons
         podists_Np_Npo = ssd.cdist(self.pursuersx_Np_2, self.poisonx_Npo_2)
@@ -219,12 +219,12 @@ class MAWaterWorld(object):
         self.evadersx_Ne_2[ev_caught_Ne, :] = np.random.rand(ev_catches, 2)
         self.evadersv_Ne_2[ev_caught_Ne, :] = (np.random.rand(ev_catches, 2) - .5) * self.ev_speed
 
-        po_catches, po_caught_Npo = self.caught(is_colliding_po_Np_Npo, 1)
+        po_catches, po_caught_Npo = self._caught(is_colliding_po_Np_Npo, 1)
         self.poisonx_Npo_2[po_caught_Npo, :] = np.random.rand(po_catches, 2)
         self.poisonv_Npo_2[po_caught_Npo, :] = (
             np.random.rand(po_catches, 2) - .5) * self.poison_speed
 
-        ev_encounters, _ = self.caught(is_colliding_ev_Np_Ne, 1)
+        ev_encounters, _ = self._caught(is_colliding_ev_Np_Ne, 1)
         # Update reward based on these collisions
         reward += ev_catches * self.food_reward + po_catches * self.poison_reward + ev_encounters * self.encounter_reward
 
