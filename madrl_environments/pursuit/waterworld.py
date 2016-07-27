@@ -18,7 +18,7 @@ class MAWaterWorld(object):
         self.radius = radius
         self.ev_speed = ev_speed
         self.n_sensors = n_sensors
-        self.sensor_range = sensor_range
+        self.sensor_range = np.ones(self.n_pursuers) * sensor_range
         self.action_scale = action_scale
         self.poison_reward = poison_reward
         self.food_reward = food_reward
@@ -81,7 +81,7 @@ class MAWaterWorld(object):
     def is_terminal(self):
         return False
 
-    def caught(self, is_colliding_Np_Ne, n_coop):
+    def _caught(self, is_colliding_Np_Ne, n_coop):
         """ Checke whether collision results in catching the object
 
         This is because you need `n_coop` agents to collide with the object to actually catch it
@@ -103,9 +103,9 @@ class MAWaterWorld(object):
                                                                                               2),
                                          axes=(2, 2))[0].transpose(1, 0, 2)
 
-        sensorvals_Np_K_N[(sensorvals_Np_K_N < 0) | (sensorvals_Np_K_N > self.sensor_range) | (
-            (relpos_obj_N_Np_2**2).sum(axis=2).T[:, None, ...] - sensorvals_Np_K_N**2 > self.radius
-            **2)] = np.inf
+        sensorvals_Np_K_N[(sensorvals_Np_K_N < 0) | (
+            sensorvals_Np_K_N > self.sensor_range[:, None, None]) | ((relpos_obj_N_Np_2**2).sum(
+                axis=2).T[:, None, ...] - sensorvals_Np_K_N**2 > self.radius**2)] = np.inf
         return sensorvals_Np_K_N
 
     def _closest_dist(self, closest_obj_idx_Np_K, sensorvals_Np_K_N):
@@ -159,7 +159,7 @@ class MAWaterWorld(object):
         evdists_Np_Ne = ssd.cdist(self.pursuersx_Np_2, self.evadersx_Ne_2)
         is_colliding_ev_Np_Ne = evdists_Np_Ne <= self.radius * 2
         # num_collisions depends on how many needed to catch an evader
-        ev_catches, ev_caught_Ne = self.caught(is_colliding_ev_Np_Ne, self.n_coop)
+        ev_catches, ev_caught_Ne = self._caught(is_colliding_ev_Np_Ne, self.n_coop)
 
         # Poisons
         podists_Np_Npo = ssd.cdist(self.pursuersx_Np_2, self.poisonx_Npo_2)
@@ -219,12 +219,12 @@ class MAWaterWorld(object):
         self.evadersx_Ne_2[ev_caught_Ne, :] = np.random.rand(ev_catches, 2)
         self.evadersv_Ne_2[ev_caught_Ne, :] = (np.random.rand(ev_catches, 2) - .5) * self.ev_speed
 
-        po_catches, po_caught_Npo = self.caught(is_colliding_po_Np_Npo, 1)
+        po_catches, po_caught_Npo = self._caught(is_colliding_po_Np_Npo, 1)
         self.poisonx_Npo_2[po_caught_Npo, :] = np.random.rand(po_catches, 2)
         self.poisonv_Npo_2[po_caught_Npo, :] = (
             np.random.rand(po_catches, 2) - .5) * self.poison_speed
 
-        ev_encounters, _ = self.caught(is_colliding_ev_Np_Ne, 1)
+        ev_encounters, _ = self._caught(is_colliding_ev_Np_Ne, 1)
         # Update reward based on these collisions
         reward += ev_catches * self.food_reward + po_catches * self.poison_reward + ev_encounters * self.encounter_reward
 
@@ -267,7 +267,7 @@ class MAWaterWorld(object):
             for k in range(self.n_sensors):
                 color = (0, 0, 0)
                 cv2.line(img, tuple((pursuerx_2 * screen_size).astype(int)),
-                         tuple(((pursuerx_2 + self.sensor_range * self.sensor_vecs_Np_K_2[
+                         tuple(((pursuerx_2 + self.sensor_range[ipur] * self.sensor_vecs_Np_K_2[
                              ipur, k, :]) * screen_size).astype(int)), color, 1, lineType=cv2.CV_AA)
                 cv2.circle(img, tuple((pursuerx_2 * screen_size).astype(int)),
                            int(self.radius * screen_size), (255, 0, 0), -1, lineType=cv2.CV_AA)
@@ -281,6 +281,10 @@ class MAWaterWorld(object):
             color = (0, 0, 255)
             cv2.circle(img, tuple((poisonx_2 * screen_size).astype(int)),
                        int(self.radius * screen_size), color, -1, lineType=cv2.CV_AA)
+
+        opacity = 0.4
+        bg = np.ones((screen_size, screen_size, 3), dtype=np.uint8) * 255
+        cv2.addWeighted(bg, opacity, img, 1 - opacity, 0, img)
         cv2.imshow('Waterworld', img)
         cv2.waitKey(rate)
 

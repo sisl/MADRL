@@ -96,6 +96,7 @@ def main():
     parser.add_argument('--n_poison', type=int, default=10)
     parser.add_argument('--n_coop', type=int, default=2)
     parser.add_argument('--n_sensors', type=int, default=30)
+    parser.add_argument('--sensor_range', type=str, default='0.2,0.2,0.2')
     parser.add_argument('--food_reward', type=float, default=3)
     parser.add_argument('--poison_reward', type=float, default=-1)
     parser.add_argument('--encounter_reward', type=float, default=0.05)
@@ -119,11 +120,13 @@ def main():
     args = parser.parse_args()
 
     centralized = True if args.control == 'centralized' else False
+    sensor_range = np.array(map(float, args.sensor_range.split(',')))
+    assert sensor_range.shape == (args.n_pursuers,)
 
     env = MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
                        n_sensors=args.n_sensors, food_reward=args.food_reward,
                        poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
-                       centralized=centralized)
+                       centralized=centralized, sensor_range=sensor_range)
     policy = GaussianMLPPolicy(env.observation_space, env.action_space,
                                hidden_spec=args.policy_hidden_spec, enable_obsnorm=True,
                                min_stdev=0., init_logstdev=0., tblog=args.tblog,
