@@ -93,7 +93,7 @@ class ContinuousHostageWorld(object):
 
     @property
     def is_terminal(self):
-        return self._bombed
+        return self._bombed or self.curr_host_saved_mask.all()
 
     def _caught(self, is_colliding_Np_Ne, n_coop):
         """ Checke whether collision results in catching the object
