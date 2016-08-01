@@ -172,6 +172,7 @@ class ContinuousHostageWorld(object):
         is_colliding_ho_Ng_Nh = hodists_Ng_Nh <= self.radius * 2
         # num_collisions depends on how many needed to save a hostage
         ho_catches, ho_caught_Nh = self._caught(is_colliding_ho_Ng_Nh, self.n_coop_save)
+        ho_catches_alone, ho_caught_alone_Nh = self._caught(is_colliding_ho_Ng_Nh, 1)
 
         # Bad
         badists_Ng_Nb = ssd.cdist(self.goodx_Ng_2, self.badx_Nb_2)
@@ -248,7 +249,9 @@ class ContinuousHostageWorld(object):
         if ke_catches > 0:
             self._gate_open = True
 
-        reward += ho_catches * self.save_reward + ba_catches_alone * self.hit_reward - ba_catches * self.hit_reward + self._bombed * self.bomb_reward
+        reward += (ho_catches_alone * self.encounter_reward + ho_catches * self.save_reward +
+                   ba_catches_alone * self.hit_reward - ba_catches * self.hit_reward + self._bombed
+                   * self.bomb_reward)
 
         # Add features together
         sensorfeatures_Ng_K_O = np.c_[sensed_badistfeatures_Ng_K, sensed_baspeedfeatures_Ng_K,
