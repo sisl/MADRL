@@ -8,7 +8,7 @@ class ContinuousHostageWorld(object):
     def __init__(self, n_good, n_hostages, n_bad, n_coop_save, n_coop_avoid, radius=0.015,
                  key_loc=np.array([1, 1]), bad_speed=0.01, n_sensors=30, sensor_range=0.2,
                  action_scale=0.01, save_reward=5., hit_reward=-1., encounter_reward=0.01,
-                 bomb_reward=-5., bomb_radius=0.03, control_penalty=-.5, centralized=True,
+                 bomb_reward=-5., bomb_radius=0.03, control_penalty=-.1, centralized=True,
                  **kwargs):
         """
         The environment consists of a square world with hostages behind gates. One of the good agent has to find the keys only then the gates can be obtained. Once the gates are opened the good agents need to find the hostages to save them. They also need to avoid the bomb and the bad agents. Coming across a bomb terminates the game and gives a large negative reward
@@ -348,13 +348,13 @@ class ContinuousHostageWorld(object):
                 for i, agent_o in enumerate(o):
                     agent_a, adist = act_fn(agent_o)
                     a.append(agent_a)
-                    a = np.asarray(a)
+                a = np.asarray(a)
 
             o, r, done, _ = self.step(a)
             rew += r
             if r > 0:
                 print(r)
-                self.render(rate=rate)
+            self.render(rate=rate)
             if done:
                 break
         return rew
