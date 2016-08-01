@@ -41,7 +41,7 @@ class ContinuousHostageWorld(object):
         if self.centralized:
             return spaces.Box(low=-np.inf, high=np.inf, shape=(self.n_good * self._obs_dim))
         else:
-            return space.Box(low=-np.inf, high=np.inf, shape=(self._obs_dim,))
+            return spaces.Box(low=-np.inf, high=np.inf, shape=(self._obs_dim,))
 
     @property
     def action_space(self):
