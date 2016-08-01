@@ -99,7 +99,7 @@ def main():
     parser.add_argument('--n_coop_save', type=int, default=2)
     parser.add_argument('--n_coop_avoid', type=int, default=2)
     parser.add_argument('--n_sensors', type=int, default=20)
-    parser.add_argument('--sensor_range', type=int, default=0.2)
+    parser.add_argument('--sensor_range', type=float, default=0.2)
     parser.add_argument('--save_reward', type=int, default=3)
     parser.add_argument('--hit_reward', type=int, default=-1)
     parser.add_argument('--encounter_reward', type=int, default=0.01)
