@@ -29,7 +29,7 @@ class ContinuousHostageWorld(object):
         self.encounter_reward = encounter_reward
         self.bomb_reward = bomb_reward
         self.bomb_radius = bomb_radius
-        self.control_penanlty = control_penalty
+        self.control_penalty = control_penalty
         self.centralized = centralized
 
         self.sensor_obscoord = 5
@@ -62,8 +62,8 @@ class ContinuousHostageWorld(object):
         self._gate_open = False
         self._bombed = False
 
-        # Initialize key location
-        self._key_loc = 0.5 - np.random.rand(1, 2) * 0.5
+        # # Initialize key location
+        # self._key_loc = 0.5 - np.random.rand(1, 2) * 0.5
 
         # Initialize good agents
         # Avoid spawning in the hostage location
@@ -153,7 +153,7 @@ class ContinuousHostageWorld(object):
         self.goodv_Ng_2 += action_Ng_2
         self.goodx_Ng_2 += self.goodv_Ng_2
 
-        reward += self.control_penanlty * (action_Ng_2**2).sum()
+        reward += self.control_penalty * (action_Ng_2**2).sum()
 
         # Players stop on hitting a wall
         clippedx_Ng_2 = np.clip(self.goodx_Ng_2, 0, 1)
@@ -181,6 +181,7 @@ class ContinuousHostageWorld(object):
         # penalize (hit) if good caught alone otherwise nothing
         ba_catches_alone, ba_caught_alone_Nb = self._caught(is_colliding_ba_Ng_Nh, 1)
         ba_catches, ba_caught_Nb = self._caught(is_colliding_ba_Ng_Nh, self.n_coop_avoid)
+        assert ba_catches_alone >= ba_catches
 
         # Key
         kedists_Ng_1 = ssd.cdist(self.goodx_Ng_2, self.key_loc[None, :])

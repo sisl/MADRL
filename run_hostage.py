@@ -80,7 +80,7 @@ def main():
 
     parser.add_argument('--n_iter', type=int, default=500)
     parser.add_argument('--sampler', type=str, default='simple')
-    parser.add_argument('--max_traj_len', type=int, default=500)
+    parser.add_argument('--max_traj_len', type=int, default=1500)
     parser.add_argument('--adaptive_batch', action='store_true', default=False)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--min_batch_size', type=int, default=4)
