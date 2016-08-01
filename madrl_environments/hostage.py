@@ -32,11 +32,27 @@ class ContinuousHostageWorld(object):
         self.control_penanlty = control_penalty
         self.centralized = centralized
 
-    # Observations
-    # Distance from other agents (sensor_range)
-    # Speed of other agents (sensor_range)
-    # Whether key
-    # Own id
+        self.sensor_obscoord = 5
+        self.obscoord_from_sensors = n_sensors * self.sensor_obscoord
+        self._obs_dim = self.obscoord_from_sensors + 4 + 1
+
+    @property
+    def observation_space(self):
+        if self.centralized:
+            return spaces.Box(low=-np.inf, high=np.inf, shape=(self.n_good * self._obs_dim))
+        else:
+            return space.Box(low=-np.inf, high=np.inf, shape=(self._obs_dim,))
+
+    @property
+    def action_space(self):
+        if self.centralized:
+            return spaces.Box(low=-10, high=10, shape=(self.n_good * 2))
+        else:
+            return spaces.Box(low=-10, high=10, shape=(2,))
+
+    @property
+    def total_agents(self):
+        return self.n_good
 
     @property
     def is_gate_open(self):
