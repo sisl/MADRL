@@ -6,10 +6,9 @@ from gym import spaces
 class ContinuousHostageWorld(object):
 
     def __init__(self, n_good, n_hostages, n_bad, n_coop_save, n_coop_avoid, radius=0.015,
-                 key_loc=np.array([1, 1]), bad_speed=0.01, n_sensors=30, sensor_range=0.2,
-                 action_scale=0.01, save_reward=5., hit_reward=-1., encounter_reward=0.01,
-                 bomb_reward=-5., bomb_radius=0.03, control_penalty=-.1, centralized=True,
-                 **kwargs):
+                 key_loc=None, bad_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
+                 save_reward=5., hit_reward=-1., encounter_reward=0.01, bomb_reward=-5.,
+                 bomb_radius=0.03, control_penalty=-.1, centralized=True, **kwargs):
         """
         The environment consists of a square world with hostages behind gates. One of the good agent has to find the keys only then the gates can be obtained. Once the gates are opened the good agents need to find the hostages to save them. They also need to avoid the bomb and the bad agents. Coming across a bomb terminates the game and gives a large negative reward
         """
@@ -62,8 +61,11 @@ class ContinuousHostageWorld(object):
         self._gate_open = False
         self._bombed = False
 
-        # # Initialize key location
-        # self._key_loc = 0.5 - np.random.rand(1, 2) * 0.5
+        # Initialize key location
+        if self.key_loc is None:
+            self.key_loc = 1 - np.random.rand(1, 2) * 0.1
+        else:
+            assert self.key_loc.ndim == 2
 
         # Initialize good agents
         # Avoid spawning in the hostage location
@@ -184,7 +186,7 @@ class ContinuousHostageWorld(object):
         assert ba_catches_alone >= ba_catches
 
         # Key
-        kedists_Ng_1 = ssd.cdist(self.goodx_Ng_2, self.key_loc[None, :])
+        kedists_Ng_1 = ssd.cdist(self.goodx_Ng_2, self.key_loc)
         is_colliding_ke_Ng_1 = kedists_Ng_1 <= self.radius * 2
         ke_catches, ke_caught_1 = self._caught(is_colliding_ke_Ng_1, 1)
 
@@ -202,7 +204,7 @@ class ContinuousHostageWorld(object):
         sensorvals_Ng_K_Nb = self._sensed(self.badx_Nb_2)
 
         # Key
-        sensorvals_Ng_K_ke1 = self._sensed(self.key_loc[None, :])
+        sensorvals_Ng_K_ke1 = self._sensed(self.key_loc)
 
         # Bomb
         sensorvals_Ng_K_bo1 = self._sensed(self.bomb_loc)
@@ -251,8 +253,8 @@ class ContinuousHostageWorld(object):
             self._gate_open = True
 
         reward += (ho_catches_alone * self.encounter_reward + ho_catches * self.save_reward +
-                   ba_catches_alone * self.hit_reward - ba_catches * self.hit_reward + self._bombed
-                   * self.bomb_reward)
+                   ba_catches_alone * self.hit_reward  # - ba_catches * self.hit_reward
+                   + self._bombed * self.bomb_reward)
 
         # Add features together
         sensorfeatures_Ng_K_O = np.c_[sensed_badistfeatures_Ng_K, sensed_baspeedfeatures_Ng_K,
@@ -300,7 +302,7 @@ class ContinuousHostageWorld(object):
             cv2.circle(img, tuple((bombx_2 * screen_size).astype(int)),
                        int(self.bomb_radius * screen_size), color, -1, lineType=cv2.CV_AA)
 
-        keyx_2 = self.key_loc
+        keyx_2 = np.squeeze(self.key_loc)
         assert keyx_2.shape == (2,)
         color = (0, 0, 255)
         cv2.circle(img, tuple((keyx_2 * screen_size).astype(int)), int(self.radius * screen_size),
