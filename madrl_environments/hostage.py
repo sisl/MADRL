@@ -69,7 +69,7 @@ class ContinuousHostageWorld(object):
 
         # Initialize good agents
         # Avoid spawning in the hostage location
-        self.goodx_Ng_2 = 1 - np.random.rand(self.n_good, 2) * 0.5
+        self.goodx_Ng_2 = 1 - np.random.rand(self.n_good, 2) * np.array([1., 0.5])
         self.goodv_Ng_2 = np.zeros((self.n_good, 2))
 
         # Sensors
