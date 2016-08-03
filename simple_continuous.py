@@ -155,29 +155,30 @@ def main():
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
                             n_timesteps_min=args.n_timesteps_min,
                             n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
-                            adaptive=args.adaptive_batch)
+                            adaptive=args.adaptive_batch, enable_rewnorm=True)
     elif args.sampler == 'thread':
         sampler_cls = ThreadedSampler
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
                             n_timesteps_min=args.n_timesteps_min,
                             n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
-                            adaptive=args.adaptive_batch)
+                            adaptive=args.adaptive_batch, enable_rewnorm=True)
     elif args.sampler == 'parallel':
         sampler_cls = ParallelSampler
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
                             n_timesteps_min=args.n_timesteps_min,
                             n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
-                            adaptive=args.adaptive_batch, n_workers=args.sampler_workers,
-                            mode=args.control)
+                            adaptive=args.adaptive_batch, enable_rewnorm=True,
+                            n_workers=args.sampler_workers, mode=args.control)
 
     elif args.sampler == 'imp':
         sampler_cls = ImportanceWeightedSampler
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
                             n_timesteps_min=args.n_timesteps_min,
                             n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
-                            adaptive=args.adaptive_batch, n_backtrack=args.is_n_backtrack,
-                            randomize_draw=args.is_randomize_draw, n_pretrain=args.is_n_pretrain,
-                            skip_is=args.is_skip_is, max_is_ratio=args.is_max_is_ratio)
+                            adaptive=args.adaptive_batch, enable_rewnorm=True,
+                            n_backtrack=args.is_n_backtrack, randomize_draw=args.is_randomize_draw,
+                            n_pretrain=args.is_n_pretrain, skip_is=args.is_skip_is,
+                            max_is_ratio=args.is_max_is_ratio)
     else:
         raise NotImplementedError()
     step_func = rltools.algos.policyopt.TRPO(max_kl=args.max_kl)
