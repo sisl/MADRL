@@ -83,10 +83,12 @@ def main():
     parser.add_argument('--sampler_workers', type=int, default=2)
     parser.add_argument('--max_traj_len', type=int, default=1500)
     parser.add_argument('--adaptive_batch', action='store_true', default=False)
-    parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--min_batch_size', type=int, default=4)
-    parser.add_argument('--max_batch_size', type=int, default=64)
-    parser.add_argument('--batch_rate', type=int, default=40)
+
+    parser.add_argument('--n_timesteps', type=int, default=8000)
+    parser.add_argument('--n_timesteps_min', type=int, default=1000)
+    parser.add_argument('--n_timesteps_max', type=int, default=64000)
+    parser.add_argument('--timestep_rate', type=int, default=20)
+
     parser.add_argument('--is_n_backtrack', type=int, default=1)
     parser.add_argument('--is_randomize_draw', action='store_true', default=False)
     parser.add_argument('--is_n_pretrain', type=int, default=0)
@@ -155,28 +157,31 @@ def main():
             sampler_cls = DecSampler
         else:
             raise NotImplementedError()
-        sampler_args = dict(max_traj_len=args.max_traj_len, batch_size=args.batch_size,
-                            min_batch_size=args.min_batch_size, max_batch_size=args.max_batch_size,
-                            batch_rate=args.batch_rate, adaptive=args.adaptive_batch)
+        sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
+                            n_timesteps_min=args.n_timesteps_min,
+                            n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
+                            adaptive=args.adaptive_batch)
     elif args.sampler == 'thread':
         sampler_cls = ThreadedSampler
-        sampler_args = dict(max_traj_len=args.max_traj_len, batch_size=args.batch_size,
-                            min_batch_size=args.min_batch_size, max_batch_size=args.max_batch_size,
-                            batch_rate=args.batch_rate, adaptive=args.adaptive_batch)
+        sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
+                            n_timesteps_min=args.n_timesteps_min,
+                            n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
+                            adaptive=args.adaptive_batch)
     elif args.sampler == 'parallel':
         sampler_cls = ParallelSampler
-        sampler_args = dict(max_traj_len=args.max_traj_len, batch_size=args.batch_size,
-                            min_batch_size=args.min_batch_size, max_batch_size=args.max_batch_size,
-                            batch_rate=args.batch_rate, adaptive=args.adaptive_batch,
-                            n_workers=args.sampler_workers, mode=args.control)
+        sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
+                            n_timesteps_min=args.n_timesteps_min,
+                            n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
+                            adaptive=args.adaptive_batch, n_workers=args.sampler_workers,
+                            mode=args.control)
     elif args.sampler == 'imp':
         sampler_cls = ImportanceWeightedSampler
-        sampler_args = dict(max_traj_len=args.max_traj_len, batch_size=args.batch_size,
-                            min_batch_size=args.min_batch_size, max_batch_size=args.max_batch_size,
-                            batch_rate=args.batch_rate, adaptive=args.adaptive_batch,
-                            n_backtrack=args.is_n_backtrack, randomize_draw=args.is_randomize_draw,
-                            n_pretrain=args.is_n_pretrain, skip_is=args.is_skip_is,
-                            max_is_ratio=args.is_max_is_ratio)
+        sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
+                            n_timesteps_min=args.n_timesteps_min,
+                            n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
+                            adaptive=args.adaptive_batch, n_backtrack=args.is_n_backtrack,
+                            randomize_draw=args.is_randomize_draw, n_pretrain=args.is_n_pretrain,
+                            skip_is=args.is_skip_is, max_is_ratio=args.is_max_is_ratio)
     else:
         raise NotImplementedError()
     step_func = rltools.algos.policyopt.TRPO(max_kl=args.max_kl)
