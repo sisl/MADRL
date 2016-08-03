@@ -21,7 +21,7 @@ import rltools.algos.policyopt
 import rltools.log
 import rltools.util
 from rltools.samplers.serial import SimpleSampler, ImportanceWeightedSampler, DecSampler
-from rltools.samplers.parallel import ThreadedSampler
+from rltools.samplers.parallel import ThreadedSampler, ParallelSampler
 from madrl_environments.hostage import ContinuousHostageWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
@@ -80,6 +80,7 @@ def main():
 
     parser.add_argument('--n_iter', type=int, default=500)
     parser.add_argument('--sampler', type=str, default='simple')
+    parser.add_argument('--sampler_workers', type=int, default=2)
     parser.add_argument('--max_traj_len', type=int, default=1500)
     parser.add_argument('--adaptive_batch', action='store_true', default=False)
     parser.add_argument('--batch_size', type=int, default=32)
@@ -162,6 +163,12 @@ def main():
         sampler_args = dict(max_traj_len=args.max_traj_len, batch_size=args.batch_size,
                             min_batch_size=args.min_batch_size, max_batch_size=args.max_batch_size,
                             batch_rate=args.batch_rate, adaptive=args.adaptive_batch)
+    elif args.sampler == 'parallel':
+        sampler_cls = ParallelSampler
+        sampler_args = dict(max_traj_len=args.max_traj_len, batch_size=args.batch_size,
+                            min_batch_size=args.min_batch_size, max_batch_size=args.max_batch_size,
+                            batch_rate=args.batch_rate, adaptive=args.adaptive_batch,
+                            n_workers=args.sampler_workers, mode=args.control)
     elif args.sampler == 'imp':
         sampler_cls = ImportanceWeightedSampler
         sampler_args = dict(max_traj_len=args.max_traj_len, batch_size=args.batch_size,
