@@ -22,6 +22,7 @@ import rltools.log
 import rltools.util
 from rltools.samplers.serial import SimpleSampler, ImportanceWeightedSampler, DecSampler
 from rltools.samplers.parallel import ThreadedSampler, ParallelSampler
+from madrl_environments import ObservationBuffer
 from madrl_environments.hostage import ContinuousHostageWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
@@ -96,6 +97,7 @@ def main():
     parser.add_argument('--is_max_is_ratio', type=float, default=0)
 
     parser.add_argument('--control', type=str, default='centralized')
+    parser.add_argument('--buffer_size', type=int, default=1)
     parser.add_argument('--n_good', type=int, default=3)
     parser.add_argument('--n_hostage', type=int, default=5)
     parser.add_argument('--n_bad', type=int, default=5)
@@ -133,6 +135,9 @@ def main():
                                  sensor_range=args.sensor_range, save_reward=args.save_reward,
                                  hit_reward=args.hit_reward, encounter_reward=args.encounter_reward,
                                  bomb_reward=args.bomb_reward, centralized=centralized)
+
+    if args.buffer_size > 1:
+        env = ObservationBuffer(env, args.buffer_size)
 
     policy = GaussianMLPPolicy(env.observation_space, env.action_space,
                                hidden_spec=args.policy_hidden_spec, enable_obsnorm=True,
