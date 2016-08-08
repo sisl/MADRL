@@ -111,6 +111,7 @@ def main():
     parser.add_argument('--bomb_reward', type=float, default=-10.)
 
     parser.add_argument('--policy_hidden_spec', type=str, default=GAE_ARCH)
+    parser.add_argument('--min_std', type=float, default=0)
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
     parser.add_argument('--baseline_hidden_spec', type=str, default=GAE_ARCH)
@@ -141,7 +142,7 @@ def main():
 
     policy = GaussianMLPPolicy(env.observation_space, env.action_space,
                                hidden_spec=args.policy_hidden_spec, enable_obsnorm=True,
-                               min_stdev=0., init_logstdev=0., tblog=args.tblog,
+                               min_stdev=args.min_std, init_logstdev=0., tblog=args.tblog,
                                varscope_name='gaussmlp_policy')
 
     if args.baseline_type == 'linear':
