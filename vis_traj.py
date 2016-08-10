@@ -47,15 +47,21 @@ def main():
         pprint.pprint(dict(dset.attrs))
 
     pprint.pprint(train_args)
+    if train_args['map_type'] == 'rectangle':
+        env_map = TwoDMaps.rectangle_map(*map(int, train_args['rectangle'].split(',')))
+    elif train_args['map_type'] == 'complex':
+        env_map = TwoDMaps.complex_map(*map(int, train_args['rectangle'].split(',')))
+    else:
+        raise NotImplementedError()
     if train_args['control'] == 'decentralized':
-        env = DecPursuitEvade(TwoDMaps.rectangle_map(*map(int, train_args['rectangle'].split(','))),
-                                      n_evaders=train_args['n_evaders'],
-                                      n_pursuers=train_args['n_pursuers'],
-                                      obs_range=train_args['obs_range'],
-                                      n_catch=train_args['n_catch'],
+        env = DecPursuitEvade(env_map,
+                              n_evaders=train_args['n_evaders'],
+                              n_pursuers=train_args['n_pursuers'],
+                              obs_range=train_args['obs_range'],
+                              n_catch=train_args['n_catch'],
                                       include_id=False)
     elif train_args['control'] == 'centralized':
-        env = CentralizedPursuitEvade(TwoDMaps.rectangle_map(*map(int, train_args['rectangle'].split(','))),
+        env = CentralizedPursuitEvade(env_map,
                                       n_evaders=train_args['n_evaders'],
                                       n_pursuers=train_args['n_pursuers'],
                                       obs_range=train_args['obs_range'],
