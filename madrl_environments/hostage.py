@@ -296,17 +296,18 @@ class ContinuousHostageWorld(object):
             cv2.line(img, tuple(np.array([0 * screen_size, 0.5 * screen_size]).astype(int)),
                      tuple(np.array([1 * screen_size, 0.5 * screen_size]).astype(int)), color, 1,
                      lineType=cv2.CV_AA)
+
+            keyx_2 = np.squeeze(self.key_loc)
+            assert keyx_2.shape == (2,)
+            kcolor = (0, 0, 255)
+            cv2.circle(img, tuple((keyx_2 * screen_size).astype(int)),
+                       int(self.radius * screen_size), kcolor, -1, lineType=cv2.CV_AA)
+
         for ibomb, bombx_2 in enumerate(self.bomb_loc):
             assert bombx_2.shape == (2,)
             color = (0, 0, 255)
             cv2.circle(img, tuple((bombx_2 * screen_size).astype(int)),
                        int(self.bomb_radius * screen_size), color, -1, lineType=cv2.CV_AA)
-
-        keyx_2 = np.squeeze(self.key_loc)
-        assert keyx_2.shape == (2,)
-        color = (0, 0, 255)
-        cv2.circle(img, tuple((keyx_2 * screen_size).astype(int)), int(self.radius * screen_size),
-                   color, -1, lineType=cv2.CV_AA)
 
         for ihost, hostagex_2 in enumerate(self.hostagex_Nh_2[np.invert(
                 self.curr_host_saved_mask)]):
