@@ -68,4 +68,27 @@ class ObservationBuffer(object):
         return bufobs
 
     def render(self, *args, **kwargs):
-        return self._env.render(args, kwargs)
+        return self._env.render(*args, **kwargs)
+
+    def animate(self, act_fn, nsteps, file_name, rate=30):
+        o = self.reset()
+        self.render(rate=rate)
+        rew = 0
+        for i in range(nsteps):
+            if self._env.centralized:
+                a, adist = act_fn(o)
+            else:
+                a = []
+                for i, agent_o in enumerate(o):
+                    agent_a, adist = act_fn(agent_o)
+                    a.append(agent_a)
+                a = np.asarray(a)
+
+            o, r, done, _ = self.step(a)
+            rew += r
+            if r > 0:
+                print(r)
+                self.render(rate=rate)
+            if done:
+                break
+        return rew

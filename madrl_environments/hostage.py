@@ -226,7 +226,9 @@ class ContinuousHostageWorld(object):
         closest_ke_dist_Ng_K = self._closest_dist(closest_ke_idx_Ng_K, sensorvals_Ng_K_ke1)
         sensedmask_ke_Ng_K = np.isfinite(closest_ke_dist_Ng_K)
         sensed_kedistfeatures_Ng_K = np.zeros((self.n_good, self.n_sensors))
-        sensed_kedistfeatures_Ng_K[sensedmask_ke_Ng_K] = closest_ke_dist_Ng_K[sensedmask_ke_Ng_K]
+        if not self._gate_open:
+            sensed_kedistfeatures_Ng_K[sensedmask_ke_Ng_K] = closest_ke_dist_Ng_K[
+                sensedmask_ke_Ng_K]
 
         closest_bo_idx_Ng_K = np.argmin(sensorvals_Ng_K_bo1, axis=2)
         closest_bo_dist_Ng_K = self._closest_dist(closest_bo_idx_Ng_K, sensorvals_Ng_K_bo1)
@@ -252,9 +254,10 @@ class ContinuousHostageWorld(object):
         if ke_catches > 0:
             self._gate_open = True
 
-        reward += (ho_catches_alone * self.encounter_reward + ho_catches * self.save_reward +
-                   ba_catches_alone * self.hit_reward  # - ba_catches * self.hit_reward
-                   + self._bombed * self.bomb_reward)
+        reward += (
+            ho_catches_alone * self.encounter_reward * self._gate_open + ho_catches *
+            self.save_reward + ba_catches_alone * self.hit_reward  # - ba_catches * self.hit_reward
+            + self._bombed * self.bomb_reward)
 
         # Add features together
         sensorfeatures_Ng_K_O = np.c_[sensed_badistfeatures_Ng_K, sensed_baspeedfeatures_Ng_K,

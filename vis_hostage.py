@@ -21,6 +21,7 @@ import tensorflow as tf
 import rltools.algos
 import rltools.log
 import rltools.util
+from madrl_environments import ObservationBuffer
 from madrl_environments.hostage import ContinuousHostageWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
@@ -55,6 +56,9 @@ def main():
                                  encounter_reward=train_args['encounter_reward'],
                                  bomb_reward=train_args['bomb_reward'],
                                  centralized=args.centralized)
+
+    if train_args['buffer_size'] > 1:
+        env = ObservationBuffer(env, train_args['buffer_size'])
 
     policy = GaussianMLPPolicy(env.observation_space, env.action_space,
                                hidden_spec=train_args['policy_hidden_spec'], enable_obsnorm=True,
