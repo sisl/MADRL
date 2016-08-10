@@ -9,9 +9,9 @@ class ObservationBuffer(object):
         self._buffer_size = buffer_size
         assert len(env.observation_space.shape) == 1
         bufshape = tuple(env.observation_space.shape) + (buffer_size,)
-        shape = [buffer_size * s for s in env.observation_space.shape]
+
         self._observation_space = spaces.Box(env.observation_space.low[0],
-                                             env.observation_space.high[0], tuple(shape))  # XXX
+                                             env.observation_space.high[0], tuple(bufshape))  # XXX
         if env.centralized:
             self._buffer = np.zeros(bufshape)
         else:
@@ -34,8 +34,8 @@ class ObservationBuffer(object):
         if self._env.centralized:
             self._buffer[..., 0:self._buffer_size - 1] = self._buffer[..., 1:
                                                                       self._buffer_size].copy()
-            self._buffer[..., -1:] = obs
-            bufobs = self._buffer.ravel()
+            self._buffer[..., -1] = obs
+            bufobs = self._buffer.copy()
             assert bufobs.shape == self.observation_space.shape, '{} != {}'.format(
                 bufobs.shape, self.observation_space.shape)
         else:
@@ -44,7 +44,7 @@ class ObservationBuffer(object):
                     ..., 1:self._buffer_size].copy()
                 self._buffer[ag][..., -1] = ag_obs
 
-            bufobs = [buf.ravel() for buf in self._buffer]
+            bufobs = [buf.copy() for buf in self._buffer]
         return bufobs, rew, done, info
 
     def reset(self):
@@ -54,7 +54,7 @@ class ObservationBuffer(object):
             for i in range(self._buffer_size):
                 self._buffer[..., i] = obs
 
-            bufobs = self._buffer.ravel()
+            bufobs = self._buffer.copy()
             assert bufobs.shape == self.observation_space.shape, '{} != {}'.format(
                 bufobs.shape, self.observation_space.shape)
         else:
@@ -63,7 +63,7 @@ class ObservationBuffer(object):
                 for i in range(self._buffer_size):
                     self._buffer[ag][..., i] = ag_obs
 
-            bufobs = [buf.ravel() for buf in self._buffer]
+            bufobs = [buf.copy() for buf in self._buffer]
 
         return bufobs
 
