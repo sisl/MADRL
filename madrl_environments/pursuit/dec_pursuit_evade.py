@@ -9,9 +9,9 @@ import numpy as np
 from gym import spaces
 from matplotlib.patches import Rectangle
 
-from .utils import agent_utils
-from .utils.AgentLayer import AgentLayer
-from .utils.Controllers import RandomPolicy
+from utils import agent_utils
+from utils.AgentLayer import AgentLayer
+from utils.Controllers import RandomPolicy
 
 #################################################################
 # Implements an Evade Pursuit Problem in 2D
@@ -120,7 +120,12 @@ class DecPursuitEvade():
 
         self.initial_config = kwargs.pop('initial_config', {})
 
-        self.current_agent = kwargs.pop('current_agent', 0)
+        self.surround = kwargs.pop('surround', True)
+
+        self.surround_mask = np.array([[-1, 0], 
+                                      [1, 0], 
+                                      [0, 1], 
+                                      [0, -1]])
 
         self.model_dims = (4,) + map_matrix.shape
 
@@ -422,15 +427,26 @@ class DecPursuitEvade():
 
         ai = 0
         rems = 0
+        xpur, ypur = np.nonzero(self.model_state[1])
         for i in xrange(self.n_evaders):
             if self.evaders_gone[i]: continue
             x, y = self.evader_layer.get_position(ai)
-            if self.model_state[1, x, y] >= self.n_catch:
-                # add prob remove?
-                removed_evade.append(ai - rems)
-                self.evaders_gone[i] = True
-                rems += 1
-            ai += 1
+            if self.surround:
+                pos_that_catch = self.surround_mask + self.evader_layer.get_position(ai)
+                truths = np.array([np.equal([x,y], pos_that_catch).all(axis=1) for x,y in zip(xpur, ypur)])
+                if np.sum(truths.any(axis=0)) == 4:
+                    removed_evade.append(ai - rems)
+                    self.evaders_gone[i] = True
+                    rems += 1
+                ai += 1
+            else:
+                if self.model_state[1, x, y] >= self.n_catch:
+                    # add prob remove?
+                    removed_evade.append(ai - rems)
+                    self.evaders_gone[i] = True
+                    rems += 1
+                ai += 1
+
 
 
         ai = 0

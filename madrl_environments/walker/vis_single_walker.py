@@ -30,7 +30,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', type=str)  # defaultIS.h5/snapshots/iter0000480
     parser.add_argument('--vid', type=str, default='/tmp/madrl.mp4')
-    parser.add_argument('--deterministic', action='store_true', default=False)
+    parser.add_argument('--deterministic', action='store_true', default=True)
     parser.add_argument('--n_steps', type=int, default=500)
     args = parser.parse_args()
 
@@ -54,23 +54,26 @@ def main():
         sess.run(tf.initialize_all_variables())
         policy.load_h5(sess, filename, file_key)
 
+        rtot = 0.0
         o = env.reset()
         for i in xrange(args.n_steps):
             env.render()
             a, adist = policy.sample_actions(sess, o[None,...], deterministic=args.deterministic)
             o, r, done, _ = env.step(a[0])
+            print("Iteration:", i)
             print("Action:", a)
-            print("Step:", o, r, done)
+            print("Step:", o, r, done, "\n")
+            rtot += r
             if done:
                 break
-
+    
         """
         rew = env.animate(
             act_fn=lambda o: policy.sample_actions(sess, o[None, ...], deterministic=args.deterministic),
             nsteps=args.n_steps, file_name=args.vid)
         print(rew)
         """
-
+        print("Total reward:", rtot)
 
 if __name__ == '__main__':
     main()

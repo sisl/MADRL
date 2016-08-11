@@ -31,7 +31,7 @@ class AgentLayer():
         return self.allies[agent_idx].step(action)
 
     def set_position(self, agent_idx, x, y):
-        self.allis[agent_idx].set_position(x,y)
+        self.allies[agent_idx].set_position(x,y)
 
     def get_position(self, agent_idx):
         """
