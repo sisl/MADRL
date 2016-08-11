@@ -64,17 +64,14 @@ def main():
 
     parser.add_argument('--n_iter', type=int, default=250)
     parser.add_argument('--sampler', type=str, default='simple')
-    parser.add_argument('--max_traj_len', type=int, default=200)
+    parser.add_argument('--sampler_workers', type=int, default=4)
+    parser.add_argument('--max_traj_len', type=int, default=250)
     parser.add_argument('--adaptive_batch', action='store_true', default=False)
-    parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--min_batch_size', type=int, default=4)
-    parser.add_argument('--max_batch_size', type=int, default=64)
-    parser.add_argument('--batch_rate', type=int, default=40)
-    parser.add_argument('--is_n_backtrack', type=int, default=1)
-    parser.add_argument('--is_randomize_draw', action='store_true', default=False)
-    parser.add_argument('--is_n_pretrain', type=int, default=0)
-    parser.add_argument('--is_skip_is', action='store_true', default=False)
-    parser.add_argument('--is_max_is_ratio', type=float, default=0)
+
+    parser.add_argument('--n_timesteps', type=int, default=8000)
+    parser.add_argument('--n_timesteps_min', type=int, default=1000)
+    parser.add_argument('--n_timesteps_max', type=int, default=64000)
+    parser.add_argument('--timestep_rate', type=int, default=20)
 
     parser.add_argument('--control', type=str, default='centralized')
     parser.add_argument('--factored', action='store_true', default=False)
@@ -88,6 +85,7 @@ def main():
     parser.add_argument('--pursuit', dest='train_pursuit', action='store_true')
     parser.add_argument('--evade', dest='train_pursuit', action='store_false')
     parser.set_defaults(train_pursuit=True)
+    parser.add_argument('--surround', action='store_true', default=False)
 
     parser.add_argument('--policy_hidden_spec', type=str, default=SIMPLE_POLICY_ARCH)
 
@@ -123,7 +121,8 @@ def main():
                                       n_catch=args.n_catch,
                                       train_pursuit=args.train_pursuit,
                                       urgency_reward=args.urgency,
-                                      factored=args.factored)
+                                      factored=args.factored,
+                                      surround=args.surround)
     elif args.control == 'decentralized':
         env = DecPursuitEvade(env_map,
                               n_evaders=args.n_evaders,
@@ -131,7 +130,8 @@ def main():
                               obs_range=args.obs_range,
                               n_catch=args.n_catch,
                               train_pursuit=args.train_pursuit,
-                              urgency_reward=args.urgency)
+                              urgency_reward=args.urgency,
+                              surround=args.surround)
     else:
         raise NotImplementedError()
 
@@ -180,25 +180,17 @@ def main():
             sampler_cls = DecSampler
         else:
             raise NotImplementedError()
-        sampler_args = dict(max_traj_len=args.max_traj_len,
-                            batch_size=args.batch_size,
-                            min_batch_size=args.min_batch_size,
-                            max_batch_size=args.max_batch_size,
-                            batch_rate=args.batch_rate,
-                            adaptive=args.adaptive_batch)
-    elif args.sampler == 'imp':
-        sampler_cls = ImportanceWeightedSampler
-        sampler_args = dict(max_traj_len=args.max_traj_len,
-                            batch_size=args.batch_size,
-                            min_batch_size=args.min_batch_size,
-                            max_batch_size=args.max_batch_size,
-                            batch_rate=args.batch_rate,
-                            adaptive=args.adaptive_batch,
-                            n_backtrack=args.is_n_backtrack,
-                            randomize_draw=args.is_randomize_draw,
-                            n_pretrain=args.is_n_pretrain,
-                            skip_is=args.is_skip_is,
-                            max_is_ratio=args.is_max_is_ratio)
+        sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
+                            n_timesteps_min=args.n_timesteps_min,
+                            n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
+                            adaptive=args.adaptive_batch, enable_rewnorm=True)
+    elif args.sampler == 'parallel':
+        sampler_cls = ParallelSampler
+        sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
+                            n_timesteps_min=args.n_timesteps_min,
+                            n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
+                            adaptive=args.adaptive_batch, enable_rewnorm=True,
+                            n_workers=args.sampler_workers, mode=args.control)
     else:
         raise NotImplementedError()
     step_func = rltools.algos.policyopt.TRPO(max_kl=args.max_kl)
