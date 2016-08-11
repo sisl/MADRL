@@ -79,8 +79,8 @@ class DecPursuitEvade():
         self.catchr = kwargs.pop('catchr', 0.01)
         self.caughtr = kwargs.pop('caughtr', -0.01)
 
-        self.term_pursuit = kwargs.pop('term_pursuit', 1.0)
-        self.term_evade = kwargs.pop('term_evade', -1.0)
+        self.term_pursuit = kwargs.pop('term_pursuit', 5.0)
+        self.term_evade = kwargs.pop('term_evade', -5.0)
 
         self.urgency_reward = kwargs.pop('urgency_reward', 0.0)
 
