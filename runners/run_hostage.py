@@ -9,9 +9,7 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import json
-import sys
 import uuid
-sys.path.append('../rltools/')
 
 import numpy as np
 import tensorflow as tf

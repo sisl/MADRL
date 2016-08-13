@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# File: simple_continuous.py
+# File: run_waterworld.py
 #
 # Created: Thursday, July 14 2016 by rejuvyesh <mail@rejuvyesh.com>
 #
@@ -8,8 +8,6 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import json
-import sys
-sys.path.append('../rltools/')
 
 import numpy as np
 import tensorflow as tf
