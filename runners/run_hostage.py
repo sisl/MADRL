@@ -133,7 +133,7 @@ def main():
                                  args.n_coop_avoid, n_sensors=args.n_sensors,
                                  sensor_range=args.sensor_range, save_reward=args.save_reward,
                                  hit_reward=args.hit_reward, encounter_reward=args.encounter_reward,
-                                 bomb_reward=args.bomb_reward, centralized=centralized)
+                                 bomb_reward=args.bomb_reward)
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)

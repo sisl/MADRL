@@ -129,7 +129,7 @@ def main():
     env = MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
                        n_sensors=args.n_sensors, food_reward=args.food_reward,
                        poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
-                       centralized=centralized, sensor_range=sensor_range, obstacle_loc=None)
+                       sensor_range=sensor_range, obstacle_loc=None)
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
