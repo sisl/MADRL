@@ -62,7 +62,7 @@ class ContinuousHostageWorld(AbstractMAEnv):
 
     def seed(self, seed=None):
         self.np_random, seed_ = seeding.np_random(seed)
-        return seed_
+        return [seed_]
 
     @property
     def is_gate_open(self):

@@ -67,7 +67,7 @@ class MAWaterWorld(AbstractMAEnv):
 
     def seed(self, seed=None):
         self.np_random, seed_ = seeding.np_random(seed)
-        return seed_
+        return [seed_]
 
     def _respawn(self, objx_N_2):
         for i in range(len(objx_N_2)):
