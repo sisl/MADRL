@@ -16,7 +16,7 @@ sys.path.append('../rltools/')
 import numpy as np
 import tensorflow as tf
 
-import gym
+from gym import spaces
 import rltools.algos.policyopt
 import rltools.log
 import rltools.util
@@ -140,21 +140,33 @@ def main():
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
 
-    policy = GaussianMLPPolicy(env.observation_space, env.action_space,
-                               hidden_spec=args.policy_hidden_spec, enable_obsnorm=True,
-                               min_stdev=args.min_std, init_logstdev=0., tblog=args.tblog,
-                               varscope_name='gaussmlp_policy')
+    if centralized:
+        obsfeat_space = spaces.Box(low=env.agents[0].observation_space.low[0],
+                                   high=env.agents[0].observation_space.high[0],
+                                   shape=(env.agents[0].observation_space.shape[0] *
+                                          len(env.agents),))  # XXX
+        action_space = spaces.Box(low=env.agents[0].action_space.low[0],
+                                  high=env.agents[0].action_space.high[0],
+                                  shape=(env.agents[0].action_space.shape[0] *
+                                         len(env.agents),))  # XXX
+    else:
+        obsfeat_space = env.agents[0].observation_space
+        action_space = env.agents[0].action_space
+
+    policy = GaussianMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
+                               enable_obsnorm=True, min_stdev=args.min_std, init_logstdev=0.,
+                               tblog=args.tblog, varscope_name='gaussmlp_policy')
 
     if args.baseline_type == 'linear':
-        baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True,
+        baseline = LinearFeatureBaseline(obsfeat_space, enable_obsnorm=True,
                                          varscope_name='pursuit_linear_baseline')
     elif args.baseline_type == 'mlp':
-        baseline = MLPBaseline(env.observation_space, args.baseline_hidden_spec, True, True,
-                               max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
+        baseline = MLPBaseline(obsfeat_space, args.baseline_hidden_spec, enable_obsnorm=True,
+                               enable_vnorm=True, max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
                                time_scale=1. / args.max_traj_len,
                                varscope_name='pursuit_mlp_baseline')
     else:
-        baseline = ZeroBaseline(env.observation_space)
+        baseline = ZeroBaseline(obsfeat_space)
 
     if args.sampler == 'simple':
         if centralized:

@@ -54,7 +54,7 @@ class AbstractMAEnv(object):
         """act_fn could be a list of functions for each agent in the environemnt that we can control"""
         if not isinstance(act_fn, list):
             act_fn = [act_fn for _ in range(len(self.agents))]
-
+        assert len(act_fn) == len(self.agents)
         obs = self.reset()
         self.render(**kwargs)
         rew = np.zeros((len(self.agents)))
