@@ -86,6 +86,7 @@ class ObservationBuffer(AbstractMAEnv):
         assert all([len(agent.observation_space.shape) == 1 for agent in env.agents])  # XXX
         bufshapes = [tuple(agent.observation_space.shape) + (buffer_size,) for agent in env.agents]
         self._buffer = [np.zeros(bufshape) for bufshape in bufshapes]
+        self.reward_mech = self._unwrapped.reward_mech
 
     @property
     def agents(self):
