@@ -86,7 +86,7 @@ def main():
     args = parser.parse_args()
 
     policy_avg_weights = np.array(map(float, args.policy_avg_weights.split(',')))
-    assert len(policy_avg_weights) == args.n_pursuers
+    assert len(policy_avg_weights) == args.n_good
 
     env = ContinuousHostageWorld(args.n_good, args.n_hostage, args.n_bad, args.n_coop_save,
                                  args.n_coop_avoid, n_sensors=args.n_sensors,
