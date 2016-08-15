@@ -85,9 +85,6 @@ def main():
 
     args = parser.parse_args()
 
-    sensor_range = np.array(map(float, args.sensor_range.split(',')))
-    assert sensor_range.shape == (args.n_pursuers,)
-
     policy_avg_weights = np.array(map(float, args.policy_avg_weights.split(',')))
     assert len(policy_avg_weights) == args.n_pursuers
 
