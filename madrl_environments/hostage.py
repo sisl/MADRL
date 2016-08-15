@@ -6,7 +6,7 @@ from gym.utils import seeding
 from madrl_environments import AbstractMAEnv, Agent
 
 
-class Rescuers(Agent):
+class Rescuer(Agent):
 
     def __init__(self, radius, n_sensors, sensor_range):
         self._radius = radius
@@ -57,8 +57,7 @@ class ContinuousHostageWorld(AbstractMAEnv):
 
     @property
     def agents(self):
-        return [Rescuers(self.radius, self.n_sensors, self.sensor_range)
-                for _ in range(self.n_good)]
+        return [Rescuer(self.radius, self.n_sensors, self.sensor_range) for _ in range(self.n_good)]
 
     def seed(self, seed=None):
         self.np_random, seed_ = seeding.np_random(seed)
