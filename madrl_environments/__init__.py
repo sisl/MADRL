@@ -78,6 +78,27 @@ class AbstractMAEnv(object):
         return '<{} instance>'.format(type(self).__name__)
 
 
+class WrappedAgent(Agent):
+
+    def __init__(self, agent, new_observation_space):
+        self._unwrapped = agent
+        self._new_observation_space = new_observation_space
+
+    @property
+    def observation_space(self):
+        return self._new_observation_space
+
+    @property
+    def action_space(self):
+        return self.unwrapped.action_space
+
+    def unwrapped(self):
+        if self.unwrapped is not None:
+            return self._unwrapped
+        else:
+            return self
+
+
 class ObservationBuffer(AbstractMAEnv):
 
     def __init__(self, env, buffer_size):
@@ -90,7 +111,19 @@ class ObservationBuffer(AbstractMAEnv):
 
     @property
     def agents(self):
-        return self._unwrapped.agents
+        aglist = []
+        for agid, agent in enumerate(self._unwrapped.agents):
+            if isinstance(agent.observation_space, spaces.Box):
+                newobservation_space = spaces.Box(low=agent.observation_space.low[0],
+                                                  high=agent.observation_space.high[0],
+                                                  shape=self._buffer[agid].shape)
+            # elif isinstance(agent.observation_sapce, spaces.Discrete):
+            else:
+                raise NotImplementedError()
+
+            aglist.append(WrappedAgent(agent, newobservation_space))
+
+        return aglist
 
     def seed(self, seed=None):
         return self._unwrapped.seed(seed)
