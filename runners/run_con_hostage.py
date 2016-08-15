@@ -68,6 +68,7 @@ def main():
 
     parser.add_argument('--policy_hidden_spec', type=str, default=GAE_ARCH)
     parser.add_argument('--min_std', type=float, default=0)
+    parser.add_argument('--blend_freq', type=int, default=20)
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
     parser.add_argument('--baseline_hidden_spec', type=str, default=GAE_ARCH)
@@ -149,10 +150,9 @@ def main():
     rltools.util.header(argstr)
     log_f = rltools.log.TrainingLog(args.log, [('args', argstr)], debug=args.debug)
 
-    blend_freq = 20  # XXX
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
-        popt.train(sess, log_f, blend_freq, args.save_freq)
+        popt.train(sess, log_f, args.blend_freq, args.save_freq)
 
 
 if __name__ == '__main__':
