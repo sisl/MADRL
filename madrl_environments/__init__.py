@@ -90,7 +90,7 @@ class WrappedAgent(Agent):
 
     @property
     def action_space(self):
-        return self.unwrapped.action_space
+        return self._unwrapped.action_space
 
     def unwrapped(self):
         if self.unwrapped is not None:
