@@ -34,7 +34,7 @@ def main():
     parser.add_argument('--gae_lambda', type=float, default=0.99)
 
     parser.add_argument('--interp_alpha', type=float, default=0.5)
-    parser.add_argument('--policy_avg_weights', type=str, default='0.33,0.33,0.33')
+    parser.add_argument('--policy_avg_weights', type=str, default='0.3333333,0.3333333,0.3333333')
 
     parser.add_argument('--n_iter', type=int, default=250)
     parser.add_argument('--sampler', type=str, default='simple')
