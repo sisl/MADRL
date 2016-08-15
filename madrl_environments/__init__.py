@@ -89,7 +89,7 @@ class ObservationBuffer(AbstractMAEnv):
 
     @property
     def agents(self):
-        return self._unwrapped.total_agents
+        return self._unwrapped.agents
 
     def seed(self, seed=None):
         return self._unwrapped.seed(seed)
