@@ -15,12 +15,16 @@ import numpy as np
 import tensorflow as tf
 
 import gym
+from gym import spaces
+
 import rltools.algos.policyopt
 import rltools.log
 import rltools.util
 from rltools.samplers.serial import SimpleSampler, ImportanceWeightedSampler, DecSampler
-from madrl_environments.pursuit import CentralizedPursuitEvade, DecPursuitEvade
+
+from madrl_environments.pursuit import PursuitEvade
 from madrl_environments.pursuit.utils import TwoDMaps
+
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
@@ -74,7 +78,6 @@ def main():
     parser.add_argument('--timestep_rate', type=int, default=20)
 
     parser.add_argument('--control', type=str, default='centralized')
-    parser.add_argument('--factored', action='store_true', default=False)
     parser.add_argument('--rectangle', type=str, default='10,10')
     parser.add_argument('--map_type', type=str, default='rectangle')
     parser.add_argument('--n_evaders', type=int, default=5)
@@ -113,65 +116,51 @@ def main():
         raise NotImplementedError()
 
 
+    env = PursuitEvade(env_map,
+                       n_evaders=args.n_evaders,
+                       n_pursuers=args.n_pursuers,
+                       obs_range=args.obs_range,
+                       n_catch=args.n_catch,
+                       train_pursuit=args.train_pursuit,
+                       urgency_reward=args.urgency,
+                       surround=args.surround)
+
     if args.control == 'centralized':
-        env = CentralizedPursuitEvade(env_map,
-                                      n_evaders=args.n_evaders,
-                                      n_pursuers=args.n_pursuers,
-                                      obs_range=args.obs_range,
-                                      n_catch=args.n_catch,
-                                      train_pursuit=args.train_pursuit,
-                                      urgency_reward=args.urgency,
-                                      factored=args.factored,
-                                      surround=args.surround)
+        obsfeat_space = spaces.Box(low=env.agents[0].observation_space.low[0],
+                                   high=env.agents[0].observation_space.high[0],
+                                   shape=(env.agents[0].observation_space.shape[0] *
+                                          len(env.agents),))  # XXX
+        if isinstance(env.agents[0].action_space, spaces.Box):
+            action_space = spaces.Box(low=env.agents[0].action_space.low[0],
+                                      high=env.agents[0].action_space.high[0],
+                                      shape=(env.agents[0].action_space.shape[0] *
+                                             len(env.agents),))  # XXX
+        elif isinstance(env.agents[0].action_space, spaces.Discrete):
+            action_space = spaces.Discrete(env.agents[0].action_space.n * len(env.agents))
+        else:
+            raise NotImplementedError()
+ 
     elif args.control == 'decentralized':
-        env = DecPursuitEvade(env_map,
-                              n_evaders=args.n_evaders,
-                              n_pursuers=args.n_pursuers,
-                              obs_range=args.obs_range,
-                              n_catch=args.n_catch,
-                              train_pursuit=args.train_pursuit,
-                              urgency_reward=args.urgency,
-                              surround=args.surround)
+        obsfeat_space = env.agents[0].observation_space
+        action_space = env.agents[0].action_space
     else:
         raise NotImplementedError()
 
-    if args.factored:
-        pursuit_policy = PursuitCentralMLPPolicy(env.observation_space, env.action_space, 
-                                                 args.n_pursuers,
-                                                 hidden_spec=args.policy_hidden_spec,
-                                                 enable_obsnorm=True,
-                                                 tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
-        evade_policy = PursuitCentralMLPPolicy(env.observation_space, env.action_space, 
-                                               args.n_pursuers,
-                                               hidden_spec=args.policy_hidden_spec,
-                                               enable_obsnorm=True,
-                                               tblog=args.tblog, varscope_name='evade_catmlp_policy')
-    else:
-        pursuit_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
-                                      hidden_spec=args.policy_hidden_spec,
-                                      enable_obsnorm=True,
-                                      tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
+    policy = CategoricalMLPPolicy(obsfeat_space, action_space,
+                                  hidden_spec=args.policy_hidden_spec,
+                                  enable_obsnorm=True,
+                                  tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
 
-        evade_policy = CategoricalMLPPolicy(env.observation_space, env.action_space,
-                                      hidden_spec=args.policy_hidden_spec,
-                                      enable_obsnorm=True,
-                                      tblog=args.tblog, varscope_name='evade_catmlp_policy')
 
     if args.baseline_type == 'linear':
-        pursuit_baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True,
+        baseline = LinearFeatureBaseline(obsfeat_space, enable_obsnorm=True,
                                varscope_name='pursuit_linear_baseline')
-        evade_baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True,
-                               varscope_name='evade_linear_baseline')
     elif args.baseline_type == 'mlp':
-        pursuit_baseline = MLPBaseline(env.observation_space, args.baseline_hidden_spec,
+        baseline = MLPBaseline(obsfeat_space, args.baseline_hidden_spec,
                                True, True, max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
                                time_scale=1./args.max_traj_len, varscope_name='pursuit_mlp_baseline')
-        evade_baseline = MLPBaseline(env.observation_space, args.baseline_hidden_spec,
-                               True, True, max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
-                               time_scale=1./args.max_traj_len, varscope_name='evade_mlp_baseline')
     else:
-        pursuit_baseline = ZeroBaseline(env.observation_space)
-        evade_baseline = ZeroBaseline(env.observation_space)
+        baseline = ZeroBaseline(obsfeat_space)
 
     if args.sampler == 'simple':
         if args.control == "centralized":
@@ -196,8 +185,8 @@ def main():
     step_func = rltools.algos.policyopt.TRPO(max_kl=args.max_kl)
     popt = rltools.algos.policyopt.SamplingPolicyOptimizer(
         env=env,
-        policy=pursuit_policy,
-        baseline=pursuit_baseline,
+        policy=policy,
+        baseline=baseline,
         step_func=step_func,
         discount=args.discount,
         gae_lambda=args.gae_lambda,

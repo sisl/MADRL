@@ -4,6 +4,6 @@ Multi-agent utilities
 
 from .AgentLayer import AgentLayer
 from .Controllers import *
-from .TwoDAgent import TwoDAgent
+from .DiscreteAgent import DiscreteAgent
 from .TwoDMaps import *
 from .agent_utils import *
