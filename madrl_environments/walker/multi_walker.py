@@ -362,12 +362,18 @@ class MultiWalkerEnv(object):
             nobs.append((self.package.position.y - y)/self.package_length)
             nobs.append(self.package.angle)
             nobs.append(float(i)/self.n_walkers)
-            obs.append(wobs + nobs)
+            obs.append(np.array(wobs + nobs))
 
             shaping = 130*pos[0]/SCALE
             shaping -= 5.0*abs(wobs[0])
             rewards[i] = shaping - self.prev_shaping[i]
             self.prev_shaping[i] = shaping
+
+        #import IPython
+        #IPython.embed()
+
+        #rewards += 10*self.package.position.x/SCALE # reward for moving package forward
+        
 
         self.scroll = xpos.mean() - VIEWPORT_W/SCALE/5 - (self.n_walkers-1)*WALKER_SEPERATION*TERRAIN_STEP
 
@@ -449,10 +455,10 @@ class MultiWalkerEnv(object):
             fixtures = fixtureDef(
                 shape=polygonShape(vertices=[ (x/SCALE,y/SCALE) for x,y in PACKAGE_POLY]),
                 density=1.0,
-                friction=0.1,
+                friction=0.5,
                 categoryBits=0x004,
                 #maskBits=0x001,  # collide only with ground
-                restitution=0.5) # 0.99 bouncy
+                restitution=0.0) # 0.99 bouncy
                 )
         self.package.color1 = (0.5,0.4,0.9)
         self.package.color2 = (0.3,0.3,0.5)

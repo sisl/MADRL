@@ -9,10 +9,12 @@ from __future__ import absolute_import, print_function
 import argparse
 import json
 import sys
+import pprint
 sys.path.append('../rltools/')
 
 import numpy as np
 import tensorflow as tf
+import h5py
 
 import gym
 import rltools.algos.policyopt
@@ -67,16 +69,33 @@ def main():
     parser.add_argument('--tblog', type=str, default='/tmp/madrl_tb')
     parser.add_argument('--debug', dest='debug', action='store_true')
     parser.add_argument('--no-debug', dest='debug', action='store_false')
+
+    parser.add_argument('--load_checkpoint', type=str, default='none') 
+
     parser.set_defaults(debug=True)
 
     args = parser.parse_args()
 
     env = MultiWalkerEnv(n_walkers=args.n_walkers)
 
-    policy = GaussianMLPPolicy(env.observation_space, env.action_space,
-                               hidden_spec=args.policy_hidden_spec, enable_obsnorm=True,
-                               min_stdev=0., init_logstdev=0., tblog=args.tblog,
-                               varscope_name='gaussmlp_policy')
+    if args.load_checkpoint is not 'none':
+        filename, file_key = rltools.util.split_h5_name(args.load_checkpoint)
+        print('Loading parameters from {} in {}'.format(file_key, filename))
+        with h5py.File(filename, 'r') as f:
+            train_args = json.loads(f.attrs['args'])
+            dset = f[file_key]
+
+            pprint.pprint(dict(dset.attrs))
+        policy = GaussianMLPPolicy(env.observation_space, env.action_space,
+                                   hidden_spec=train_args['policy_hidden_spec'], enable_obsnorm=True,
+                                   min_stdev=0., init_logstdev=0., tblog=train_args['tblog'],
+                                   varscope_name='gaussmlp_policy')
+    else:
+
+        policy = GaussianMLPPolicy(env.observation_space, env.action_space,
+                                   hidden_spec=args.policy_hidden_spec, enable_obsnorm=True,
+                                   min_stdev=0., init_logstdev=0., tblog=args.tblog,
+                                   varscope_name='gaussmlp_policy')
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(env.observation_space, enable_obsnorm=True,
                                          varscope_name='pursuit_linear_baseline')
@@ -114,6 +133,8 @@ def main():
 
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
+        if args.load_checkpoint is not 'none':
+            policy.load_h5(sess, filename, file_key)
         popt.train(sess, log_f, args.save_freq)
 
 
