@@ -1,9 +1,12 @@
-import numpy as np
-from collections import deque
 import logging
-import ode
+from collections import deque
+
+import numpy as np
 from gym.utils import seeding
+
+import ode
 import vapory as vap
+from madrl_environments import AbstractMAEnv, Agent
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -107,7 +110,7 @@ class Box(OdeObj):
             vap.Interior('ior', 4), 'matrix', self.body.getRotation() + self.body.getPosition())
 
 
-class SphereRobot(OdeObj):
+class SphereRobot(OdeObj, Agent):
 
     def __init__(self, space, world, radius, mass, color=None):
         self._radius = radius
@@ -137,21 +140,23 @@ class SphereRobot(OdeObj):
 
 
 def axisangle_to_quat(axis, angle):
-    axis = axis / np.linalg.norm(axis)
+    norm = np.linalg.norm(axis)
+    axis = axis / norm
     angle /= 2
     x, y, z = axis
     w = np.cos(angle)
     x *= np.sin(angle)
     y *= np.sin(angle)
     z *= np.sin(angle)
-    return [x, y, z, w]
+    return [w, x, y, z]
 
 
-class BoxPushing(object):
+class BoxPushing(AbstractMAEnv):
 
-    def __init__(self, is_static=True):
+    def __init__(self, is_static=True, n_enemybots=12):
         self._is_static = is_static
-        self.nRobot = 12
+        self.n_robots = 12
+        self.n_enemybots = n_enemybots
         self.world = ode.World()
         self.world.setGravity((0, 0, -GRAVITY))
         self.space = ode.HashSpace()
@@ -163,12 +168,13 @@ class BoxPushing(object):
 
         self.wall = [None for _ in range(nWall)]
 
-        self.robot = [None for _ in range(self.nRobot)]
-        for i in range(self.nRobot):
-            self.robot[i] = SphereRobot(self.space, self.world, ROBOT_RADIUS, MASS)
+        self.robot = [SphereRobot(self.space, self.world, ROBOT_RADIUS, MASS)
+                      for _ in range(self.n_robots)]
 
-        self.joint = [None for _ in range(self.nRobot)]
+        self.joint = [None for _ in range(self.n_robots)]
 
+        self.enemy_bot = [SphereRobot(self.space, self.world, ROBOT_RADIUS, MASS, color=[0, 0, 1])
+                          for _ in range(self.n_enemybots)]
         self.seed()
 
         self.objv = deque(maxlen=3)
@@ -180,7 +186,7 @@ class BoxPushing(object):
         self.sim_time = 0
 
     def _init_force(self):
-        force_NR_2 = self.np_random.rand(self.nRobot, 2) * FMAX / 2
+        force_NR_2 = self.np_random.rand(self.n_robots, 2) * FMAX / 2
         return force_NR_2
 
     def seed(self, seed=None):
@@ -199,7 +205,7 @@ class BoxPushing(object):
             self.wall[i].setPosition(WALL_POS[i, 0], WALL_POS[i, 1], WALL_TALL / 2)
             if WALL_DIR[i] == 1:
                 R = self.wall[i].getQuat()
-                Q = axisangle_to_quat(np.array(list(R[:-1])), np.pi / 2)
+                Q = axisangle_to_quat(np.array([0, 0, 1]), np.pi / 2)
                 self.wall[i].setQuat(*Q)
         # Robots
         for i in range(4):
@@ -211,10 +217,15 @@ class BoxPushing(object):
         for i in range(10, 12):
             self.robot[i].setPosition(-0.33, 0.047 - (i - 10) * 0.087, ROBOT_RADIUS)
 
-        for i in range(self.nRobot):
+        for i in range(self.n_robots):
             self.joint[i] = ode.FixedJoint(self.world)
             self.joint[i].attach(self.obj.body, self.robot[i].body)
             self.joint[i].setFixed()
+
+        # Enemy bot
+        for ebot in self.enemy_bot:
+            loc = (self.np_random.rand(), self.np_random.rand())
+            ebot.setPosition(loc[0], loc[1], ROBOT_RADIUS)
 
         force_NR_2 = self._init_force()
         self._add_force(force_NR_2)
@@ -228,7 +239,7 @@ class BoxPushing(object):
 
     def _add_force(self, force_NR_2):
         self.robot_sum_force = np.zeros(2)
-        for i in range(self.nRobot):
+        for i in range(self.n_robots):
             self.robot_sum_force += force_NR_2[i, :]
 
         self._update_fric_dir()
@@ -256,7 +267,7 @@ class BoxPushing(object):
         robot_torque = 0
         fric_torque = 0
 
-        for i in range(self.nRobot):
+        for i in range(self.n_robots):
             f_body = self.obj.body.vectorFromWorld(force_NR_2[i, 0], force_NR_2[i, 1], 0)
             r = np.array([ROBOT_REL_POS[i, 0], ROBOR_REL_POS[i, 1], 0])
             f = np.array([f_body[0], f_body[1]])
@@ -399,7 +410,7 @@ if __name__ == '__main__':
     print('n:{}'.format(env.space.getNumGeoms()))
     print('g:{}'.format(env.world.getGravity()))
     print('o:{}'.format(env.obj.getPosition()))
-    for i in range(env.nRobot):
+    for i in range(env.n_robots):
         print(env.robot[i].getPosition())
         print('---')
 
