@@ -110,7 +110,7 @@ class PursuitEvade(AbstractMAEnv):
         else:
             self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2)])
             self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2)])
-            if include_id:
+            if self.include_id:
                 np.append(self.low, 0.0)
                 np.append(self.high, 1.0)
             self.action_space = spaces.Discrete(n_act_ev)
@@ -247,35 +247,6 @@ class PursuitEvade(AbstractMAEnv):
                               facecolor="#009ACD"))
         plt.pause(self.plt_delay)
         plt.clf()
-
-    def _render(self, rate=10):
-        import cv2
-        img = np.repeat(self.model_state[0].T[:, :, None], 3, axis=2)
-        print(img.shape)
-        for i in range(self.pursuer_layer.n_agents()):
-            x, y = self.pursuer_layer.get_position(i)
-            cv2.circle(img, (x, y), 1, (255, 0, 0), -1, lineType=cv2.CV_AA)
-        for i in range(self.evader_layer.n_agents()):
-            x, y = self.pursuer_layer.get_position(i)
-            cv2.circle(img, (x, y), 1, (0, 0, 255), 1, lineType=cv2.CV_AA)
-        cv2.imshow('pursue', img)
-        cv2.waitKey(rate)
-
-    def _animate(self, act_fn, nsteps, file_name, rate=10):
-        o = self.reset()
-        rew = 0
-        self._render(rate=rate)
-        for i in range(nsteps):
-            a, adist = act_fn(o)
-            o, r, done, _ = self.step(a)
-
-            rew += r
-            if r > 0:
-                print(r)
-            self._render(rate=rate)
-            if done:
-                break
-        return rew
 
     def animate(self, act_fn, nsteps, file_name, rate=1.5):
         """
