@@ -253,11 +253,8 @@ class PursuitEvade(AbstractMAEnv):
         # generate .pngs
         self.save_image(temp_name)
         for i in xrange(nsteps):
-            action_list = []
-            for agent_obs in o:
-                a, adist = act_fn(agent_obs)
-                action_list.append(a[0, 0])
-            o, r, done, _ = self.step(action_list)
+            a = act_fn(o)
+            o, r, done, _ = self.step(a)
             temp_name = join(file_path, "temp_" + str(i + 1) + ".png")
             self.save_image(temp_name)
             if done:
