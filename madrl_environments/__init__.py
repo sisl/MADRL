@@ -16,6 +16,9 @@ class Agent(object):
     def action_space(self):
         raise NotImplementedError()
 
+    def __str__(self):
+        return '<{} instance>'.format(type(self).__name__)
+
 
 class AbstractMAEnv(object):
 
