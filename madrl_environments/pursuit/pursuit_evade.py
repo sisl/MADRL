@@ -48,7 +48,6 @@ class PursuitEvade(AbstractMAEnv):
         self.xs = xs
         self.ys = ys
 
-
         self.reward_mech = kwargs.pop('reward_mech', 'global')
 
         self.n_evaders = kwargs.pop('n_evaders', 1)
@@ -127,10 +126,7 @@ class PursuitEvade(AbstractMAEnv):
 
         self.surround = kwargs.pop('surround', True)
 
-        self.surround_mask = np.array([[-1, 0], 
-                                      [1, 0], 
-                                      [0, 1], 
-                                      [0, -1]])
+        self.surround_mask = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
 
         self.model_state = np.zeros((4,) + map_matrix.shape, dtype=np.float32)
 
@@ -151,16 +147,14 @@ class PursuitEvade(AbstractMAEnv):
         self.evaders_gone.fill(False)
         if self.random_opponents:
             if self.train_pursuit:
-                self.n_evaders = np.random.randint(1, self.max_opponents)
+                self.n_evaders = self.np_random.randint(1, self.max_opponents)
             else:
-                self.n_pursuers = np.random.randint(1, self.max_opponents)
+                self.n_pursuers = self.np_random.randint(1, self.max_opponents)
 
-        self.pursuer_layer = AgentLayer(
-            self.xs, self.ys,
-            agent_utils.create_agents(self.n_pursuers, self.map_matrix, self.obs_range, randinit=True))
-        self.evader_layer = AgentLayer(
-            self.xs, self.ys,
-            agent_utils.create_agents(self.n_evaders, self.map_matrix, self.obs_range, randinit=True))
+        self.pursuer_layer = AgentLayer(self.xs, self.ys, agent_utils.create_agents(
+            self.n_pursuers, self.map_matrix, self.obs_range, randinit=True))
+        self.evader_layer = AgentLayer(self.xs, self.ys, agent_utils.create_agents(
+            self.n_evaders, self.map_matrix, self.obs_range, randinit=True))
         self.model_state[0] = self.map_matrix
         self.model_state[1] = self.pursuer_layer.get_state_matrix()
         self.model_state[2] = self.evader_layer.get_state_matrix()
@@ -185,7 +179,6 @@ class PursuitEvade(AbstractMAEnv):
             opponent_layer = self.pursuer_layer
             opponent_controller = self.pursuer_controller
             gone_flags = self.evaders_gone
-        
 
         # move allies
         if isinstance(actions, list) or isinstance(actions, np.ndarray):
@@ -227,9 +220,8 @@ class PursuitEvade(AbstractMAEnv):
         done = self.is_terminal
 
         if self.reward_mech == 'global':
-            return obslist, [rewards.mean()]*self.n_pursuers, done, None
+            return obslist, [rewards.mean()] * self.n_pursuers, done, None
         return obslist, rewards, done, None
-
 
     def render(self):
         plt.matshow(self.model_state[0].T, cmap=plt.get_cmap('Greys'), fignum=1)
@@ -239,16 +231,18 @@ class PursuitEvade(AbstractMAEnv):
             if self.train_pursuit:
                 ax = plt.gca()
                 ofst = self.obs_range / 2.0
-                ax.add_patch(Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range,
-                                       alpha=0.5, facecolor="#FF9848"))
+                ax.add_patch(
+                    Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range, alpha=0.5,
+                              facecolor="#FF9848"))
         for i in xrange(self.evader_layer.n_agents()):
             x, y = self.evader_layer.get_position(i)
             plt.plot(x, y, "b*", markersize=12)
             if not self.train_pursuit:
                 ax = plt.gca()
                 ofst = self.obs_range / 2.0
-                ax.add_patch(Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range,
-                                       alpha=0.5, facecolor="#009ACD"))
+                ax.add_patch(
+                    Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range, alpha=0.5,
+                              facecolor="#009ACD"))
         plt.pause(self.plt_delay)
         plt.clf()
 
@@ -296,7 +290,7 @@ class PursuitEvade(AbstractMAEnv):
             action_list = []
             for agent_obs in o:
                 a, adist = act_fn(agent_obs)
-                action_list.append(a[0,0])
+                action_list.append(a[0, 0])
             o, r, done, _ = self.step(action_list)
             temp_name = join(file_path, "temp_" + str(i + 1) + ".png")
             self.save_image(temp_name)
@@ -320,16 +314,18 @@ class PursuitEvade(AbstractMAEnv):
             if self.train_pursuit:
                 ax = plt.gca()
                 ofst = self.obs_range / 2.0
-                ax.add_patch(Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range,
-                                       alpha=0.5, facecolor="#FF9848"))
+                ax.add_patch(
+                    Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range, alpha=0.5,
+                              facecolor="#FF9848"))
         for i in xrange(self.evader_layer.n_agents()):
             x, y = self.evader_layer.get_position(i)
             plt.plot(x, y, "b*", markersize=12)
             if not self.train_pursuit:
                 ax = plt.gca()
                 ofst = self.obs_range / 2.0
-                ax.add_patch(Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range,
-                                       alpha=0.5, facecolor="#009ACD"))
+                ax.add_patch(
+                    Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range, alpha=0.5,
+                              facecolor="#009ACD"))
 
         xl, xh = -self.obs_offset - 1, self.xs + self.obs_offset + 1
         yl, yh = -self.obs_offset - 1, self.ys + self.obs_offset + 1
@@ -337,7 +333,6 @@ class PursuitEvade(AbstractMAEnv):
         plt.ylim([yl, yh])
         plt.axis('off')
         plt.savefig(file_name, dpi=200)
-
 
     def sample_action(self):
         # returns a list of actions
@@ -349,7 +344,7 @@ class PursuitEvade(AbstractMAEnv):
     def reward(self):
         r = self.pursuer_reward() if self.train_pursuit else self.evader_reward()
         return r
-    
+
     @property
     def is_terminal(self):
         #ev = self.evader_layer.get_state_matrix()  # evader positions
@@ -380,12 +375,12 @@ class PursuitEvade(AbstractMAEnv):
         obs = []
         nage = 0
         for i in xrange(self.total_agents):
-            if gone_flags[i]: 
+            if gone_flags[i]:
                 obs.append(None)
             else:
                 o = self.collect_obs_by_idx(agent_layer, nage)
                 if self.include_id:
-                    o = np.append(o, float(i)/self.total_agents)
+                    o = np.append(o, float(i) / self.total_agents)
                 obs.append(o)
                 nage += 1
         return obs
@@ -425,7 +420,11 @@ class PursuitEvade(AbstractMAEnv):
         ps = self.pursuer_layer.get_state_matrix()  # pursuer positions
         es = self.evader_layer.get_state_matrix()  # evader positions
         tagged = (ps > 0) * es
-        rewards = [self.catchr * tagged[self.pursuer_layer.get_position(i)[0], self.pursuer_layer.get_position(i)[1]] for i in xrange(self.n_pursuers)]
+        rewards = [
+            self.catchr *
+            tagged[self.pursuer_layer.get_position(i)[0], self.pursuer_layer.get_position(i)[1]]
+            for i in xrange(self.n_pursuers)
+        ]
         return np.array(rewards)
 
     def evader_reward(self):
@@ -453,21 +452,23 @@ class PursuitEvade(AbstractMAEnv):
         xpur, ypur = np.nonzero(self.model_state[1])
         purs_sur = np.zeros(self.n_pursuers, dtype=np.bool)
         for i in xrange(self.n_evaders):
-            if self.evaders_gone[i]: continue
+            if self.evaders_gone[i]:
+                continue
             #x, y = self.evader_layer.get_position(ai)
             x, y = self.evader_layer.get_position(ai)
             if self.surround:
                 pos_that_catch = self.surround_mask + self.evader_layer.get_position(ai)
-                truths = np.array([np.equal([xi,yi], pos_that_catch).all(axis=1) for xi,yi in zip(xpur, ypur)])
-                if np.sum(truths.any(axis=0)) == self.need_to_surround(x,y):
+                truths = np.array(
+                    [np.equal([xi, yi], pos_that_catch).all(axis=1) for xi, yi in zip(xpur, ypur)])
+                if np.sum(truths.any(axis=0)) == self.need_to_surround(x, y):
                     removed_evade.append(ai - rems)
                     self.evaders_gone[i] = True
                     rems += 1
                     tt = truths.any(axis=1)
                     for j in xrange(self.n_pursuers):
                         xpp, ypp = self.pursuer_layer.get_position(j)
-                        tes=np.concatenate((xpur[tt], ypur[tt])).reshape(2,len(xpur[tt]))
-                        tem = tes.T == np.array([xpp,ypp])
+                        tes = np.concatenate((xpur[tt], ypur[tt])).reshape(2, len(xpur[tt]))
+                        tem = tes.T == np.array([xpp, ypp])
                         if np.any(np.all(tem, axis=1)):
                             purs_sur[j] = True
                 ai += 1
@@ -481,7 +482,8 @@ class PursuitEvade(AbstractMAEnv):
 
         ai = 0
         for i in xrange(self.pursuer_layer.n_agents()):
-            if self.pursuers_gone[i]: continue
+            if self.pursuers_gone[i]:
+                continue
             x, y = self.pursuer_layer.get_position(i)
             # number of evaders > 0 and number of pursuers < n_catch
 
@@ -500,18 +502,18 @@ class PursuitEvade(AbstractMAEnv):
             n_pursuer_removed += 1
         return n_evader_removed, n_pursuer_removed, purs_sur
 
-
     def need_to_surround(self, x, y):
         tosur = 4
-        if x == 0 or x == (self.xs-1):
+        if x == 0 or x == (self.xs - 1):
             tosur -= 1
-        if y == 0 or y == (self.ys-1):
+        if y == 0 or y == (self.ys - 1):
             tosur -= 1
-        neighbors = self.surround_mask + np.array([x,y])
+        neighbors = self.surround_mask + np.array([x, y])
         for n in neighbors:
             xn, yn = n
-            if not 0 < xn < self.xs or not 0 < yn < self.ys: continue
-            if self.model_state[0][xn,yn] == -1:
+            if not 0 < xn < self.xs or not 0 < yn < self.ys:
+                continue
+            if self.model_state[0][xn, yn] == -1:
                 tosur -= 1
         return tosur
 
