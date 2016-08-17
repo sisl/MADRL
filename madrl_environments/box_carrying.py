@@ -127,7 +127,7 @@ class SphereRobot(OdeObj, Agent):
 
         # Observation
         self._neighbors = 2
-        self._obs_dim = 2 * self._neighbors + 2  # Forces applied by n nearest neighbors + Velocity of object
+        self._obs_dim = 2 * self._neighbors + 2  # Acceleration of n nearest neighbors + Velocity of object
 
     @property
     def body(self):
@@ -164,7 +164,7 @@ def axisangle_to_quat(axis, angle):
     return [w, x, y, z]
 
 
-class BoxPushing(AbstractMAEnv):
+class BoxCarrying(AbstractMAEnv):
 
     def __init__(self, n_enemybots=12):
         self.n_robots = 12
