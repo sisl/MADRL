@@ -34,7 +34,7 @@ def main():
     parser.add_argument('--gae_lambda', type=float, default=0.99)
 
     parser.add_argument('--interp_alpha', type=float, default=0.5)
-    parser.add_argument('--policy_avg_weights', type=str, default='0.33,0.33,0.33')
+    parser.add_argument('--policy_avg_weights', type=str, default='0.3333333,0.3333333,0.3333333')
 
     parser.add_argument('--n_iter', type=int, default=250)
     parser.add_argument('--sampler', type=str, default='simple')
@@ -68,6 +68,7 @@ def main():
 
     parser.add_argument('--policy_hidden_spec', type=str, default=GAE_ARCH)
     parser.add_argument('--min_std', type=float, default=0)
+    parser.add_argument('--blend_freq', type=int, default=20)
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
     parser.add_argument('--baseline_hidden_spec', type=str, default=GAE_ARCH)
@@ -85,11 +86,8 @@ def main():
 
     args = parser.parse_args()
 
-    sensor_range = np.array(map(float, args.sensor_range.split(',')))
-    assert sensor_range.shape == (args.n_pursuers,)
-
     policy_avg_weights = np.array(map(float, args.policy_avg_weights.split(',')))
-    assert len(policy_avg_weights) == args.n_pursuers
+    assert len(policy_avg_weights) == args.n_good
 
     env = ContinuousHostageWorld(args.n_good, args.n_hostage, args.n_bad, args.n_coop_save,
                                  args.n_coop_avoid, n_sensors=args.n_sensors,
@@ -152,10 +150,9 @@ def main():
     rltools.util.header(argstr)
     log_f = rltools.log.TrainingLog(args.log, [('args', argstr)], debug=args.debug)
 
-    blend_freq = 20  # XXX
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
-        popt.train(sess, log_f, blend_freq, args.save_freq)
+        popt.train(sess, log_f, args.blend_freq, args.save_freq)
 
 
 if __name__ == '__main__':
