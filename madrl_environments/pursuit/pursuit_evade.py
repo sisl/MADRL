@@ -10,11 +10,11 @@ from gym import spaces
 from gym.utils import seeding
 from matplotlib.patches import Rectangle
 
+from madrl_environments import AbstractMAEnv
+from six.moves import xrange
 from utils import agent_utils
 from utils.AgentLayer import AgentLayer
 from utils.Controllers import RandomPolicy
-
-from madrl_environments import AbstractMAEnv
 
 #################################################################
 # Implements an Evade Pursuit Problem in 2D
@@ -151,10 +151,12 @@ class PursuitEvade(AbstractMAEnv):
             else:
                 self.n_pursuers = self.np_random.randint(1, self.max_opponents)
 
-        self.pursuer_layer = AgentLayer(self.xs, self.ys, agent_utils.create_agents(
-            self.n_pursuers, self.map_matrix, self.obs_range, randinit=True))
-        self.evader_layer = AgentLayer(self.xs, self.ys, agent_utils.create_agents(
-            self.n_evaders, self.map_matrix, self.obs_range, randinit=True))
+        self.pursuer_layer = AgentLayer(self.xs, self.ys,
+                                        agent_utils.create_agents(self.n_pursuers, self.map_matrix,
+                                                                  self.obs_range, randinit=True))
+        self.evader_layer = AgentLayer(self.xs, self.ys,
+                                       agent_utils.create_agents(self.n_evaders, self.map_matrix,
+                                                                 self.obs_range, randinit=True))
         self.model_state[0] = self.map_matrix
         self.model_state[1] = self.pursuer_layer.get_state_matrix()
         self.model_state[2] = self.evader_layer.get_state_matrix()
