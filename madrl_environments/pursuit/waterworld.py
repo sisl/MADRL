@@ -1,16 +1,38 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy.spatial.distance as ssd
 from gym import spaces
+from gym.utils import seeding
+
+from madrl_environments import AbstractMAEnv, Agent
 
 
-class MAWaterWorld(object):
+class Archea(Agent):
+
+    def __init__(self, radius, n_sensors, sensor_range):
+        self._radius = radius
+        self._n_sensors = n_sensors
+        self._sensor_range = sensor_range
+        # Number of observation coordinates from each sensor
+        self._sensor_obscoord = 7
+        self._obscoord_from_sensors = self._n_sensors * self._sensor_obscoord
+        self._obs_dim = self._obscoord_from_sensors + 2 + 1  #2 for type, 1 for id
+
+    @property
+    def observation_space(self):
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(self._obs_dim,))
+
+    @property
+    def action_space(self):
+        return spaces.Box(low=-10, high=10, shape=(2,))
+
+
+class MAWaterWorld(AbstractMAEnv):
 
     def __init__(self, n_pursuers, n_evaders, n_coop=2, n_poison=10, radius=0.015,
                  obstacle_radius=0.2, obstacle_loc=np.array([0.5, 0.5]), ev_speed=0.01,
                  poison_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
                  poison_reward=-1., food_reward=1., encounter_reward=.05, control_penalty=-.5,
-                 centralized=True, **kwargs):
+                 reward_mech='global', **kwargs):
         self.n_pursuers = n_pursuers
         self.n_evaders = n_evaders
         self.n_coop = n_coop
@@ -35,48 +57,35 @@ class MAWaterWorld(object):
         # and output observations for each agent
         # TODO: not sure if the observation shape should include the number of agent.
         # IMHO not
-        self.centralized = centralized
-
-        # Number of observation coordinates from each sensor
-        self.sensor_obscoord = 7
-        self.obscoord_from_sensors = n_sensors * self.sensor_obscoord
-        self._obs_dim = self.obscoord_from_sensors + 2 + 1  #2 for type, 1 for id
+        self.reward_mech = reward_mech
+        self.seed()
 
     @property
-    def observation_space(self):
-        if self.centralized:
-            return spaces.Box(low=-np.inf, high=np.inf, shape=(self.n_pursuers * self._obs_dim,))
-        else:
-            return spaces.Box(low=-np.inf, high=np.inf, shape=(self._obs_dim,))
+    def agents(self):
+        return [Archea(self.radius, self.n_sensors, self.sensor_range)
+                for _ in range(self.n_pursuers)]
 
-    @property
-    def action_space(self):
-        if self.centralized:
-            return spaces.Box(low=-10, high=10, shape=(self.n_pursuers * 2))
-        else:
-            return spaces.Box(low=-10, high=10, shape=(2,))
-
-    @property
-    def total_agents(self):
-        return self.n_pursuers
+    def seed(self, seed=None):
+        self.np_random, seed_ = seeding.np_random(seed)
+        return [seed_]
 
     def _respawn(self, objx_N_2):
         for i in range(len(objx_N_2)):
             while ssd.cdist(objx_N_2[i, None, :],
                             self.obstaclesx_No_2) <= self.radius + self.obstacle_radius:
-                objx_N_2[i, :] = np.random.rand(2)
+                objx_N_2[i, :] = self.np_random.rand(2)
         return objx_N_2
 
     def reset(self):
         # Initialize obstacles
         if self.obstacle_loc is None:
-            self.obstaclesx_No_2 = np.random.rand(self.n_obstacles, 2)
+            self.obstaclesx_No_2 = self.np_random.rand(self.n_obstacles, 2)
         else:
             self.obstaclesx_No_2 = self.obstacle_loc[None, :]
         self.obstaclesv_No_2 = np.zeros((self.n_obstacles, 2))
 
         # Initialize pursuers
-        self.pursuersx_Np_2 = np.random.rand(self.n_pursuers, 2)
+        self.pursuersx_Np_2 = self.np_random.rand(self.n_pursuers, 2)
         # Avoid spawning where the obstacles lie
         self.pursuersx_Np_2 = self._respawn(self.pursuersx_Np_2)
         self.pursuersv_Np_2 = np.zeros((self.n_pursuers, 2))
@@ -87,16 +96,16 @@ class MAWaterWorld(object):
         self.sensor_vecs_Np_K_2 = np.tile(sensor_vecs_K_2, (self.n_pursuers, 1, 1))
 
         # Initialize evaders
-        self.evadersx_Ne_2 = np.random.rand(self.n_evaders, 2)
+        self.evadersx_Ne_2 = self.np_random.rand(self.n_evaders, 2)
         self.evadersx_Ne_2 = self._respawn(self.evadersx_Ne_2)
-        self.evadersv_Ne_2 = (
-            np.random.rand(self.n_evaders, 2) - .5) * self.ev_speed  # Random speeds TODO policy?
+        self.evadersv_Ne_2 = (self.np_random.rand(self.n_evaders, 2) - .5
+                             ) * self.ev_speed  # Random speeds TODO policy?
 
         # Initialize poisons
-        self.poisonx_Npo_2 = np.random.rand(self.n_poison, 2)
+        self.poisonx_Npo_2 = self.np_random.rand(self.n_poison, 2)
         self.poisonx_Npo_2 = self._respawn(self.poisonx_Npo_2)
         self.poisonv_Npo_2 = (
-            np.random.rand(self.n_poison, 2) - .5) * self.poison_speed  # Random speeds
+            self.np_random.rand(self.n_poison, 2) - .5) * self.poison_speed  # Random speeds
 
         return self.step(np.zeros((self.n_pursuers, 2)))[0]
 
@@ -163,14 +172,17 @@ class MAWaterWorld(object):
         # Players
         actions_Np_2 = action_Np_2 * self.action_scale
 
-        reward = 0.
+        rewards = np.zeros((self.n_pursuers,))
         assert action_Np_2.shape == (self.n_pursuers, 2)
 
         self.pursuersv_Np_2 += actions_Np_2
         self.pursuersx_Np_2 += self.pursuersv_Np_2
 
         # Penalize large actions
-        reward += self.control_penalty * (actions_Np_2**2).sum()
+        if self.reward_mech == 'global':
+            rewards += self.control_penalty * (actions_Np_2**2).sum()
+        else:
+            rewards += self.control_penalty * (actions_Np_2**2).sum(axis=1)
 
         # Players stop on hitting a wall
         clippedx_Np_2 = np.clip(self.pursuersx_Np_2, 0, 1)
@@ -208,9 +220,6 @@ class MAWaterWorld(object):
         podists_Np_Npo = ssd.cdist(self.pursuersx_Np_2, self.poisonx_Npo_2)
         is_colliding_po_Np_Npo = podists_Np_Npo <= self.radius * 2
         num_poison_collisions = is_colliding_po_Np_Npo.sum()
-
-        # TODO: Check if for loops can be vectorized
-        # TODO: Check if the logic is correct, especially for allies
 
         # Find sensed objects
         # Obstacles
@@ -267,19 +276,23 @@ class MAWaterWorld(object):
         # Process collisions
         # If object collided with required number of players, reset its position and velocity
         # Effectively the same as removing it and adding it back
-        self.evadersx_Ne_2[ev_caught_Ne, :] = np.random.rand(ev_catches, 2)
+        self.evadersx_Ne_2[ev_caught_Ne, :] = self.np_random.rand(ev_catches, 2)
         self.evadersx_Ne_2[ev_caught_Ne, :] = self._respawn(self.evadersx_Ne_2[ev_caught_Ne, :])
-        self.evadersv_Ne_2[ev_caught_Ne, :] = (np.random.rand(ev_catches, 2) - .5) * self.ev_speed
+        self.evadersv_Ne_2[ev_caught_Ne, :] = (
+            self.np_random.rand(ev_catches, 2) - .5) * self.ev_speed
 
         po_catches, po_caught_Npo = self._caught(is_colliding_po_Np_Npo, 1)
-        self.poisonx_Npo_2[po_caught_Npo, :] = np.random.rand(po_catches, 2)
+        self.poisonx_Npo_2[po_caught_Npo, :] = self.np_random.rand(po_catches, 2)
         self.poisonx_Npo_2[po_caught_Npo, :] = self._respawn(self.poisonx_Npo_2[po_caught_Npo, :])
         self.poisonv_Npo_2[po_caught_Npo, :] = (
-            np.random.rand(po_catches, 2) - .5) * self.poison_speed
+            self.np_random.rand(po_catches, 2) - .5) * self.poison_speed
 
         ev_encounters, _ = self._caught(is_colliding_ev_Np_Ne, 1)
         # Update reward based on these collisions
-        reward += ev_catches * self.food_reward + po_catches * self.poison_reward + ev_encounters * self.encounter_reward
+        if self.reward_mech == 'global':
+            rewards += ev_catches * self.food_reward + po_catches * self.poison_reward + ev_encounters * self.encounter_reward
+        else:
+            raise NotImplementedError()
 
         # Add features together
         sensorfeatures_Np_K_O = np.c_[sensed_obdistfeatures_Np_K, sensed_evdistfeatures_Np_K,
@@ -301,16 +314,10 @@ class MAWaterWorld(object):
                 np.concatenate([sensorfeatures_Np_K_O[inp, ...].ravel(), [float((
                     is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((is_colliding_po_Np_Npo[inp, :]
                                                                      ).sum() > 0)], [inp + 1]]))
-        if self.centralized:
-            obs = np.c_[obslist].ravel()
-
-            assert obs.shape == self.observation_space.shape, "{}".format(obs.shape)
-        else:
-            obs = obslist
 
         done = self.is_terminal
         info = None
-        return obs, reward, done, info
+        return obslist, rewards, done, info
 
     def render(self, screen_size=800, rate=10):
         import cv2
@@ -349,35 +356,12 @@ class MAWaterWorld(object):
         cv2.imshow('Waterworld', img)
         cv2.waitKey(rate)
 
-    def animate(self, act_fn, nsteps, file_name, rate=20):
-        o = self.reset()
-        self.render(rate=rate)
-        rew = 0
-        for i in range(nsteps):
-            if self.centralized:
-                a, adist = act_fn(o)
-            else:
-                a = []
-                for i, agent_o in enumerate(o):
-                    agent_a, adist = act_fn(agent_o)
-                    a.append(agent_a)
-                a = np.asarray(a)
-
-            o, r, done, _ = self.step(a)
-            rew += r
-            if r > 0:
-                print(r)
-            self.render(rate=rate)
-            if done:
-                break
-        return rew
-
 
 if __name__ == '__main__':
     env = MAWaterWorld(3, 5)
     obs = env.reset()
     while True:
-        obs, rew, _, _ = env.step(np.random.randn(6) * .5)
-        if rew > 0:
+        obs, rew, _, _ = env.step(env.np_random.randn(6) * .5)
+        if rew.sum() > 0:
             print(rew)
         env.render()

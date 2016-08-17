@@ -5,14 +5,12 @@
 # Created: Monday, August  1 2016 by rejuvyesh <mail@rejuvyesh.com>
 # License: GNU GPL 3 <http://www.gnu.org/copyleft/gpl.html>
 #
-import sys
-sys.path.append('../rltools')
 import argparse
 import os
 import yaml
 import shutil
 import rltools
-import pipeline
+from pipelines import pipeline
 
 # Fix python 2.x
 try:

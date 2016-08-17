@@ -4,14 +4,13 @@
 #
 # Created: Friday, July 15 2016 by rejuvyesh <mail@rejuvyesh.com>
 #
-import sys
-sys.path.append('../rltools')
+
 import argparse
 import os
 import yaml
 import shutil
 import rltools
-import pipeline
+from pipelines import pipeline
 
 # Fix python 2.x
 try:

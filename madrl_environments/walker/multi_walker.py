@@ -387,7 +387,7 @@ class MultiWalkerEnv(object):
         #if self.centralized:
         #    obs = np.concatenate(obs).flatten() 
 
-        return obs, rewards.mean(), done, {}
+        return obs, rewards, done, {}
 
     def render(self, mode='human', close=False):
         if close:

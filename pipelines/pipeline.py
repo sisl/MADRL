@@ -4,9 +4,6 @@
 #
 # Created: Tuesday, July 12 2016 by rejuvyesh <mail@rejuvyesh.com>
 #
-import sys
-sys.path.append('../rltools/')
-
 import argparse
 import datetime
 import multiprocessing as mp
@@ -36,7 +33,7 @@ class Worker(mp.Process):
         self.kill_received = False
 
     def run(self):
-        while (not (self.kill_received)) and (self.work_queue.empty()==False):
+        while (not (self.kill_received)) and (self.work_queue.empty() == False):
             try:
                 job = self.work_queue.get_nowait()
                 outfile = self.result_queue.get_nowait()
@@ -48,16 +45,20 @@ class Worker(mp.Process):
                 f.write(rtn_val + '\n')
 
 
-def run_jobs(cmd_templates, output_filenames, argdicts, storage_dir, outputfile_dir=None, jobname=None, n_workers=4):
+def run_jobs(cmd_templates, output_filenames, argdicts, storage_dir, outputfile_dir=None,
+             jobname=None, n_workers=4):
     assert len(cmd_templates) == len(output_filenames) == len(argdicts)
     num_cmds = len(cmd_templates)
-    outputfile_dir = outputfile_dir if outputfile_dir is not None else 'logs_%s_%s' % (jobname, datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    outputfile_dir = outputfile_dir if outputfile_dir is not None else 'logs_%s_%s' % (
+        jobname, datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
     rltools.util.mkdir_p(os.path.join(storage_dir, outputfile_dir))
 
     cmds, outputfiles = [], []
     for i in range(num_cmds):
         cmds.append(cmd_templates[i].format(**argdicts[i]))
-        outputfiles.append(os.path.join(storage_dir, outputfile_dir, '{:04d}_{}'.format(i+1, output_filenames[i])))
+        outputfiles.append(
+            os.path.join(storage_dir, outputfile_dir, '{:04d}_{}'.format(i + 1, output_filenames[
+                i])))
 
     work_queue = mp.Queue()
     res_queue = mp.Queue()

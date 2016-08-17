@@ -1,16 +1,22 @@
 import numpy as np
 
+from gym import spaces
+from madrl_environments import Agent
+
+
 #################################################################
 # Implements the Single 2D Agent Dynamics
 #################################################################
 
-class TwoDAgent():
+class DiscreteAgent(Agent):
 
     # constructor
     def __init__(self,
                  xs,
                  ys,
                  map_matrix, # the map of the environemnt (-1 are buildings)
+                 obs_range=3,
+                 n_channels=3, # number of observation channels
                  seed=1):
 
         self.random_state = np.random.RandomState(seed)
@@ -37,6 +43,19 @@ class TwoDAgent():
         self.map_matrix = map_matrix
 
         self.terminal = False
+
+        self._obs_range = obs_range
+
+        self._obs_dim = n_channels * obs_range**2 + 1
+
+    @property
+    def observation_space(self):
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(self._obs_dim,))
+
+    @property
+    def action_space(self):
+        return spaces.Discrete(5)
+
 
     ################################################################# 
     # Dynamics Functions

@@ -9,10 +9,8 @@ from __future__ import absolute_import, print_function
 import argparse
 import json
 import pprint
-import sys
-sys.path.append('../rltools/')
 
-import gym
+from gym import spaces
 import h5py
 import numpy as np
 import tensorflow as tf
@@ -20,6 +18,7 @@ import tensorflow as tf
 import rltools.algos
 import rltools.log
 import rltools.util
+from madrl_environments import ObservationBuffer
 from madrl_environments.pursuit import MAWaterWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
@@ -45,12 +44,31 @@ def main():
 
         pprint.pprint(dict(dset.attrs))
 
-    env = MAWaterWorld(train_args['n_pursuers'], train_args['n_evaders'], train_args['n_coop'],
-                       train_args['n_poison'], n_sensors=train_args['n_sensors'],
+    centralized = True if train_args['control'] == 'centralized' else False
+    env = MAWaterWorld(train_args['n_pursuers'],
+                       train_args['n_evaders'],
+                       train_args['n_coop'],
+                       train_args['n_poison'],
+                       n_sensors=train_args['n_sensors'],
                        food_reward=train_args['food_reward'],
                        poison_reward=train_args['poison_reward'],
-                       encounter_reward=train_args['encounter_reward'],
-                       centralized=args.centralized)
+                       encounter_reward=train_args['encounter_reward'],)
+
+    if train_args['buffer_size'] > 1:
+        env = ObservationBuffer(env, train_args['buffer_size'])
+
+    if centralized:
+        obsfeat_space = spaces.Box(low=env.agents[0].observation_space.low[0],
+                                   high=env.agents[0].observation_space.high[0],
+                                   shape=(env.agents[0].observation_space.shape[0] *
+                                          len(env.agents),))  # XXX
+        action_space = spaces.Box(low=env.agents[0].action_space.low[0],
+                                  high=env.agents[0].action_space.high[0],
+                                  shape=(env.agents[0].action_space.shape[0] *
+                                         len(env.agents),))  # XXX
+    else:
+        obsfeat_space = env.agents[0].observation_space
+        action_space = env.agents[0].action_space
 
     policy = GaussianMLPPolicy(env.observation_space, env.action_space,
                                hidden_spec=train_args['policy_hidden_spec'], enable_obsnorm=True,

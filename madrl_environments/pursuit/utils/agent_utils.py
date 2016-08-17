@@ -2,14 +2,14 @@ import numpy as np
 
 from six.moves import xrange
 
-from .TwoDAgent import TwoDAgent
+from .DiscreteAgent import DiscreteAgent
 
 #################################################################
 # Implements utility functions for multi-agent DRL
 #################################################################
 
 
-def create_agents(nagents, map_matrix, randinit=False):
+def create_agents(nagents, map_matrix, obs_range, randinit=False):
     """
     Initializes the agents on a map (map_matrix)
     -nagents: the number of agents to put on the map
@@ -22,7 +22,7 @@ def create_agents(nagents, map_matrix, randinit=False):
         xinit, yinit = (0, 0)
         if randinit:
             xinit, yinit = feasible_position(map_matrix)
-        agent = TwoDAgent(xs, ys, map_matrix)
+        agent = DiscreteAgent(xs, ys, map_matrix, obs_range=obs_range)
         agent.set_position(xinit, yinit)
         agents.append(agent)
     return agents
@@ -55,7 +55,7 @@ def set_agents(agent_matrix, map_matrix):
                 if map_matrix[i, j] == -1:
                     raise ValueError(
                         "Trying to place an agent into a building: check map matrix and agent configuration")
-                agent = TwoDAgent(xs, ys, map_matrix)
+                agent = DiscreteAgent(xs, ys, map_matrix)
                 agent.set_position(i, j)
                 agents.append(agent)
     return agents
