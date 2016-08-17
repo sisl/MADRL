@@ -7,18 +7,21 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 from gym import spaces
+from gym.utils import seeding
 from matplotlib.patches import Rectangle
 
 from utils import agent_utils
 from utils.AgentLayer import AgentLayer
 from utils.Controllers import RandomPolicy
 
+from madrl_environments import AbstractMAEnv
+
 #################################################################
 # Implements an Evade Pursuit Problem in 2D
 #################################################################
 
 
-class DecPursuitEvade():
+class PursuitEvade(AbstractMAEnv):
 
     def __init__(self, map_matrix, **kwargs):
         """
@@ -45,18 +48,20 @@ class DecPursuitEvade():
         self.xs = xs
         self.ys = ys
 
+
+        self.reward_mech = kwargs.pop('reward_mech', 'global')
+
         self.n_evaders = kwargs.pop('n_evaders', 1)
         self.n_pursuers = kwargs.pop('n_pursuers', 1)
 
         self.obs_range = kwargs.pop('obs_range', 3)  # can see 3 grids around them by default
-        self.obs_size = self.obs_range**2
         self.obs_offset = int((self.obs_range - 1) / 2)
 
-        pursuers = agent_utils.create_agents(self.n_pursuers, map_matrix)
-        evaders = agent_utils.create_agents(self.n_evaders, map_matrix)
+        self.pursuers = agent_utils.create_agents(self.n_pursuers, map_matrix, self.obs_range)
+        self.evaders = agent_utils.create_agents(self.n_evaders, map_matrix, self.obs_range)
 
-        self.pursuer_layer = kwargs.pop('ally_layer', AgentLayer(xs, ys, pursuers))
-        self.evader_layer = kwargs.pop('opponent_layer', AgentLayer(xs, ys, evaders))
+        self.pursuer_layer = kwargs.pop('ally_layer', AgentLayer(xs, ys, self.pursuers))
+        self.evader_layer = kwargs.pop('opponent_layer', AgentLayer(xs, ys, self.evaders))
 
         self.layer_norm = kwargs.pop('layer_norm', 10)
         self.flatten = kwargs.pop('flatten', True)
@@ -127,15 +132,19 @@ class DecPursuitEvade():
                                       [0, 1], 
                                       [0, -1]])
 
-        self.model_dims = (4,) + map_matrix.shape
-
-        self.n_actions = n_act_purs
-
-        self.model_state = np.zeros(self.model_dims, dtype=np.float32)
+        self.model_state = np.zeros((4,) + map_matrix.shape, dtype=np.float32)
 
     #################################################################
     # The functions below are the interface with MultiAgentSiulator # 
     #################################################################
+
+    @property
+    def agents(self):
+        return self.pursuers
+
+    def seed(self, seed=None):
+        self.np_random, seed_ = seeding.np_random(seed)
+        return [seed_]
 
     def reset(self):
         self.pursuers_gone.fill(False)
@@ -148,10 +157,10 @@ class DecPursuitEvade():
 
         self.pursuer_layer = AgentLayer(
             self.xs, self.ys,
-            agent_utils.create_agents(self.n_pursuers, self.map_matrix, randinit=True))
+            agent_utils.create_agents(self.n_pursuers, self.map_matrix, self.obs_range, randinit=True))
         self.evader_layer = AgentLayer(
             self.xs, self.ys,
-            agent_utils.create_agents(self.n_evaders, self.map_matrix, randinit=True))
+            agent_utils.create_agents(self.n_evaders, self.map_matrix, self.obs_range, randinit=True))
         self.model_state[0] = self.map_matrix
         self.model_state[1] = self.pursuer_layer.get_state_matrix()
         self.model_state[2] = self.evader_layer.get_state_matrix()
@@ -164,7 +173,7 @@ class DecPursuitEvade():
         """
             Step the system forward. Actions is an iterable of action indecies.
         """
-        r = self.reward()
+        rewards = self.reward()
 
         if self.train_pursuit:
             agent_layer = self.pursuer_layer
@@ -176,10 +185,18 @@ class DecPursuitEvade():
             opponent_layer = self.pursuer_layer
             opponent_controller = self.pursuer_controller
             gone_flags = self.evaders_gone
+        
 
         # move allies
-        for i, a in enumerate(actions):
-            agent_layer.move_agent(i, a)
+        if isinstance(actions, list) or isinstance(actions, np.ndarray):
+            # move all agents
+            for i, a in enumerate(actions):
+                agent_layer.move_agent(i, a)
+        else:
+            # ravel it up
+            act_idxs = np.unravel_index(actions, self.act_dims)
+            for i, a in enumerate(act_idxs):
+                agent_layer.move_agent(i, a)
 
         # move opponents
         for i in xrange(opponent_layer.n_agents()):
@@ -193,20 +210,25 @@ class DecPursuitEvade():
         self.model_state[2] = self.evader_layer.get_state_matrix()
 
         # remove agents that are caught
-        ev_remove, pr_remove = self.remove_agents()
+        ev_remove, pr_remove, pursuers_who_remove = self.remove_agents()
 
-        o = self.collect_obs(agent_layer, gone_flags)
+        obslist = self.collect_obs(agent_layer, gone_flags)
 
         # add caught rewards
-        if self.train_pursuit:
-            r += (ev_remove * self.term_pursuit)
-        else:
-            r += (pr_remove * self.term_evade)
-        r += self.urgency_reward
+        #if self.train_pursuit:
+        #    r += (ev_remove * self.term_pursuit)
+        #else:
+        #    r += (pr_remove * self.term_evade)
+        #import IPython
+        #IPython.embed()
+        rewards += self.term_pursuit * pursuers_who_remove
+        rewards += self.urgency_reward
 
-        done = self.is_terminal()
+        done = self.is_terminal
 
-        return o, r, done, None
+        if self.reward_mech == 'global':
+            return obslist, [rewards.mean()]*self.n_pursuers, done, None
+        return obslist, rewards, done, None
 
 
     def render(self):
@@ -327,7 +349,8 @@ class DecPursuitEvade():
     def reward(self):
         r = self.pursuer_reward() if self.train_pursuit else self.evader_reward()
         return r
-
+    
+    @property
     def is_terminal(self):
         #ev = self.evader_layer.get_state_matrix()  # evader positions
         #if np.sum(ev) == 0.0:
@@ -401,9 +424,9 @@ class DecPursuitEvade():
         # rewarded for each tagged evader
         ps = self.pursuer_layer.get_state_matrix()  # pursuer positions
         es = self.evader_layer.get_state_matrix()  # evader positions
-        tagged = np.sum((ps > 0) * es)  # number of tagged evaders
-        rtot = self.catchr * tagged
-        return rtot
+        tagged = (ps > 0) * es
+        rewards = [self.catchr * tagged[self.pursuer_layer.get_position(i)[0], self.pursuer_layer.get_position(i)[1]] for i in xrange(self.n_pursuers)]
+        return np.array(rewards)
 
     def evader_reward(self):
         """
@@ -428,16 +451,25 @@ class DecPursuitEvade():
         ai = 0
         rems = 0
         xpur, ypur = np.nonzero(self.model_state[1])
+        purs_sur = np.zeros(self.n_pursuers, dtype=np.bool)
         for i in xrange(self.n_evaders):
             if self.evaders_gone[i]: continue
+            #x, y = self.evader_layer.get_position(ai)
             x, y = self.evader_layer.get_position(ai)
             if self.surround:
                 pos_that_catch = self.surround_mask + self.evader_layer.get_position(ai)
-                truths = np.array([np.equal([x,y], pos_that_catch).all(axis=1) for x,y in zip(xpur, ypur)])
-                if np.sum(truths.any(axis=0)) == 4:
+                truths = np.array([np.equal([xi,yi], pos_that_catch).all(axis=1) for xi,yi in zip(xpur, ypur)])
+                if np.sum(truths.any(axis=0)) == self.need_to_surround(x,y):
                     removed_evade.append(ai - rems)
                     self.evaders_gone[i] = True
                     rems += 1
+                    tt = truths.any(axis=1)
+                    for j in xrange(self.n_pursuers):
+                        xpp, ypp = self.pursuer_layer.get_position(j)
+                        tes=np.concatenate((xpur[tt], ypur[tt])).reshape(2,len(xpur[tt]))
+                        tem = tes.T == np.array([xpp,ypp])
+                        if np.any(np.all(tem, axis=1)):
+                            purs_sur[j] = True
                 ai += 1
             else:
                 if self.model_state[1, x, y] >= self.n_catch:
@@ -447,15 +479,15 @@ class DecPursuitEvade():
                     rems += 1
                 ai += 1
 
-
-
         ai = 0
         for i in xrange(self.pursuer_layer.n_agents()):
             if self.pursuers_gone[i]: continue
-            x, y = self.pursuer_layer.get_position(ai)
+            x, y = self.pursuer_layer.get_position(i)
             # number of evaders > 0 and number of pursuers < n_catch
+
             #if self.model_state[2,x,y] > 0 and self.model_state[1,x,y] < self.n_catch:
             # probabilistic model for this
+
             # add prob remove?
             # removed_pursuit.append(i-rems)
             # rems += 1
@@ -466,7 +498,22 @@ class DecPursuitEvade():
         for ridx in removed_pursuit:
             self.pursuer_layer.remove_agent(ridx)
             n_pursuer_removed += 1
-        return n_evader_removed, n_pursuer_removed
+        return n_evader_removed, n_pursuer_removed, purs_sur
+
+
+    def need_to_surround(self, x, y):
+        tosur = 4
+        if x == 0 or x == (self.xs-1):
+            tosur -= 1
+        if y == 0 or y == (self.ys-1):
+            tosur -= 1
+        neighbors = self.surround_mask + np.array([x,y])
+        for n in neighbors:
+            xn, yn = n
+            if not 0 < xn < self.xs or not 0 < yn < self.ys: continue
+            if self.model_state[0][xn,yn] == -1:
+                tosur -= 1
+        return tosur
 
     def get_layers_pursuer(self, agent_idx):
         """
