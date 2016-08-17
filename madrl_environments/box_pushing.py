@@ -2,6 +2,7 @@ import logging
 from collections import deque
 
 import numpy as np
+from gym import spaces
 from gym.utils import seeding
 
 import ode
@@ -124,6 +125,10 @@ class SphereRobot(OdeObj, Agent):
         self._odegeom = ode.GeomSphere(space, radius)
         self._odegeom.setBody(self._odebody)
 
+        # Observation
+        self._neighbors = 2
+        self._obs_dim = 2 * self._neighbors + 2  # Forces applied by n nearest neighbors + Velocity of object
+
     @property
     def body(self):
         return self._odebody
@@ -137,6 +142,14 @@ class SphereRobot(OdeObj, Agent):
         return vap.Sphere(
             list(self.body.getPosition()), self._radius,
             vap.Texture(vap.Pigment('color', self._color if self._color else [1, 0, 1])))
+
+    @property
+    def observation_space(self):
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(self._obs_dim,))
+
+    @property
+    def action_space(self):
+        return spaces.Box(low=0, high=10, shape=(2,))
 
 
 def axisangle_to_quat(axis, angle):
@@ -153,8 +166,7 @@ def axisangle_to_quat(axis, angle):
 
 class BoxPushing(AbstractMAEnv):
 
-    def __init__(self, is_static=True, n_enemybots=12):
-        self._is_static = is_static
+    def __init__(self, n_enemybots=12):
         self.n_robots = 12
         self.n_enemybots = n_enemybots
         self.world = ode.World()
@@ -178,8 +190,10 @@ class BoxPushing(AbstractMAEnv):
         self.seed()
 
         self.objv = deque(maxlen=3)
-        [self.objv.append(np.zeros(3)) for _ in range(3)]
+        [self.objv.append(np.zeros(2)) for _ in range(3)]
         self.result_force = np.zeros(2)
+        self.objacc = np.zeros(2)
+        self._is_static = True
         self.result_torque = 0
         self.count = 0
         self.drift_count = 0
@@ -191,8 +205,6 @@ class BoxPushing(AbstractMAEnv):
 
     def seed(self, seed=None):
         self.np_random, seed1 = seeding.np_random(seed)
-        # seed2 = seeding.hash_seed(seed1 + 1) % 2**31
-        # ode.Util.randSetSeed(seed2)
         return [seed1]
 
     def reset(self):
@@ -226,11 +238,21 @@ class BoxPushing(AbstractMAEnv):
             loc = (self.np_random.rand(), self.np_random.rand())
             ebot.setPosition(loc[0], loc[1], ROBOT_RADIUS)
 
-        force_NR_2 = self._init_force()
-        self._add_force(force_NR_2)
+        # force_NR_2 = self._init_force()
+        # self._add_force(force_NR_2)
+
+    def _check_static_fric(self):
+        self._is_static = False
+        if np.linalg.norm(self.objv[-1]) < 0.01:
+            if np.linalg.norm(self.objacc) < 0.8:
+                self._is_static = True
+
+        if np.linalg.norm(self.objacc) < 0.01:
+            if np.linalg.norm(self.objv[-1]) < 0.5:
+                self._is_static = True
 
     def _update_fric_dir(self):
-        spdd = np.array(list(self.obj.body.getLinearVel()))
+        spdd = np.array(list(self.obj.body.getLinearVel())[:2])
         if not self._is_static:
             self.fricdir = spdd / np.linalg.norm(spdd)
         else:
@@ -267,8 +289,8 @@ class BoxPushing(AbstractMAEnv):
         fric_torque = 0
 
         for i in range(self.n_robots):
-            f_body = self.obj.body.vectorFromWorld(force_NR_2[i, 0], force_NR_2[i, 1], 0)
-            r = np.array([ROBOT_REL_POS[i, 0], ROBOR_REL_POS[i, 1], 0])
+            f_body = self.obj.body.vectorFromWorld((force_NR_2[i, 0], force_NR_2[i, 1], 0))
+            r = np.array([ROBOT_REL_POS[i, 0], ROBOT_REL_POS[i, 1], 0])
             f = np.array([f_body[0], f_body[1]])
             c = np.cross(r, f)
             t = c[2]
@@ -292,15 +314,15 @@ class BoxPushing(AbstractMAEnv):
             kp = 1
 
         fric_sum = np.zeros(2)
-        for x in range(divide_x):
-            for y in range(divide_y):
+        for x in range(int(divide_x)):
+            for y in range(int(divide_y)):
                 body_point = (-LENGTH / 2) + np.array(
                     [x / divide_x * LENGTH, y / divide_y * WIDTH]) + np.array([offset_x, offset_y])
                 body_point_vel = np.array(
-                    list(self.obj.body.getRelPointVel(body_point[0], body_point[1])))
+                    list(self.obj.body.getRelPointVel((body_point[0], body_point[1], 0))))
                 f_world = -kp * FRIC / divide_x / divide_y * body_point_vel / np.linalg.norm(
                     body_point_vel)
-                f_body = self.obj.body.vectorFromWorld(f_world[0], f_world[1], 0)
+                f_body = self.obj.body.vectorFromWorld((f_world[0], f_world[1], 0))
 
                 r = np.array([body_point[0], body_point[1], 0])
                 f = np.array([f_body[0], f_body[1], 0])
@@ -310,15 +332,17 @@ class BoxPushing(AbstractMAEnv):
                 fric_sum += f_world[:2]
 
             # Viscous torque
-        ang_vel = self.obj.vel.getAngularVel()
+        ang_vel = self.obj.body.getAngularVel()
         vis_torque = -0.05 * ang_vel[2]
 
         self.result_torque = robot_torque + fric_torque + vis_torque
 
     def _get_acc(self):
         objv = np.array(self.objv)
+        assert objv.shape == (3, 2), objv.shape
         dv = objv[1:] - objv[:-1]
-        acc = dv.mean() * 1 / TIME_STEP
+        acc = dv.mean(axis=1) * 1 / TIME_STEP
+        assert acc.shape == (2,), acc.shape
         return acc
 
     def _near_callback(self, _, geom1, geom2):
@@ -357,6 +381,7 @@ class BoxPushing(AbstractMAEnv):
     def step(self, force_NR_2):
         self.count += 1
         self.sim_time += TIME_STEP
+        self._check_static_fric()
         self._add_force(force_NR_2)
 
         self._add_torque(force_NR_2)
@@ -366,7 +391,7 @@ class BoxPushing(AbstractMAEnv):
         self.world.step(TIME_STEP)
         self.contactgroup.empty()
 
-        speed = self.obj.body.getLinearVel()
+        speed = self.obj.body.getLinearVel()[:2]
         self.objv.append(np.array(list(speed)))
         self.objacc = self._get_acc()
 
@@ -404,7 +429,7 @@ class BoxPushing(AbstractMAEnv):
 
 
 if __name__ == '__main__':
-    env = BoxPushing(is_static=True)
+    env = BoxPushing()
     env.reset()
     print('n:{}'.format(env.space.getNumGeoms()))
     print('g:{}'.format(env.world.getGravity()))
