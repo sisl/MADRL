@@ -67,8 +67,6 @@ class PursuitEvade(AbstractMAEnv):
 
         self.n_catch = kwargs.pop('n_catch', 2)
 
-        self.plt_delay = kwargs.pop('plt_delay', 1.0)
-
         self.random_opponents = kwargs.pop('random_opponents', False)
         self.max_opponents = kwargs.pop('max_opponents', 10)
 
@@ -210,13 +208,8 @@ class PursuitEvade(AbstractMAEnv):
         obslist = self.collect_obs(agent_layer, gone_flags)
 
         # add caught rewards
-        #if self.train_pursuit:
-        #    r += (ev_remove * self.term_pursuit)
-        #else:
-        #    r += (pr_remove * self.term_evade)
-        #import IPython
-        #IPython.embed()
         rewards += self.term_pursuit * pursuers_who_remove
+        # urgency reward to speed up catching
         rewards += self.urgency_reward
 
         done = self.is_terminal
@@ -225,7 +218,7 @@ class PursuitEvade(AbstractMAEnv):
             return obslist, [rewards.mean()] * self.n_pursuers, done, None
         return obslist, rewards, done, None
 
-    def render(self):
+    def render(self, plt_delay=1.0):
         plt.matshow(self.model_state[0].T, cmap=plt.get_cmap('Greys'), fignum=1)
         for i in xrange(self.pursuer_layer.n_agents()):
             x, y = self.pursuer_layer.get_position(i)
@@ -245,7 +238,7 @@ class PursuitEvade(AbstractMAEnv):
                 ax.add_patch(
                     Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range, alpha=0.5,
                               facecolor="#009ACD"))
-        plt.pause(self.plt_delay)
+        plt.pause(plt_delay)
         plt.clf()
 
     def animate(self, act_fn, nsteps, file_name, rate=1.5):
@@ -307,16 +300,21 @@ class PursuitEvade(AbstractMAEnv):
         plt.axis('off')
         plt.savefig(file_name, dpi=200)
 
-    def sample_action(self):
-        # returns a list of actions
-        actions = []
-        for i in xrange(self.pursuer_layer.n_agents()):
-            actions.append(self.action_space.sample())
-        return actions
 
     def reward(self):
-        r = self.pursuer_reward() if self.train_pursuit else self.evader_reward()
-        return r
+        """
+        Computes the joint reward for pursuers
+        """
+        # rewarded for each tagged evader
+        ps = self.pursuer_layer.get_state_matrix()  # pursuer positions
+        es = self.evader_layer.get_state_matrix()  # evader positions
+        tagged = (ps > 0) * es
+        rewards = [
+            self.catchr *
+            tagged[self.pursuer_layer.get_position(i)[0], self.pursuer_layer.get_position(i)[1]]
+            for i in xrange(self.n_pursuers)
+        ]
+        return np.array(rewards)
 
     @property
     def is_terminal(self):
@@ -332,17 +330,10 @@ class PursuitEvade(AbstractMAEnv):
     def update_opponent_controller(self, controller):
         self.opponent_controller = controller
 
-    def set_agents(self, agent_type):
-        if agent_type == "allies":
-            self.train_pursuit = True
-        else:
-            self.train_pursuit = False
-
     #################################################################
 
     def n_agents(self):
-        n = self.pursuer_layer.n_agents() if self.train_pursuit else self.evader_layer.n_agents()
-        return n
+        return self.pursuer_layer.n_agents()
 
     def collect_obs(self, agent_layer, gone_flags):
         obs = []
@@ -362,8 +353,6 @@ class PursuitEvade(AbstractMAEnv):
         # returns a flattened array of all the observations
         n = agent_layer.n_agents()
         self.local_obs.fill(-0.1)  # border walls set to -0.1?
-        # loop through agents
-        # get the obs bounds
         xp, yp = agent_layer.get_position(agent_idx)
 
         xlo, xhi, ylo, yhi, xolo, xohi, yolo, yohi = self.obs_clip(xp, yp)
@@ -374,7 +363,7 @@ class PursuitEvade(AbstractMAEnv):
         return self.local_obs[agent_idx] / self.layer_norm
 
     def obs_clip(self, x, y):
-        # :( this is a mess, beter way to do the slicing?
+        # :( this is a mess, beter way to do the slicing? (maybe np.ix_)
         xld = x - self.obs_offset
         xhd = x + self.obs_offset
         yld = y - self.obs_offset
@@ -385,35 +374,11 @@ class PursuitEvade(AbstractMAEnv):
         xohi, yohi = xolo + (xhi - xlo), yolo + (yhi - ylo)
         return xlo, xhi + 1, ylo, yhi + 1, xolo, xohi + 1, yolo, yohi + 1
 
-    def pursuer_reward(self):
-        """
-        Computes the joint reward for pursuers
-        """
-        # rewarded for each tagged evader
-        ps = self.pursuer_layer.get_state_matrix()  # pursuer positions
-        es = self.evader_layer.get_state_matrix()  # evader positions
-        tagged = (ps > 0) * es
-        rewards = [
-            self.catchr *
-            tagged[self.pursuer_layer.get_position(i)[0], self.pursuer_layer.get_position(i)[1]]
-            for i in xrange(self.n_pursuers)
-        ]
-        return np.array(rewards)
-
-    def evader_reward(self):
-        """
-        Computes the joint reward for evaders
-        """
-        # penalized for each tagged evader
-        ps = self.pursuer_layer.get_state_matrix()  # pursuer positions
-        es = self.evader_layer.get_state_matrix()  # evader positions
-        tagged = np.sum((ps > 0) * es)  # number of tagged evaders
-        rtot = self.caughtr * tagged
-        return rtot
 
     def remove_agents(self):
         """
-        Remove agents that are caught. Return tuple (n_evader_removed, n_pursuer_removed)
+        Remove agents that are caught. Return tuple (n_evader_removed, n_pursuer_removed, purs_sur)
+        purs_sur: bool array, which pursuers surrounded an evader
         """
         n_pursuer_removed = 0
         n_evader_removed = 0
@@ -427,7 +392,6 @@ class PursuitEvade(AbstractMAEnv):
         for i in xrange(self.n_evaders):
             if self.evaders_gone[i]:
                 continue
-            #x, y = self.evader_layer.get_position(ai)
             x, y = self.evader_layer.get_position(ai)
             if self.surround:
                 pos_that_catch = self.surround_mask + self.evader_layer.get_position(ai)
@@ -458,15 +422,7 @@ class PursuitEvade(AbstractMAEnv):
             if self.pursuers_gone[i]:
                 continue
             x, y = self.pursuer_layer.get_position(i)
-            # number of evaders > 0 and number of pursuers < n_catch
-
-            #if self.model_state[2,x,y] > 0 and self.model_state[1,x,y] < self.n_catch:
-            # probabilistic model for this
-
-            # add prob remove?
-            # removed_pursuit.append(i-rems)
-            # rems += 1
-            #print "Removing evader:", x, y, i-rems
+            # can remove pursuers probabilitcally here?
         for ridx in removed_evade:
             self.evader_layer.remove_agent(ridx)
             n_evader_removed += 1
@@ -476,6 +432,10 @@ class PursuitEvade(AbstractMAEnv):
         return n_evader_removed, n_pursuer_removed, purs_sur
 
     def need_to_surround(self, x, y):
+        """
+            Compute the number of surrounding grid cells in x,y position that are open 
+            (no wall or obstacle)
+        """
         tosur = 4
         if x == 0 or x == (self.xs - 1):
             tosur -= 1
@@ -490,115 +450,3 @@ class PursuitEvade(AbstractMAEnv):
                 tosur -= 1
         return tosur
 
-    def get_layers_pursuer(self, agent_idx):
-        """
-        Return a 4-tuple of the form: (building layer, opponent layer, ally layer, agent of interest layer)
-        Each layer is a 2D numpy array of same size as map_matrix
-        """
-        agent_state = self.current_agent_layer
-        agent_state.fill(0)
-        (x, y) = self.ally_layer.get_position(agent_idx)
-        agent_state[x, y] = 1
-        self.model_state[0] = self.map_matrix
-        self.model_state[1], self.model_state[2] = self.opponent_layer.get_state_matrix(
-        ), self.ally_layer.get_state_matrix()
-        self.model_state[3] = agent_state
-        return self.model_state
-
-    def get_layers_evader(self, agent_idx):
-        """
-        Return a 4-tuple of the form: (building layer, opponent layer, ally layer, agent of interest layer)
-        Each layer is a 2D numpy array of same size as map_matrix
-        """
-        agent_state = self.current_agent_layer
-        agent_state.fill(0)
-        (x, y) = self.opponent_layer.get_position(agent_idx)
-        agent_state[x, y] = 1
-        self.model_state[0] = self.map_matrix
-        self.model_state[1], self.model_state[2] = self.opponent_layer.get_state_matrix(
-        ), self.ally_layer.get_state_matrix()
-        self.model_state[3] = agent_state
-        return self.model_state
-
-    def transition_pursuer(self, agent_idx, action):
-        pursuers = self.ally_layer
-        evaders = self.opponent_layer
-
-        pursuer_actions = self.ally_actions
-        evader_actions = self.opponent_actions
-
-        # get the pursuer actions
-        for i in xrange(self.n_pursuers):
-            if i == agent_idx:
-                continue
-            state = self.get_layers_pursuer(i)
-            pursuer_actions[i] = self.ally_controller.action(state)
-
-        # get evader actions
-        for i in xrange(self.n_evaders):
-            state = self.get_layers_evader(i)
-            evader_actions[i] = self.opponent_controller.action(state)
-
-        # evolve the system
-        for i in xrange(self.n_pursuers):
-            if i == agent_idx:
-                continue
-            pursuers.move_agent(i, pursuer_actions[i])
-        for i in xrange(self.n_evaders):
-            evaders.move_agent(i, evader_actions[i])
-
-        # move the agent in question
-        pursuers.move_agent(agent_idx, action)
-
-    def transition_evader(self, agent_idx, action):
-        pursuers = self.ally_layer
-        evaders = self.opponent_layer
-
-        pursuer_actions = self.ally_actions
-        evader_actions = self.opponent_actions
-
-        # get the pursuer actions
-        for i in xrange(self.n_pursuers):
-            state = self.get_layers_pursuer(i)
-            pursuer_actions[i] = self.ally_controller.action(state)
-
-        # get evader actions
-        for i in xrange(self.n_evaders):
-            if i == agent_idx:
-                continue
-            state = self.get_layers_evader(i)
-            evader_actions[i] = self.opponent_controller.action(state)
-
-        # evolve the system
-        for i in xrange(self.n_pursuers):
-            pursuers.move_agent(i, pursuer_actions[i])
-        for i in xrange(self.n_evaders):
-            if i == agent_idx:
-                continue
-            evaders.move_agent(i, evader_actions[i])
-
-        # move the agent in question
-        evaders.move_agent(agent_idx, action)
-
-    def transition_all(self):
-        pursuers = self.ally_layer
-        evaders = self.opponent_layer
-
-        pursuer_actions = self.ally_actions
-        evader_actions = self.opponent_actions
-
-        # get the pursuer actions
-        for i in xrange(self.n_pursuers):
-            state = self.get_layers_pursuer(i)
-            pursuer_actions[i] = self.ally_controller.action(state)
-
-        # get evader actions
-        for i in xrange(self.n_evaders):
-            state = self.get_layers_evader(i)
-            evader_actions[i] = self.opponent_controller.action(state)
-
-        # evolve the system
-        for i in xrange(self.n_pursuers):
-            pursuers.move_agent(i, pursuer_actions[i])
-        for i in xrange(self.n_evaders):
-            evaders.move_agent(i, evader_actions[i])
