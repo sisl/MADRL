@@ -92,9 +92,10 @@ class Box(OdeObj):
 
     @property
     def rendered(self):
-        return vap.Box([-s / 2 for s in self._size], [s / 2 for s in self._size],
-                       vap.Texture('T_Ruby_Glass'), vap.Interior('ior', 4), 'matrix',
-                       self.body.getRotation() + self.body.getPosition())
+        return vap.Box(
+            [-s / 2 for s in self._size], [s / 2 for s in self._size],
+            vap.Texture('T_Ruby_Glass' if not self._color else vap.Pigment('color', self._color)),
+            vap.Interior('ior', 4), 'matrix', self.body.getRotation() + self.body.getPosition())
 
 
 class SphereRobot(OdeObj):
@@ -165,14 +166,11 @@ class BoxPushing(object):
         [self.objv.append(np.zeros(3)) for _ in range(3)]
         self.result_force = np.zeros(2)
         self.count = 0
+        self.drift_count = 0
+        self.sim_time = 0
 
     def _init_force(self):
-        force_NR_2 = np.zeros((self.nRobot, 2))
-        for i in range(self.nRobot):
-            a = self.np_random.rand()
-            b = self.np_random.rand()
-            force_NR_2[i, 0] = a * FMAX / 2
-            force_NR_2[i, 1] = b * FMAX / 2
+        force_NR_2 = self.np_random.rand(self.nRobot, 2) * FMAX / 2
         return force_NR_2
 
     def seed(self, seed=None):
@@ -187,7 +185,7 @@ class BoxPushing(object):
         # Wall
         for i in range(nWall):
             self.wall[i] = Box(self.space, self.world, (WALL_LENGTH[i], WALL_THICK, WALL_TALL),
-                               None)
+                               None, [0.3, 0.7, 0.1])
             self.wall[i].setPos(WALL_POS[i, 0], WALL_POS[i, 1], WALL_TALL / 2)
             if WALL_DIR[i] == 1:
                 R = self.wall[i].getQuat()
@@ -229,13 +227,14 @@ class BoxPushing(object):
             if np.linalg.norm(self.robot_sum_force) <= FRIC:
                 if np.linalg.norm(self.objv[-1]) >= 0.07:
                     vel = self.objv[-1] / np.linalg.norm(self.objv[-1])
-                    self.result_force = -FRIC * vel
+                    self.result_force = -FRIC * vel[:2]
                 else:
                     self.result_force = np.zeros(2)
             else:
                 self.result_force = self.robot_sum_force - FRIC * self.fricdir
         else:  # Dynamic friction
-            self.result_force = self.robot_sum_force - FRIC * self.fricdir - MU_V * self.objv[-1]
+            self.result_force = self.robot_sum_force - FRIC * self.fricdir - MU_V * self.objv[-1][:
+                                                                                                  2]
 
         self.obj.body.addForce((self.result_force[0], self.result_force[1], 0))
 
@@ -245,19 +244,53 @@ class BoxPushing(object):
         acc = dv.mean() * 1 / TIME_STEP
         return acc
 
+    def _near_callback(self, _, geom1, geom2):
+        g1 = (geom1 == self.ground)
+        g2 = (geom2 == self.ground)
+        if not (g1 ^ g2):
+            return
+
+        b1 = geom1.getBody()
+        b2 = geom2.getBody()
+
+        contact = ode.collide(geom1, geom2)
+        for con in contact[:3]:
+            con.setMode(ode.ContactSoftCFM | ode.ContactApprox1)
+            con.setMu(MU)
+            con.setSoftCFM(0.01)
+            j = ode.ContactJoint(self.world, self.contactgroup, con)
+            j.attach(b1, b2)
+
     @property
     def is_terminal(self):
         pass
 
+    def _info(self):
+        pos = self.obj.getPos()
+        print("-" * 20)
+        print("Rbt Force = {}, sum = {}".format(self.robot_sum_force, np.linalg.norm(
+            self.robot_sum_force)))
+        print("End Force = {}, sum = {}".format(self.result_force, np.linalg.norm(
+            self.result_force)))
+        print("Pos: {}".format(pos))
+        print("Vel: {}, Acc: {}".format(self.objv[-1], self.objacc))
+        print("Abs Vel: {}".format(np.linalg.norm(self.objv[-1])))
+        print("Simtime: {}".format(self.sim_time))
+
     def step(self, force_NR_2):
         self.count += 1
+        self.sim_time += TIME_STEP
         self._add_force(force_NR_2)
+        self.space.collide(None, self._near_callback)
         self.world.step(TIME_STEP)
+        self.contactgroup.empty()
+
         speed = self.obj.body.getLinearVel()
-        self.objv.append(speed)
+        self.objv.append(np.array(list(speed)))
         self.objacc = self._get_acc()
 
         if self.count == TIME_INTERVAL:
+            self._info()
             self.count = 0
             if any(self.objv[-1] == 0) and any(self.result_force == 0):
                 self.drift_count += 1
@@ -267,12 +300,13 @@ class BoxPushing(object):
 
     def render(self, screen_size):
         light = vap.LightSource([3, 3, 3], 'color', [3, 3, 3], 'parallel', 'point_at', [0, 0, 0])
-        camera = vap.Camera('location', [0.5, -2, 3], 'look_at', [0, 0, 0])
-        ground = vap.Plane([0, 0, 1], 0, vap.Texture('Rosewood'))
+        camera = vap.Camera('location', [0.5 * 10, -2 * 10, 3 * 10], 'look_at', [0, 0, 0])
+        ground = vap.Plane([0, 0, 1], 0, vap.Texture('T_Stone33'))
+        walls = [wall.rendered for wall in self.wall]
         robots = [bot.rendered for bot in self.robot]
         obj = self.obj.rendered
-        scene = vap.Scene(camera, [light, ground, vap.Background("White"), obj] + robots,
-                          included=["colors.inc", "textures.inc", "glass.inc"])
+        scene = vap.Scene(camera, [light, ground, vap.Background("White"), obj] + robots + walls,
+                          included=["colors.inc", "textures.inc", "glass.inc", "stones.inc"])
         return scene.render(height=screen_size, width=screen_size, antialiasing=0.0001)
 
 
@@ -286,6 +320,13 @@ if __name__ == '__main__':
         print(env.robot[i].getPos())
         print('---')
 
+    env.render(800)
     while True:
-        env.step(env.np_random.randn(env.nRobot, 2))
-        print('o:{}'.format(env.obj.getPos()))
+        env.step(env._init_force())
+    # def make_frame(t):
+    #     env.step(env._init_force())
+    #     return env.render(800)
+    # import moviepy.editor as mpy
+    # clip = mpy.VideoClip(make_frame, duration=100)
+    # clip.write_videofile("ode.avi", codec="png", fps=20)
+    # print('o:{}'.format(env.obj.getPos()))
