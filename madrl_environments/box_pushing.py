@@ -1,8 +1,13 @@
 import numpy as np
 from collections import deque
+import logging
 import ode
 from gym.utils import seeding
 import vapory as vap
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 # Object constants
 LENGTH = 0.6  # object's length
 WIDTH = 0.2
@@ -53,13 +58,13 @@ class OdeObj(object):
     def rendered(self):
         raise NotImplementedError()
 
-    def setPos(self, *args):
+    def setPosition(self, *args):
         self.body.setPosition(args)
 
     def setQuat(self, *args):
         self.body.setQuaternion(args)
 
-    def getPos(self):
+    def getPosition(self):
         return self.body.getPosition()
 
     def getQuat(self):
@@ -181,25 +186,25 @@ class BoxPushing(object):
 
     def reset(self):
         # Object
-        self.obj.setPos(0, 0, 0)
+        self.obj.setPosition(0, 0, 0)
         # Wall
         for i in range(nWall):
             self.wall[i] = Box(self.space, self.world, (WALL_LENGTH[i], WALL_THICK, WALL_TALL),
                                None, [0.3, 0.7, 0.1])
-            self.wall[i].setPos(WALL_POS[i, 0], WALL_POS[i, 1], WALL_TALL / 2)
+            self.wall[i].setPosition(WALL_POS[i, 0], WALL_POS[i, 1], WALL_TALL / 2)
             if WALL_DIR[i] == 1:
                 R = self.wall[i].getQuat()
                 Q = axisangle_to_quat(np.array(list(R[:-1])), np.pi / 2)
                 self.wall[i].setQuat(*Q)
         # Robots
         for i in range(4):
-            self.robot[i].setPos(0.33 - i * 0.22, 0.13, ROBOT_RADIUS)
+            self.robot[i].setPosition(0.33 - i * 0.22, 0.13, ROBOT_RADIUS)
         for i in range(4, 8):
-            self.robot[i].setPos(0.33 - (i - 4) * 0.22, -0.13, ROBOT_RADIUS)
+            self.robot[i].setPosition(0.33 - (i - 4) * 0.22, -0.13, ROBOT_RADIUS)
         for i in range(8, 10):
-            self.robot[i].setPos(0.33, 0.047 - (i - 8) * 0.087, ROBOT_RADIUS)
+            self.robot[i].setPosition(0.33, 0.047 - (i - 8) * 0.087, ROBOT_RADIUS)
         for i in range(10, 12):
-            self.robot[i].setPos(-0.33, 0.047 - (i - 10) * 0.087, ROBOT_RADIUS)
+            self.robot[i].setPosition(-0.33, 0.047 - (i - 10) * 0.087, ROBOT_RADIUS)
 
         for i in range(self.nRobot):
             self.joint[i] = ode.FixedJoint(self.world)
@@ -266,16 +271,16 @@ class BoxPushing(object):
         pass
 
     def _info(self):
-        pos = self.obj.getPos()
-        print("-" * 20)
-        print("Rbt Force = {}, sum = {}".format(self.robot_sum_force, np.linalg.norm(
+        pos = self.obj.getPosition()
+        logger.info("-" * 20)
+        logger.info("Rbt Force = {}, sum = {}".format(self.robot_sum_force, np.linalg.norm(
             self.robot_sum_force)))
-        print("End Force = {}, sum = {}".format(self.result_force, np.linalg.norm(
+        logger.info("End Force = {}, sum = {}".format(self.result_force, np.linalg.norm(
             self.result_force)))
-        print("Pos: {}".format(pos))
-        print("Vel: {}, Acc: {}".format(self.objv[-1], self.objacc))
-        print("Abs Vel: {}".format(np.linalg.norm(self.objv[-1])))
-        print("Simtime: {}".format(self.sim_time))
+        logger.info("Pos: {}".format(pos))
+        logger.info("Vel: {}, Acc: {}".format(self.objv[-1], self.objacc))
+        logger.info("Abs Vel: {}".format(np.linalg.norm(self.objv[-1])))
+        logger.info("Simtime: {}".format(self.sim_time))
 
     def step(self, force_NR_2):
         self.count += 1
@@ -298,16 +303,26 @@ class BoxPushing(object):
                 self.drift_count = 0
                 self.obj.body.setLinearVel((0, 0, 0))
 
+            # TODO
+            # obs?
+            # rew?
+            # terminal?
+
     def render(self, screen_size):
         light = vap.LightSource([3, 3, 3], 'color', [3, 3, 3], 'parallel', 'point_at', [0, 0, 0])
-        camera = vap.Camera('location', [0.5 * 10, -2 * 10, 3 * 10], 'look_at', [0, 0, 0])
+        camera = vap.Camera('location', [0.5 * 2, -2 * 2, 3 * 2], 'look_at', [0, 0, 0])
         ground = vap.Plane([0, 0, 1], 0, vap.Texture('T_Stone33'))
         walls = [wall.rendered for wall in self.wall]
         robots = [bot.rendered for bot in self.robot]
         obj = self.obj.rendered
+        # obj_pos_str = '\"{:2.2f}, {:2.2f}, {:2.2f}\"'.format(*self.obj.body.getPosition())
+        # obj_pos = vap.Text('ttf', '\"timrom.ttf\"', obj_pos_str, 0.1, '0.1 * x', 'rotate',
+        #                    '<30,0,10>', 'translate', '-3*x', 'finish',
+        #                    '{ reflection .25 specular 1  diffuse 0.1}')
         scene = vap.Scene(camera, [light, ground, vap.Background("White"), obj] + robots + walls,
                           included=["colors.inc", "textures.inc", "glass.inc", "stones.inc"])
-        return scene.render(height=screen_size, width=screen_size, antialiasing=0.0001)
+        return scene.render(height=screen_size, width=screen_size, antialiasing=0.0001,
+                            remove_temp=False)
 
 
 if __name__ == '__main__':
@@ -315,14 +330,18 @@ if __name__ == '__main__':
     env.reset()
     print('n:{}'.format(env.space.getNumGeoms()))
     print('g:{}'.format(env.world.getGravity()))
-    print('o:{}'.format(env.obj.getPos()))
+    print('o:{}'.format(env.obj.getPosition()))
     for i in range(env.nRobot):
-        print(env.robot[i].getPos())
+        print(env.robot[i].getPosition())
         print('---')
 
-    env.render(800)
+    # env.render(800)
+    # count = 0
     while True:
         env.step(env._init_force())
+        # count += 1
+        # if count % 100:
+        #     env.render(800)
     # def make_frame(t):
     #     env.step(env._init_force())
     #     return env.render(800)
