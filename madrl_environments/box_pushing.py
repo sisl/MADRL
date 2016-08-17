@@ -39,6 +39,10 @@ WALL_LENGTH = np.array([3, 2.5, 3, 3, 2, 2.5])
 WALL_POS = np.array([[5.5, 2], [5.25, 3], [7, 3.5], [6.5, 4.5], [8, 5], [7.75, 6]])
 WALL_DIR = [0, 0, 1, 1, 0, 0]  # 1: y-axis wall
 
+ROBOT_REL_POS = np.array([[0.3, 0.1], [0.1, 0.1], [-0.1, 0.1], [-0.3, 0.1], [-0.3, 0.033],
+                          [-0.3, -0.033], [-0.3, -0.1], [-0.1, -0.1], [0.1, -0.1], [0.3, -0.1],
+                          [0.3, -0.033], [0.3, 0.033]])
+
 
 class OdeObj(object):
 
@@ -145,7 +149,7 @@ def axisangle_to_quat(axis, angle):
 
 class BoxPushing(object):
 
-    def __init__(self, is_static):
+    def __init__(self, is_static=True):
         self._is_static = is_static
         self.nRobot = 12
         self.world = ode.World()
@@ -170,6 +174,7 @@ class BoxPushing(object):
         self.objv = deque(maxlen=3)
         [self.objv.append(np.zeros(3)) for _ in range(3)]
         self.result_force = np.zeros(2)
+        self.result_torque = 0
         self.count = 0
         self.drift_count = 0
         self.sim_time = 0
@@ -243,6 +248,63 @@ class BoxPushing(object):
 
         self.obj.body.addForce((self.result_force[0], self.result_force[1], 0))
 
+    def _add_torque(self, force_NR_2):
+        if self._is_static:
+            return
+
+        self.result_torque = 0
+        robot_torque = 0
+        fric_torque = 0
+
+        for i in range(self.nRobot):
+            f_body = self.obj.body.vectorFromWorld(force_NR_2[i, 0], force_NR_2[i, 1], 0)
+            r = np.array([ROBOT_REL_POS[i, 0], ROBOR_REL_POS[i, 1], 0])
+            f = np.array([f_body[0], f_body[1]])
+            c = np.cross(r, f)
+            t = c[2]
+            robot_torque += t
+
+        # Torque by friction
+
+        divide_x = LENGTH * 100
+        #20.0;
+        divide_y = WIDTH * 100
+        #20.0;
+        offset_x = LENGTH / divide_x / 2
+        offset_y = WIDTH / divide_y / 2
+
+        cur_speed = np.linalg.norm(self.objv[-1])
+        if cur_speed < 0.3:
+            kp = 3
+        elif cur_speed >= 0.3 and cur_speed < 0.5:
+            kp = 2
+        else:
+            kp = 1
+
+        fric_sum = np.zeros(2)
+        for x in range(divide_x):
+            for y in range(divide_y):
+                body_point = (-LENGTH / 2) + np.array(
+                    [x / divide_x * LENGTH, y / divide_y * WIDTH]) + np.array([offset_x, offset_y])
+                body_point_vel = np.array(
+                    list(self.obj.body.getRelPointVel(body_point[0], body_point[1])))
+                f_world = -kp * FRIC / divide_x / divide_y * body_point_vel / np.linalg.norm(
+                    body_point_vel)
+                f_body = self.obj.body.vectorFromWorld(f_world[0], f_world[1], 0)
+
+                r = np.array([body_point[0], body_point[1], 0])
+                f = np.array([f_body[0], f_body[1], 0])
+                c = np.cross(r, f)
+                fric_torque += c[2]
+
+                fric_sum += f_world[:2]
+
+            # Viscous torque
+        ang_vel = self.obj.vel.getAngularVel()
+        vis_torque = -0.05 * ang_vel[2]
+
+        self.result_torque = robot_torque + fric_torque + vis_torque
+
     def _get_acc(self):
         objv = np.array(self.objv)
         dv = objv[1:] - objv[:-1]
@@ -286,6 +348,10 @@ class BoxPushing(object):
         self.count += 1
         self.sim_time += TIME_STEP
         self._add_force(force_NR_2)
+
+        self._add_torque(force_NR_2)
+        self.obj.body.addTorque((0, 0, self.result_torque))
+
         self.space.collide(None, self._near_callback)
         self.world.step(TIME_STEP)
         self.contactgroup.empty()
@@ -304,24 +370,26 @@ class BoxPushing(object):
                 self.obj.body.setLinearVel((0, 0, 0))
 
             # TODO
-            # obs?
+            # obs?: distance and id of nearest robots? distance and id of walls
             # rew?
             # terminal?
 
     def render(self, screen_size):
         light = vap.LightSource([3, 3, 3], 'color', [3, 3, 3], 'parallel', 'point_at', [0, 0, 0])
-        camera = vap.Camera('location', [0.5 * 2, -2 * 2, 3 * 2], 'look_at', [0, 0, 0])
+        camera = vap.Camera('location', [0.5 * 2, -2 * 2, 3 * 2], 'look_at', [0, 0, 0], 'rotate',
+                            [20, 0, 0])
         ground = vap.Plane([0, 0, 1], 0, vap.Texture('T_Stone33'))
         walls = [wall.rendered for wall in self.wall]
         robots = [bot.rendered for bot in self.robot]
         obj = self.obj.rendered
-        # obj_pos_str = '\"{:2.2f}, {:2.2f}, {:2.2f}\"'.format(*self.obj.body.getPosition())
+        obj_pos_str = '\"{:2.2f}, {:2.2f}, {:2.2f}\"'.format(*self.obj.body.getPosition())
+        logger.info('{} - {}'.format(obj_pos_str, self.sim_time))
         # obj_pos = vap.Text('ttf', '\"timrom.ttf\"', obj_pos_str, 0.1, '0.1 * x', 'rotate',
-        #                    '<30,0,10>', 'translate', '-3*x', 'finish',
-        #                    '{ reflection .25 specular 1  diffuse 0.1}')
+        #                    '<100,0,10>', 'translate', '-3*x', 'finish',
+        #                    '{ reflection .25 specular 1  diffuse 0.1}', 'scale', [0.25, 0.25, 0.25])
         scene = vap.Scene(camera, [light, ground, vap.Background("White"), obj] + robots + walls,
                           included=["colors.inc", "textures.inc", "glass.inc", "stones.inc"])
-        return scene.render(height=screen_size, width=screen_size, antialiasing=0.0001,
+        return scene.render(height=screen_size, width=screen_size, antialiasing=0.01,
                             remove_temp=False)
 
 
@@ -335,13 +403,13 @@ if __name__ == '__main__':
         print(env.robot[i].getPosition())
         print('---')
 
-    # env.render(800)
-    # count = 0
+    env.render(800)
+    count = 0
     while True:
         env.step(env._init_force())
-        # count += 1
-        # if count % 100:
-        #     env.render(800)
+        count += 1
+        if count % 100 == 0:
+            env.render(800)
     # def make_frame(t):
     #     env.step(env._init_force())
     #     return env.render(800)
