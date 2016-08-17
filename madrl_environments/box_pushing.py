@@ -204,7 +204,6 @@ class BoxPushing(AbstractMAEnv):
                                None, [0.3, 0.7, 0.1])
             self.wall[i].setPosition(WALL_POS[i, 0], WALL_POS[i, 1], WALL_TALL / 2)
             if WALL_DIR[i] == 1:
-                R = self.wall[i].getQuat()
                 Q = axisangle_to_quat(np.array([0, 0, 1]), np.pi / 2)
                 self.wall[i].setQuat(*Q)
         # Robots
