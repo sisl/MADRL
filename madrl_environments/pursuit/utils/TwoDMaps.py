@@ -34,6 +34,26 @@ def complex_map(xs, ys):
     return cmap
 
 
+def gen_map(xs, ys, n_obs, center_bounds=[0.0, 1.0], length_bounds=[0.1,0.5], gmap=None):
+    cl, cu = center_bounds
+    ll, lu = length_bounds
+    if gmap is None: gmap = np.zeros((xs, ys), dtype=np.int32)
+    for _ in xrange(n_obs):
+        xc = np.random.uniform(cl, cu)
+        yc = np.random.uniform(cl, cu)
+        xl = np.random.uniform(ll, lu)
+        yl = np.random.uniform(ll, lu)
+        gmap = add_rectangle(gmap, xc=xc, yc=yc, xl=xl, yl=yl)
+    return gmap
+
+def multi_scale_map(xs, ys, scales=[(3, [0.2, 0.3]), (10, [0.1, 0.2]), (30, [0.05, 0.1]), (150, [0.01, 0.05])]):
+    gmap = np.zeros((xs, ys), dtype=np.int32)
+    for scale in scales:
+        n, lb = scale
+        gmap = gen_map(xs, ys, n, length_bounds=lb, gmap=gmap)
+    return gmap
+
+
 def add_rectangle(input_map, xc, yc, xl, yl):
     """
     Add a rectangle to the input map 
@@ -54,8 +74,11 @@ def add_rectangle(input_map, xc, yc, xl, yl):
     else:
         y_lbound, y_upbound = ycc - yll/2, ycc + yll/2
 
-    assert x_lbound >= 0 and x_upbound < xs, "Invalid rectangel config, x out of bounds" 
-    assert y_lbound >= 0 and y_upbound < ys, "Invalid rectangel config, y out of bounds" 
+    #assert x_lbound >= 0 and x_upbound < xs, "Invalid rectangel config, x out of bounds" 
+    #assert y_lbound >= 0 and y_upbound < ys, "Invalid rectangel config, y out of bounds" 
+
+    x_lbound, x_upbound = np.clip([x_lbound, x_upbound], 0, xs)
+    y_lbound, y_upbound = np.clip([y_lbound, y_upbound], 0, ys)
 
     for i in xrange(x_lbound, x_upbound):
         for j in xrange(y_lbound, y_upbound):

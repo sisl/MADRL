@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #
-# File: main.py
+# File: run_pursuit.py
 #
-# Created: Wednesday, July  6 2016 by rejuvyesh <mail@rejuvyesh.com>
+# Created: Wednesday, July  6 2016 by megorov <mail@megorov.com>
 #
 from __future__ import absolute_import, print_function
 
@@ -29,36 +29,10 @@ from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
 from rltools.policy.categorical import CategoricalMLPPolicy
+from archs import *
 from pursuit_policy import PursuitCentralMLPPolicy
 
 
-SIMPLE_POLICY_ARCH = '''[
-        {"type": "fc", "n": 128},
-        {"type": "nonlin", "func": "tanh"},
-        {"type": "fc", "n": 128},
-        {"type": "nonlin", "func": "tanh"}
-    ]
-    '''
-
-CONV_POLICY_ARCH = '''[
-        {"type": "conv", "chanout": 8, "filtzie:" 3, "stride:" 1, "padding:" "SAME"},
-        {"type": "nonlin", "func": "relu"},
-    ]
-    '''
-TINY_VAL_ARCH = '''[
-        {"type": "fc", "n": 32},
-        {"type": "nonlin", "func": "relu"},
-        {"type": "fc", "n": 32},
-        {"type": "nonlin", "func": "relu"}
-    ]
-    '''
-SIMPLE_VAL_ARCH = '''[
-        {"type": "fc", "n": 128},
-        {"type": "nonlin", "func": "tanh"},
-        {"type": "fc", "n": 128},
-        {"type": "nonlin", "func": "tanh"}
-    ]
-    '''
 
 
 def main():
@@ -89,11 +63,13 @@ def main():
     parser.add_argument('--evade', dest='train_pursuit', action='store_false')
     parser.set_defaults(train_pursuit=True)
     parser.add_argument('--surround', action='store_true', default=False)
+    parser.add_argument('--sample_maps', action='store_true', default=False)
+    parser.add_argument('--map_file', type=str, default='maps/map_pool.npy')
 
-    parser.add_argument('--policy_hidden_spec', type=str, default=SIMPLE_POLICY_ARCH)
+    parser.add_argument('--policy_hidden_spec', type=str, default=LARGE_POLICY_ARCH)
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
-    parser.add_argument('--baseline_hidden_spec', type=str, default=SIMPLE_VAL_ARCH)
+    parser.add_argument('--baseline_hidden_spec', type=str, default=LARGE_VAL_ARCH)
 
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--vf_max_kl', type=float, default=0.01)
@@ -108,22 +84,26 @@ def main():
 
     args = parser.parse_args()
 
-    if args.map_type == 'rectangle':
-        env_map = TwoDMaps.rectangle_map(*map(int, args.rectangle.split(',')))
-    elif args.map_type == 'complex':
-        env_map = TwoDMaps.complex_map(*map(int, args.rectangle.split(',')))
+
+    if args.sample_maps:
+        map_pool = np.load(args.map_file)
     else:
-        raise NotImplementedError()
-
-
-    env = PursuitEvade(env_map,
+        if args.map_type == 'rectangle':
+            env_map = TwoDMaps.rectangle_map(*map(int, args.rectangle.split(',')))
+        elif args.map_type == 'complex':
+            env_map = TwoDMaps.complex_map(*map(int, args.rectangle.split(',')))
+        else:
+            raise NotImplementedError()
+        map_pool = [env_map]
+    env = PursuitEvade(map_pool,
                        n_evaders=args.n_evaders,
                        n_pursuers=args.n_pursuers,
                        obs_range=args.obs_range,
                        n_catch=args.n_catch,
                        train_pursuit=args.train_pursuit,
                        urgency_reward=args.urgency,
-                       surround=args.surround)
+                       surround=args.surround,
+                       sample_maps=args.sample_maps)
 
     if args.control == 'centralized':
         obsfeat_space = spaces.Box(low=env.agents[0].observation_space.low[0],

@@ -23,7 +23,7 @@ from utils.Controllers import RandomPolicy
 
 class PursuitEvade(AbstractMAEnv):
 
-    def __init__(self, map_matrix, **kwargs):
+    def __init__(self, map_pool, **kwargs):
         """
         In evade purusit a set of pursuers must 'tag' a set of evaders
         Required arguments:
@@ -43,8 +43,12 @@ class PursuitEvade(AbstractMAEnv):
             initial_config['opponents']: the initial opponent confidguration (matrix)
         """
 
-        xs, ys = map_matrix.shape
+        self.sample_maps = kwargs.pop('sample_maps', False)
+
+        self.map_pool = map_pool
+        map_matrix = map_pool[0]
         self.map_matrix = map_matrix
+        xs, ys = self.map_matrix.shape
         self.xs = xs
         self.ys = ys
 
@@ -148,6 +152,8 @@ class PursuitEvade(AbstractMAEnv):
                 self.n_evaders = self.np_random.randint(1, self.max_opponents)
             else:
                 self.n_pursuers = self.np_random.randint(1, self.max_opponents)
+        if self.sample_maps:
+            self.map_matrix = self.map_pool[np.random.randint(len(self.map_pool))]
 
         self.pursuer_layer = AgentLayer(self.xs, self.ys,
                                         agent_utils.create_agents(self.n_pursuers, self.map_matrix,

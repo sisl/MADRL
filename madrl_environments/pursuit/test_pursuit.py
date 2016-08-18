@@ -11,7 +11,7 @@ n_pursuers = 10
 map_mat = TwoDMaps.rectangle_map(xs, ys) 
 
 # obs_range should be odd 3, 5, 7, etc
-env = PursuitEvade(map_mat, n_evaders=n_evaders, n_pursuers=n_pursuers, obs_range=9, n_catch=2, surround=True,
+env = PursuitEvade([map_mat], n_evaders=n_evaders, n_pursuers=n_pursuers, obs_range=9, n_catch=2, surround=True,
         reward_mech='local')
 
 o = env.reset()
@@ -43,3 +43,13 @@ env.evader_layer.set_position(5, 3, 5)
 
 
 o, r, done, _ = env.step(a)
+
+map_mat = multi_scale_map(256, 256)
+
+#map_pool = np.load('map_pool.npy')
+map_pool = [map_mat]
+
+env = PursuitEvade(map_pool, n_evaders=1, n_pursuers=1, obs_range=32, n_catch=2, surround=True, reward_mech='local',
+        sample_maps=True)
+env.reset()
+env.render()
