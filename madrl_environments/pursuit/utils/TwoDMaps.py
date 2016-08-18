@@ -2,6 +2,8 @@ import numpy as np
 
 from six.moves import xrange
 
+from scipy.ndimage import zoom
+
 
 def rectangle_map(xs, ys, xb=0.3, yb=0.2):
     """
@@ -84,6 +86,12 @@ def add_rectangle(input_map, xc, yc, xl, yl):
         for j in xrange(y_lbound, y_upbound):
             input_map[j,i] = -1
     return input_map
+
+def resize(scale, old_mats):
+    new_mats = []
+    for mat in old_mats:
+        new_mats.append(zoom(mat, scale, order=0))
+    return np.array(new_mats)
 
 
 def simple_soccer_map(xs=6, ys=9):
