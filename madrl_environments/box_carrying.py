@@ -20,7 +20,7 @@ MASS = 1  # object's mass
 
 # environment constants
 MU = 0  #0.5      # the global mu to use # this parameter is discarded, use FRIC instead
-GRAVITY = 9.81  #0.5  # the global gravity to use
+GRAVITY = 10  #9.81  #0.5  # the global gravity to use
 FRIC = 5  # friction
 MU_V = 0.2  # coefficient of the viscous force, which is proportional to velocity
 
@@ -199,9 +199,15 @@ class BoxCarrying(AbstractMAEnv):
         self.drift_count = 0
         self.sim_time = 0
 
+        self.fricdir = np.zeros(2)
+
+        self.stage = 0
+        self.sum_err_f_mag_pid = 0
+        self.time_f_mag_pid = 0
+
     def _init_force(self):
-        force_NR_2 = self.np_random.rand(self.n_robots, 2) * FMAX / 2
-        return force_NR_2
+        self.force_NR_2 = self.np_random.rand(self.n_robots, 2) * FMAX / 2
+        return self.force_NR_2
 
     def seed(self, seed=None):
         self.np_random, seed1 = seeding.np_random(seed)
@@ -238,8 +244,8 @@ class BoxCarrying(AbstractMAEnv):
             loc = (self.np_random.rand(), self.np_random.rand())
             ebot.setPosition(loc[0], loc[1], ROBOT_RADIUS)
 
-        # force_NR_2 = self._init_force()
-        # self._add_force(force_NR_2)
+        # self.force_NR_2 = self._init_force()
+        # self._add_force(self.force_NR_2)
 
     def _check_static_fric(self):
         self._is_static = False
@@ -355,12 +361,13 @@ class BoxCarrying(AbstractMAEnv):
         b2 = geom2.getBody()
 
         contact = ode.collide(geom1, geom2)
-        for con in contact[:3]:
-            con.setMode(ode.ContactSoftCFM | ode.ContactApprox1)
-            con.setMu(MU)
-            con.setSoftCFM(0.01)
-            j = ode.ContactJoint(self.world, self.contactgroup, con)
-            j.attach(b1, b2)
+        if contact:
+            for con in contact[:3]:
+                con.setMode(ode.ContactSoftCFM | ode.ContactApprox1)
+                con.setMu(MU)
+                con.setSoftCFM(0.01)
+                j = ode.ContactJoint(self.world, self.contactgroup, con)
+                j.attach(b1, b2)
 
     @property
     def is_terminal(self):
@@ -369,8 +376,9 @@ class BoxCarrying(AbstractMAEnv):
     def _info(self):
         pos = self.obj.getPosition()
         logger.info("-" * 20)
-        logger.info("Rbt Force = {}, sum = {}".format(self.robot_sum_force, np.linalg.norm(
-            self.robot_sum_force)))
+        logger.info("Rbt Force = {}, sum = {}, stage = {}, is_static = {}".format(
+            self.robot_sum_force, np.linalg.norm(self.robot_sum_force), self.stage, 'yes' if
+            self._is_static else 'no'))
         logger.info("End Force = {}, sum = {}".format(self.result_force, np.linalg.norm(
             self.result_force)))
         logger.info("Pos: {}".format(pos))
@@ -379,12 +387,19 @@ class BoxCarrying(AbstractMAEnv):
         logger.info("Simtime: {}".format(self.sim_time))
 
     def step(self, force_NR_2):
+        self.force_NR_2 = force_NR_2
         self.count += 1
         self.sim_time += TIME_STEP
-        self._check_static_fric()
-        self._add_force(force_NR_2)
 
-        self._add_torque(force_NR_2)
+        ################################
+        # Strategy
+        self._intelligent_leader_strategy()
+        self._baseline()
+        ################################
+
+        self._add_force(self.force_NR_2)
+
+        self._add_torque(self.force_NR_2)
         self.obj.body.addTorque((0, 0, self.result_torque))
 
         self.space.collide(None, self._near_callback)
@@ -411,25 +426,147 @@ class BoxCarrying(AbstractMAEnv):
 
     def render(self, screen_size):
         light = vap.LightSource([3, 3, 3], 'color', [3, 3, 3], 'parallel', 'point_at', [0, 0, 0])
-        camera = vap.Camera('location', [0.5 * 2, -2 * 2, 3 * 2], 'look_at', [0, 0, 0], 'rotate',
+        camera = vap.Camera('location', [0.5 * 1, -2 * 1, 3 * 1], 'look_at', [0, 0, 0], 'rotate',
                             [20, 0, 0])
         ground = vap.Plane([0, 0, 1], 0, vap.Texture('T_Stone33'))
         walls = [wall.rendered for wall in self.wall]
         robots = [bot.rendered for bot in self.robot]
         obj = self.obj.rendered
         obj_pos_str = '\"{:2.2f}, {:2.2f}, {:2.2f}\"'.format(*self.obj.body.getPosition())
+        for ir, robot in enumerate(self.robot):
+            logger.info('{} - {:2.2f}, {:2.2f}, {:2.2f} - {st}'.format(ir, *robot.body.getPosition(
+            ), st=self.sim_time))
         logger.info('{} - {}'.format(obj_pos_str, self.sim_time))
         # obj_pos = vap.Text('ttf', '\"timrom.ttf\"', obj_pos_str, 0.1, '0.1 * x', 'rotate',
         #                    '<100,0,10>', 'translate', '-3*x', 'finish',
         #                    '{ reflection .25 specular 1  diffuse 0.1}', 'scale', [0.25, 0.25, 0.25])
-        scene = vap.Scene(camera, [light, ground, vap.Background("White"), obj] + robots + walls,
-                          included=["colors.inc", "textures.inc", "glass.inc", "stones.inc"])
+        scene = vap.Scene(
+            camera, [light, ground, vap.Background('color', [0.2, 0.2, 0.3]), obj] + robots + walls,
+            included=["colors.inc", "textures.inc", "glass.inc", "stones.inc"])
         return scene.render(height=screen_size, width=screen_size, antialiasing=0.01,
                             remove_temp=False)
 
+    def _f_mag_pid(self, set_speed):
+        kp_f_mag_pid = 6
+        ki_f_mag_pid = 0.05
+        cur_speed = np.linalg.norm(self.objv[-1])
+        err = set_speed - cur_speed
+        self.sum_err_f_mag_pid += err  # Integral control
+        out = kp_f_mag_pid * err + ki_f_mag_pid * self.sum_err_f_mag_pid + FRIC / self.n_robots
+        if out > FMAX:
+            out = FMAX
+
+        if out < FRIC / self.n_robots:
+            out = FRIC / self.n_robots
+        self.time_f_mag_pid += 1
+        return out
+
+    def _f_ang_pid(self, set_angle):
+        kp_f_ang_pid = 1.5
+        max_turn_angle = np.pi / 3
+        cur_angle = self._vec_ang(self.objv[-1])
+        err = set_angle - cur_angle
+        if err > np.pi:
+            err = err - 2 * np.pi
+        if err < -np.pi:
+            err = err + 2 * np.pi
+
+        if err > max_turn_angle / kp_f_ang_pid:
+            out = max_turn_angle + cur_angle
+        elif err < -max_turn_angle / kp_f_ang_pid:
+            out = -max_turn_angle + cur_angle
+        else:
+            out = kp_f_ang_pid * err + cur_angle
+
+        return out
+
+    def _f_leader_set(self, set_speed, set_angle):
+        mag = self._f_mag_pid(set_speed)
+        ang = self._f_ang_pid(set_angle)
+        self.force_NR_2[0, :] = mag * np.array([np.cos(ang), np.sin(ang)])
+
+    def _vec_ang(self, vec):
+        # ARGHHHHHH
+        assert vec.shape == (2,)
+        if vec[0] == 0:
+            if vec[1] > 0:
+                return np.pi / 2
+            elif vec[1] < 0:
+                return 2 * np.pi / 2
+            else:
+                return 0
+        else:
+            if vec[1] == 0:
+                if vec[0] > 0:
+                    return 0
+                else:
+                    return np.pi
+            else:
+                temp = np.absolute(vec[1] / vec[0])
+                if vec[0] > 0 and vec[1] > 0:
+                    return np.arctan(temp)
+                elif vec[0] < 0 and vec[1] > 0:
+                    return np.pi - np.arctan(temp)
+                elif vec[0] < 0 and vec[1] < 0:
+                    return np.pi + np.arctan(temp)
+                else:
+                    return 2 * np.pi - np.arctan(temp)
+
+    def _intelligent_leader_strategy(self):
+
+        def rotate(vec, angle):
+            assert vec.shape == (2,)
+            return np.array([np.cos(angle) * vec[0] - np.sin(angle) * vec[1],
+                             np.sin(angle) * vec[0] + np.cos(angle) * vec[1]])
+
+        if self.stage == 0:
+            if self.count == TIME_INTERVAL:
+                self.force_NR_2 = self._init_force()
+            # Moved?
+            if self.count == TIME_INTERVAL - 2:
+                if np.linalg.norm(self.objv[-1]) > 0.02:
+                    if all(self.robot_sum_force * self.objacc >= 0):
+                        self.stage += 1
+                        self._is_static = False
+                        logger.info('Started Moving, initial_acc: {}'.format(self.objacc))
+            return
+
+        self._check_static_fric()
+
+        path_stage = 0
+        if path_stage == 0:
+            pos = np.array(self.obj.getPosition()[:2])
+            vn = pos - np.array([2.5, 0])  # Circle center?
+            v_to_path = vn
+            vn = (vn * 2.5) / np.linalg.norm(vn)
+            v_to_path = vn - v_to_path
+            v_path = rotate(vn, -np.pi / 2)
+            v_syn = v_path + 4. * v_to_path
+            v_syn /= np.linalg.norm(v_syn)
+
+            self._f_leader_set(np.linalg.norm(v_syn), self._vec_ang(v_syn))
+            if pos[0] >= 2.5:
+                path_stage = 1
+
+    def _default_strategy(self, force_2):
+        df = (MASS * self.objacc - self.n_robots * force_2 + FRIC * self.fricdir[:2] + MU_V *
+              self.objv[-1]) * TIME_STEP
+        temp = df + force_2
+        if np.linalg.norm(temp) > FMAX:
+            force_2 = FMAX * temp / np.linalg.norm(temp)
+        else:
+            force_2 = temp
+
+        return force_2
+
+    def _baseline(self):
+        for i in range(1, self.n_robots):
+            self.force_NR_2[i, :] = self._default_strategy(self.force_NR_2[i, :])
+        return self.force_NR_2
+
 
 if __name__ == '__main__':
-    env = BoxPushing()
+    env = BoxCarrying()
     env.reset()
     print('n:{}'.format(env.space.getNumGeoms()))
     print('g:{}'.format(env.world.getGravity()))
@@ -443,7 +580,7 @@ if __name__ == '__main__':
     while True:
         env.step(env._init_force())
         count += 1
-        if count % 100 == 0:
+        if count % TIME_INTERVAL == 0:
             env.render(800)
     # def make_frame(t):
     #     env.step(env._init_force())
