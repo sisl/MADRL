@@ -27,49 +27,7 @@ from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
 from rltools.policy.gaussian import GaussianMLPPolicy
 
-SIMPLE_POLICY_ARCH = '''[
-        {"type": "fc", "n": 128},
-        {"type": "nonlin", "func": "tanh"},
-        {"type": "fc", "n": 128},
-        {"type": "nonlin", "func": "tanh"}
-    ]
-    '''
-
-TINY_VAL_ARCH = '''[
-        {"type": "fc", "n": 32},
-        {"type": "nonlin", "func": "relu"},
-        {"type": "fc", "n": 32},
-        {"type": "nonlin", "func": "relu"}
-    ]
-    '''
-
-SIMPLE_VAL_ARCH = '''[
-        {"type": "fc", "n": 128},
-        {"type": "nonlin", "func": "tanh"},
-        {"type": "fc", "n": 128},
-        {"type": "nonlin", "func": "tanh"}
-    ]
-    '''
-
-GAE_TYPE_VAL_ARCH = '''[
-        {"type": "fc", "n": 128},
-        {"type": "nonlin", "func": "tanh"},
-        {"type": "fc", "n": 64},
-        {"type": "nonlin", "func": "tanh"},
-        {"type": "fc", "n": 32},
-        {"type": "nonlin", "func": "tanh"}
-]
-'''
-
-GAE_ARCH = '''[
-        {"type": "fc", "n": 100},
-        {"type": "nonlin", "func": "tanh"},
-        {"type": "fc", "n": 50},
-        {"type": "nonlin", "func": "tanh"},
-        {"type": "fc", "n": 25},
-        {"type": "nonlin", "func": "tanh"}
-]
-'''
+from runners import get_arch
 
 
 def main():
@@ -108,11 +66,11 @@ def main():
     parser.add_argument('--encounter_reward', type=float, default=0.01)
     parser.add_argument('--bomb_reward', type=float, default=-10.)
 
-    parser.add_argument('--policy_hidden_spec', type=str, default=GAE_ARCH)
+    parser.add_argument('--policy_hidden_spec', type=str, default='GAE_ARCH')
     parser.add_argument('--min_std', type=float, default=0)
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
-    parser.add_argument('--baseline_hidden_spec', type=str, default=GAE_ARCH)
+    parser.add_argument('--baseline_hidden_spec', type=str, default='GAE_ARCH')
 
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--vf_max_kl', type=float, default=0.01)
@@ -126,6 +84,9 @@ def main():
     parser.set_defaults(debug=True)
 
     args = parser.parse_args()
+
+    args.policy_hidden_spec = get_arch(args.policy_hidden_spec)
+    args.baseline_hidden_spec = get_arch(args.baseline_hidden_spec)
 
     centralized = True if args.control == 'centralized' else False
 

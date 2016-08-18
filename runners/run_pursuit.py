@@ -8,32 +8,25 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import json
-import sys
-sys.path.append('../rltools/')
-
-import numpy as np
-import tensorflow as tf
 
 import gym
+import numpy as np
+import tensorflow as tf
 from gym import spaces
 
 import rltools.algos.policyopt
 import rltools.log
 import rltools.util
-from rltools.samplers.serial import SimpleSampler, DecSampler
-from rltools.samplers.parallel import ParallelSampler
-
 from madrl_environments.pursuit import PursuitEvade
 from madrl_environments.pursuit.utils import TwoDMaps
-
+from pursuit_policy import PursuitCentralMLPPolicy
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
 from rltools.policy.categorical import CategoricalMLPPolicy
-from archs import *
-from pursuit_policy import PursuitCentralMLPPolicy
-
-
+from rltools.samplers.parallel import ParallelSampler
+from rltools.samplers.serial import DecSampler, SimpleSampler
+from runners import get_arch
 
 
 def main():
@@ -67,10 +60,10 @@ def main():
     parser.add_argument('--sample_maps', action='store_true', default=False)
     parser.add_argument('--map_file', type=str, default='maps/map_pool.npy')
 
-    parser.add_argument('--policy_hidden_spec', type=str, default=HUGE_POLICY_ARCH)
+    parser.add_argument('--policy_hidden_spec', type=str, default='HUGE_POLICY_ARCH')
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
-    parser.add_argument('--baseline_hidden_spec', type=str, default=HUGE_VAL_ARCH)
+    parser.add_argument('--baseline_hidden_spec', type=str, default='HUGE_VAL_ARCH')
 
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--vf_max_kl', type=float, default=0.01)
@@ -85,6 +78,8 @@ def main():
 
     args = parser.parse_args()
 
+    args.policy_hidden_spec = get_arch(args.policy_hidden_spec)
+    args.baseline_hidden_spec = get_arch(args.baseline_hidden_spec)
 
     if args.sample_maps:
         map_pool = np.load(args.map_file)
@@ -96,15 +91,10 @@ def main():
         else:
             raise NotImplementedError()
         map_pool = [env_map]
-    env = PursuitEvade(map_pool,
-                       n_evaders=args.n_evaders,
-                       n_pursuers=args.n_pursuers,
-                       obs_range=args.obs_range,
-                       n_catch=args.n_catch,
-                       train_pursuit=args.train_pursuit,
-                       urgency_reward=args.urgency,
-                       surround=args.surround,
-                       sample_maps=args.sample_maps)
+    env = PursuitEvade(map_pool, n_evaders=args.n_evaders, n_pursuers=args.n_pursuers,
+                       obs_range=args.obs_range, n_catch=args.n_catch,
+                       train_pursuit=args.train_pursuit, urgency_reward=args.urgency,
+                       surround=args.surround, sample_maps=args.sample_maps)
 
     if args.control == 'centralized':
         obsfeat_space = spaces.Box(low=env.agents[0].observation_space.low[0],
@@ -120,26 +110,25 @@ def main():
             action_space = spaces.Discrete(env.agents[0].action_space.n * len(env.agents))
         else:
             raise NotImplementedError()
- 
+
     elif args.control == 'decentralized':
         obsfeat_space = env.agents[0].observation_space
         action_space = env.agents[0].action_space
     else:
         raise NotImplementedError()
 
-    policy = CategoricalMLPPolicy(obsfeat_space, action_space,
-                                  hidden_spec=args.policy_hidden_spec,
-                                  enable_obsnorm=True,
-                                  tblog=args.tblog, varscope_name='pursuit_catmlp_policy')
-
+    policy = CategoricalMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
+                                  enable_obsnorm=True, tblog=args.tblog,
+                                  varscope_name='pursuit_catmlp_policy')
 
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(obsfeat_space, enable_obsnorm=True,
-                               varscope_name='pursuit_linear_baseline')
+                                         varscope_name='pursuit_linear_baseline')
     elif args.baseline_type == 'mlp':
-        baseline = MLPBaseline(obsfeat_space, args.baseline_hidden_spec,
-                               True, True, max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
-                               time_scale=1./args.max_traj_len, varscope_name='pursuit_mlp_baseline')
+        baseline = MLPBaseline(obsfeat_space, args.baseline_hidden_spec, True, True,
+                               max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
+                               time_scale=1. / args.max_traj_len,
+                               varscope_name='pursuit_mlp_baseline')
     else:
         baseline = ZeroBaseline(obsfeat_space)
 
@@ -164,17 +153,13 @@ def main():
     else:
         raise NotImplementedError()
     step_func = rltools.algos.policyopt.TRPO(max_kl=args.max_kl)
-    popt = rltools.algos.policyopt.SamplingPolicyOptimizer(
-        env=env,
-        policy=policy,
-        baseline=baseline,
-        step_func=step_func,
-        discount=args.discount,
-        gae_lambda=args.gae_lambda,
-        sampler_cls=sampler_cls,
-        sampler_args=sampler_args,
-        n_iter=args.n_iter
-    )
+    popt = rltools.algos.policyopt.SamplingPolicyOptimizer(env=env, policy=policy,
+                                                           baseline=baseline, step_func=step_func,
+                                                           discount=args.discount,
+                                                           gae_lambda=args.gae_lambda,
+                                                           sampler_cls=sampler_cls,
+                                                           sampler_args=sampler_args,
+                                                           n_iter=args.n_iter)
     argstr = json.dumps(vars(args), separators=(',', ':'), indent=2)
     rltools.util.header(argstr)
     log_f = rltools.log.TrainingLog(args.log, [('args', argstr)], debug=args.debug)

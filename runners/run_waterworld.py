@@ -25,7 +25,7 @@ from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
 from rltools.policy.gaussian import GaussianMLPPolicy
 
-from runners.archs import *
+from runners import get_arch
 
 
 def main():
@@ -62,10 +62,10 @@ def main():
     parser.add_argument('--poison_reward', type=float, default=-1)
     parser.add_argument('--encounter_reward', type=float, default=0.05)
 
-    parser.add_argument('--policy_hidden_spec', type=str, default=GAE_ARCH)
+    parser.add_argument('--policy_hidden_spec', type=str, default='GAE_ARCH')
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
-    parser.add_argument('--baseline_hidden_spec', type=str, default=GAE_ARCH)
+    parser.add_argument('--baseline_hidden_spec', type=str, default='GAE_ARCH')
 
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--vf_max_kl', type=float, default=0.01)
@@ -81,6 +81,9 @@ def main():
     args = parser.parse_args()
 
     centralized = True if args.control == 'centralized' else False
+    args.policy_hidden_spec = get_arch(args.policy_hidden_spec)
+    args.baseline_hidden_spec = get_arch(args.baseline_hidden_spec)
+
     sensor_range = np.array(map(float, args.sensor_range.split(',')))
     assert sensor_range.shape == (args.n_pursuers,)
 
