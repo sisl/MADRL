@@ -20,7 +20,8 @@ from gym import spaces
 import rltools.algos.policyopt
 import rltools.log
 import rltools.util
-from rltools.samplers.serial import SimpleSampler, ImportanceWeightedSampler, DecSampler
+from rltools.samplers.serial import SimpleSampler, DecSampler
+from rltools.samplers.parallel import ParallelSampler
 
 from madrl_environments.pursuit import PursuitEvade
 from madrl_environments.pursuit.utils import TwoDMaps
@@ -66,10 +67,10 @@ def main():
     parser.add_argument('--sample_maps', action='store_true', default=False)
     parser.add_argument('--map_file', type=str, default='maps/map_pool.npy')
 
-    parser.add_argument('--policy_hidden_spec', type=str, default=LARGE_POLICY_ARCH)
+    parser.add_argument('--policy_hidden_spec', type=str, default=HUGE_POLICY_ARCH)
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
-    parser.add_argument('--baseline_hidden_spec', type=str, default=LARGE_VAL_ARCH)
+    parser.add_argument('--baseline_hidden_spec', type=str, default=HUGE_VAL_ARCH)
 
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--vf_max_kl', type=float, default=0.01)
