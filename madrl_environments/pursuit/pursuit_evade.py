@@ -128,6 +128,8 @@ class PursuitEvade(AbstractMAEnv):
 
         self.surround = kwargs.pop('surround', True)
 
+        self.constraint_window = kwargs.pop('constraint_window', 1.0)
+
         self.surround_mask = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
 
         self.model_state = np.zeros((4,) + map_matrix.shape, dtype=np.float32)
@@ -155,12 +157,20 @@ class PursuitEvade(AbstractMAEnv):
         if self.sample_maps:
             self.map_matrix = self.map_pool[np.random.randint(len(self.map_pool))]
 
+        x_window_start = np.random.uniform(0.0, 1.0-self.constraint_window)
+        y_window_start = np.random.uniform(0.0, 1.0-self.constraint_window)
+        xlb, xub = int(self.xs * x_window_start), int(self.xs * (x_window_start + self.constraint_window))
+        ylb, yub = int(self.ys * y_window_start), int(self.ys * (y_window_start + self.constraint_window))
+        constraints = [[xlb, xub], [ylb, yub]]
+
         self.pursuer_layer = AgentLayer(self.xs, self.ys,
                                         agent_utils.create_agents(self.n_pursuers, self.map_matrix,
-                                                                  self.obs_range, randinit=True))
+                                                                  self.obs_range, randinit=True,
+                                                                  constraints=constraints))
         self.evader_layer = AgentLayer(self.xs, self.ys,
                                        agent_utils.create_agents(self.n_evaders, self.map_matrix,
-                                                                 self.obs_range, randinit=True))
+                                                                 self.obs_range, randinit=True,
+                                                                 constraints=constraints))
         self.model_state[0] = self.map_matrix
         self.model_state[1] = self.pursuer_layer.get_state_matrix()
         self.model_state[2] = self.evader_layer.get_state_matrix()

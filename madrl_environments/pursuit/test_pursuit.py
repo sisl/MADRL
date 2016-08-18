@@ -44,12 +44,12 @@ env.evader_layer.set_position(5, 3, 5)
 
 o, r, done, _ = env.step(a)
 
-map_mat = multi_scale_map(256, 256)
+map_mat = multi_scale_map(128, 128)
 
 #map_pool = np.load('map_pool.npy')
 map_pool = [map_mat]
 
-env = PursuitEvade(map_pool, n_evaders=1, n_pursuers=1, obs_range=32, n_catch=2, surround=True, reward_mech='local',
-        sample_maps=True)
+env = PursuitEvade(map_pool, n_evaders=200, n_pursuers=100, obs_range=16, n_catch=2, surround=True, reward_mech='local',
+        sample_maps=True, constraint_window=0.5)
 env.reset()
 env.render()

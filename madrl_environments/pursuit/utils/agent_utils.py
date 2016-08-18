@@ -9,7 +9,7 @@ from .DiscreteAgent import DiscreteAgent
 #################################################################
 
 
-def create_agents(nagents, map_matrix, obs_range, randinit=False):
+def create_agents(nagents, map_matrix, obs_range, randinit=False, constraints=None):
     """
     Initializes the agents on a map (map_matrix)
     -nagents: the number of agents to put on the map
@@ -21,22 +21,28 @@ def create_agents(nagents, map_matrix, obs_range, randinit=False):
     for i in xrange(nagents):
         xinit, yinit = (0, 0)
         if randinit:
-            xinit, yinit = feasible_position(map_matrix)
+            xinit, yinit = feasible_position(map_matrix, constraints=constraints)
         agent = DiscreteAgent(xs, ys, map_matrix, obs_range=obs_range)
         agent.set_position(xinit, yinit)
         agents.append(agent)
     return agents
 
 
-def feasible_position(map_matrix):
+def feasible_position(map_matrix, constraints=None):
     """
     Returns a feasible position on map (map_matrix)
     """
     xs, ys = map_matrix.shape
     loop_count = 0
     while True:
-        x = np.random.randint(xs)
-        y = np.random.randint(ys)
+        if constraints is None:
+            x = np.random.randint(xs)
+            y = np.random.randint(ys)
+        else:
+            xl, xu = constraints[0]
+            yl, yu = constraints[1]
+            x = np.random.randint(xl, xu)
+            y = np.random.randint(yl, yu)
         if map_matrix[x, y] != -1:
             return (x, y)
 
