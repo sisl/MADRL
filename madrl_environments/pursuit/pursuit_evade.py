@@ -58,6 +58,7 @@ class PursuitEvade(AbstractMAEnv):
         self.n_pursuers = kwargs.pop('n_pursuers', 1)
 
         self.obs_range = kwargs.pop('obs_range', 3)  # can see 3 grids around them by default
+        assert self.obs_range % 2 != 0, "obs_range should be odd"
         self.obs_offset = int((self.obs_range - 1) / 2)
 
         self.pursuers = agent_utils.create_agents(self.n_pursuers, map_matrix, self.obs_range)
@@ -236,7 +237,7 @@ class PursuitEvade(AbstractMAEnv):
 
     def update_curriculum(self, itr):
         self.constraint_window += (1. / 500.) # 0 to 1 in 500 iterations
-        self.constraint_window = np.clip(0, 1, self.constraint_window)
+        self.constraint_window = np.clip(self.constraint_window, 0.0, 1.0)
 
     def render(self, plt_delay=1.0):
         plt.matshow(self.model_state[0].T, cmap=plt.get_cmap('Greys'), fignum=1)

@@ -117,6 +117,7 @@ def main():
     elif args.control == 'decentralized':
         obsfeat_space = env.agents[0].observation_space
         action_space = env.agents[0].action_space
+        env.reward_mech = 'local'
     else:
         raise NotImplementedError()
 
