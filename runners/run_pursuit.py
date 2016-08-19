@@ -60,12 +60,12 @@ def main():
     parser.add_argument('--surround', action='store_true', default=False)
     parser.add_argument('--constraint_window', type=float, default=1.0)
     parser.add_argument('--sample_maps', action='store_true', default=False)
-    parser.add_argument('--map_file', type=str, default='maps/map_pool.npy')
+    parser.add_argument('--map_file', type=str, default='/scratch/megorov/deeprl/MADRL/runners/maps/map_pool128.npy')
 
-    parser.add_argument('--policy_hidden_spec', type=str, default='HUGE_POLICY_ARCH')
+    parser.add_argument('--policy_hidden_spec', type=str, default='LARGE_POLICY_ARCH')
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
-    parser.add_argument('--baseline_hidden_spec', type=str, default='HUGE_VAL_ARCH')
+    parser.add_argument('--baseline_hidden_spec', type=str, default='LARGE_VAL_ARCH')
 
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--vf_max_kl', type=float, default=0.01)
