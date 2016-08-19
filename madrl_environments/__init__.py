@@ -70,6 +70,10 @@ class AbstractMAEnv(object):
                 break
         return rew
 
+    def update_curriculum(self, itr):
+        """Updates curriculum learning parameters"""
+        return
+
     @property
     def unwrapped(self):
         if self._unwrapped is not None:

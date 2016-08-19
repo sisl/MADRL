@@ -39,6 +39,7 @@ def main():
     parser.add_argument('--sampler_workers', type=int, default=4)
     parser.add_argument('--max_traj_len', type=int, default=250)
     parser.add_argument('--adaptive_batch', action='store_true', default=False)
+    parser.add_argument('--update_curriculum', action='store_true', default=False)
 
     parser.add_argument('--n_timesteps', type=int, default=8000)
     parser.add_argument('--n_timesteps_min', type=int, default=1000)
@@ -57,6 +58,7 @@ def main():
     parser.add_argument('--evade', dest='train_pursuit', action='store_false')
     parser.set_defaults(train_pursuit=True)
     parser.add_argument('--surround', action='store_true', default=False)
+    parser.add_argument('--constraint_window', type=float, default=1.0)
     parser.add_argument('--sample_maps', action='store_true', default=False)
     parser.add_argument('--map_file', type=str, default='maps/map_pool.npy')
 
@@ -94,7 +96,8 @@ def main():
     env = PursuitEvade(map_pool, n_evaders=args.n_evaders, n_pursuers=args.n_pursuers,
                        obs_range=args.obs_range, n_catch=args.n_catch,
                        train_pursuit=args.train_pursuit, urgency_reward=args.urgency,
-                       surround=args.surround, sample_maps=args.sample_maps)
+                       surround=args.surround, sample_maps=args.sample_maps,
+                       constraint_window=args.constraint_window)
 
     if args.control == 'centralized':
         obsfeat_space = spaces.Box(low=env.agents[0].observation_space.low[0],
@@ -159,7 +162,8 @@ def main():
                                                            gae_lambda=args.gae_lambda,
                                                            sampler_cls=sampler_cls,
                                                            sampler_args=sampler_args,
-                                                           n_iter=args.n_iter)
+                                                           n_iter=args.n_iter,
+                                                           update_curriculum=args.update_curriculum)
     argstr = json.dumps(vars(args), separators=(',', ':'), indent=2)
     rltools.util.header(argstr)
     log_f = rltools.log.TrainingLog(args.log, [('args', argstr)], debug=args.debug)

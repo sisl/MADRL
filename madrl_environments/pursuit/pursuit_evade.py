@@ -234,6 +234,10 @@ class PursuitEvade(AbstractMAEnv):
             return obslist, [rewards.mean()] * self.n_pursuers, done, None
         return obslist, rewards, done, None
 
+    def update_curriculum(self, itr):
+        self.constraint_window += (1. / 500.) # 0 to 1 in 500 iterations
+        self.constraint_window = np.clip(0, 1, self.constraint_window)
+
     def render(self, plt_delay=1.0):
         plt.matshow(self.model_state[0].T, cmap=plt.get_cmap('Greys'), fignum=1)
         for i in xrange(self.pursuer_layer.n_agents()):
