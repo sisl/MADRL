@@ -23,7 +23,7 @@ class Archea(Agent):
 
     @property
     def action_space(self):
-        return spaces.Box(low=-10, high=10, shape=(2,))
+        return spaces.Box(low=-1, high=1, shape=(2,))
 
 
 class MAWaterWorld(AbstractMAEnv):
