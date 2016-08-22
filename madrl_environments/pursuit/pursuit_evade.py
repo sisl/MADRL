@@ -58,17 +58,18 @@ class PursuitEvade(AbstractMAEnv):
         self.n_pursuers = kwargs.pop('n_pursuers', 1)
 
         self.obs_range = kwargs.pop('obs_range', 3)  # can see 3 grids around them by default
-        assert self.obs_range % 2 != 0, "obs_range should be odd"
+        #assert self.obs_range % 2 != 0, "obs_range should be odd"
         self.obs_offset = int((self.obs_range - 1) / 2)
 
-        self.pursuers = agent_utils.create_agents(self.n_pursuers, map_matrix, self.obs_range)
-        self.evaders = agent_utils.create_agents(self.n_evaders, map_matrix, self.obs_range)
+        self.flatten = kwargs.pop('flatten', True)
+
+        self.pursuers = agent_utils.create_agents(self.n_pursuers, map_matrix, self.obs_range, flatten=self.flatten)
+        self.evaders = agent_utils.create_agents(self.n_evaders, map_matrix, self.obs_range, flatten=self.flatten)
 
         self.pursuer_layer = kwargs.pop('ally_layer', AgentLayer(xs, ys, self.pursuers))
         self.evader_layer = kwargs.pop('opponent_layer', AgentLayer(xs, ys, self.evaders))
 
         self.layer_norm = kwargs.pop('layer_norm', 10)
-        self.flatten = kwargs.pop('flatten', True)
 
         self.n_catch = kwargs.pop('n_catch', 2)
 
@@ -105,9 +106,12 @@ class PursuitEvade(AbstractMAEnv):
                 self.low = np.append(self.low, 0.0)
                 self.high = np.append(self.high, 1.0)
             self.action_space = spaces.Discrete(n_act_purs)
-            self.observation_space = spaces.Box(self.low, self.high)
+            if self.flatten: 
+                self.observation_space = spaces.Box(self.low, self.high)
+            else:
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(4, self.obs_range, self.obs_range))
             self.local_obs = np.zeros(
-                (self.n_pursuers, 3, self.obs_range, self.obs_range))  # Nagents X 3 X xsize X ysize
+                (self.n_pursuers, 4, self.obs_range, self.obs_range))  # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_pursuers)]
             self.total_agents = self.n_pursuers
         else:
@@ -117,9 +121,12 @@ class PursuitEvade(AbstractMAEnv):
                 np.append(self.low, 0.0)
                 np.append(self.high, 1.0)
             self.action_space = spaces.Discrete(n_act_ev)
-            self.observation_space = spaces.Box(self.low, self.high)
+            if self.flatten: 
+                self.observation_space = spaces.Box(self.low, self.high)
+            else:
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(4, self.obs_range, self.obs_range))
             self.local_obs = np.zeros(
-                (self.n_evaders, 3, self.obs_range, self.obs_range))  # Nagents X 3 X xsize X ysize
+                (self.n_evaders, 4, self.obs_range, self.obs_range))  # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_evaders)]
             self.total_agents = self.n_evaders
         self.pursuers_gone = np.array([False for i in xrange(self.n_pursuers)])
@@ -361,8 +368,6 @@ class PursuitEvade(AbstractMAEnv):
                 obs.append(None)
             else:
                 o = self.collect_obs_by_idx(agent_layer, nage)
-                if self.include_id:
-                    o = np.append(o, float(i) / self.total_agents)
                 obs.append(o)
                 nage += 1
         return obs
@@ -370,15 +375,20 @@ class PursuitEvade(AbstractMAEnv):
     def collect_obs_by_idx(self, agent_layer, agent_idx):
         # returns a flattened array of all the observations
         n = agent_layer.n_agents()
-        self.local_obs.fill(-0.1)  # border walls set to -0.1?
+        self.local_obs[agent_idx][0].fill(1.0/self.layer_norm)  # border walls set to -0.1?
         xp, yp = agent_layer.get_position(agent_idx)
 
         xlo, xhi, ylo, yhi, xolo, xohi, yolo, yohi = self.obs_clip(xp, yp)
 
-        self.local_obs[agent_idx, :, xolo:xohi, yolo:yohi] = self.model_state[0:3, xlo:xhi, ylo:yhi]
+        self.local_obs[agent_idx, 0:3, xolo:xohi, yolo:yohi] = np.abs(
+                                                    self.model_state[0:3, xlo:xhi, ylo:yhi]) / self.layer_norm
+        self.local_obs[agent_idx, 3, self.obs_range/2, self.obs_range/2] = float(agent_idx) / self.total_agents
         if self.flatten:
-            return self.local_obs[agent_idx].flatten() / self.layer_norm
-        return self.local_obs[agent_idx] / self.layer_norm
+            o = self.local_obs[agent_idx][0:3].flatten() 
+            if self.include_id:
+                o = np.append(o, float(agent_idx) / self.total_agents)
+            return o
+        return self.local_obs[agent_idx]
 
     def obs_clip(self, x, y):
         # :( this is a mess, beter way to do the slicing? (maybe np.ix_)

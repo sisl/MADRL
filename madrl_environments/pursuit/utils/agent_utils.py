@@ -9,7 +9,7 @@ from .DiscreteAgent import DiscreteAgent
 #################################################################
 
 
-def create_agents(nagents, map_matrix, obs_range, randinit=False, constraints=None):
+def create_agents(nagents, map_matrix, obs_range, flatten=False, randinit=False, constraints=None):
     """
     Initializes the agents on a map (map_matrix)
     -nagents: the number of agents to put on the map
@@ -22,7 +22,7 @@ def create_agents(nagents, map_matrix, obs_range, randinit=False, constraints=No
         xinit, yinit = (0, 0)
         if randinit:
             xinit, yinit = feasible_position(map_matrix, constraints=constraints)
-        agent = DiscreteAgent(xs, ys, map_matrix, obs_range=obs_range)
+        agent = DiscreteAgent(xs, ys, map_matrix, obs_range=obs_range, flatten=flatten)
         agent.set_position(xinit, yinit)
         agents.append(agent)
     return agents

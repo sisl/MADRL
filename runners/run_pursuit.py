@@ -61,11 +61,12 @@ def main():
     parser.add_argument('--constraint_window', type=float, default=1.0)
     parser.add_argument('--sample_maps', action='store_true', default=False)
     parser.add_argument('--map_file', type=str, default='maps/map_pool.npy')
+    parser.add_argument('--flatten', action='store_true', default=False)
 
-    parser.add_argument('--policy_hidden_spec', type=str, default='HUGE_POLICY_ARCH')
+    parser.add_argument('--policy_hidden_spec', type=str, default='SIMPLE_CONV_ARCH')
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
-    parser.add_argument('--baseline_hidden_spec', type=str, default='HUGE_VAL_ARCH')
+    parser.add_argument('--baseline_hidden_spec', type=str, default='SIMPLE_CONV_ARCH')
 
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--vf_max_kl', type=float, default=0.01)
@@ -97,22 +98,15 @@ def main():
                        obs_range=args.obs_range, n_catch=args.n_catch,
                        train_pursuit=args.train_pursuit, urgency_reward=args.urgency,
                        surround=args.surround, sample_maps=args.sample_maps,
-                       constraint_window=args.constraint_window)
+                       constraint_window=args.constraint_window,
+                       flatten=args.flatten)
 
     if args.control == 'centralized':
         obsfeat_space = spaces.Box(low=env.agents[0].observation_space.low[0],
                                    high=env.agents[0].observation_space.high[0],
                                    shape=(env.agents[0].observation_space.shape[0] *
                                           len(env.agents),))  # XXX
-        if isinstance(env.agents[0].action_space, spaces.Box):
-            action_space = spaces.Box(low=env.agents[0].action_space.low[0],
-                                      high=env.agents[0].action_space.high[0],
-                                      shape=(env.agents[0].action_space.shape[0] *
-                                             len(env.agents),))  # XXX
-        elif isinstance(env.agents[0].action_space, spaces.Discrete):
-            action_space = spaces.Discrete(env.agents[0].action_space.n * len(env.agents))
-        else:
-            raise NotImplementedError()
+        action_space = spaces.Discrete(env.agents[0].action_space.n * len(env.agents))
 
     elif args.control == 'decentralized':
         obsfeat_space = env.agents[0].observation_space
@@ -120,6 +114,9 @@ def main():
         env.reward_mech = 'local'
     else:
         raise NotImplementedError()
+
+    import IPython
+    IPython.embed()
 
     policy = CategoricalMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
                                   enable_obsnorm=True, tblog=args.tblog,

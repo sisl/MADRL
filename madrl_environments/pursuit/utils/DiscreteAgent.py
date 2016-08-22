@@ -17,7 +17,8 @@ class DiscreteAgent(Agent):
                  map_matrix, # the map of the environemnt (-1 are buildings)
                  obs_range=3,
                  n_channels=3, # number of observation channels
-                 seed=1):
+                 seed=1,
+                 flatten=False):
 
         self.random_state = np.random.RandomState(seed)
 
@@ -46,11 +47,15 @@ class DiscreteAgent(Agent):
 
         self._obs_range = obs_range
 
-        self._obs_dim = n_channels * obs_range**2 + 1
+        if flatten:
+            self._obs_shape = (n_channels * obs_range**2 + 1,)
+        else:
+            self._obs_shape = (4, obs_range, obs_range)
+
 
     @property
     def observation_space(self):
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(self._obs_dim,))
+        return spaces.Box(low=-np.inf, high=np.inf, shape=self._obs_shape)
 
     @property
     def action_space(self):
