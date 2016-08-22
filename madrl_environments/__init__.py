@@ -1,3 +1,4 @@
+from rltools.util import EzPickle
 from gym import spaces
 import numpy as np
 
@@ -155,6 +156,106 @@ class ObservationBuffer(AbstractMAEnv):
 
         bufobs = [buf.copy() for buf in self._buffer]
         return bufobs
+
+    def render(self, *args, **kwargs):
+        return self._unwrapped.render(*args, **kwargs)
+
+    def animate(self, *args, **kwargs):
+        return self._unwrapped.animate(*args, **kwargs)
+
+
+class StandardizedEnv(AbstractMAEnv, EzPickle):
+
+    def __init__(self, env, scale_reward=1., enable_obsnorm=False, enable_rewnorm=False,
+                 obs_alpha=0.001, rew_alpha=0.001, eps=1e-8):
+        EzPickle.__init__(self, env, scale_reward, enable_obsnorm, enable_rewnorm, obs_alpha,
+                          rew_alpha, eps)
+        self._unwrapped = env
+        self._scale_reward = scale_reward
+        self._enable_obsnorm = enable_obsnorm
+        self._enable_rewnorm = enable_rewnorm
+        self._obs_alpha = obs_alpha
+        self._rew_alpha = rew_alpha
+        self._eps = eps
+        self._flatobs_shape = [None for _ in env.agents]
+        self._obs_mean = [None for _ in env.agents]
+        self._obs_meansq = [None for _ in env.agents]
+        self._obs_std = [None for _ in env.agents]
+        self._rew_mean = [None for _ in env.agents]
+        self._rew_meansq = [None for _ in env.agents]
+        self._rew_std = [None for _ in env.agents]
+
+        for agid, agent in enumerate(env.agents):
+            if isinstance(agent.observation_space, spaces.Box):
+                self._flatobs_shape[agid] = np.prod(agent.observation_space.shape)
+            elif isinstance(env.observation_space, spaces.Discrete):
+                self._flatobs_shape[agid] = agent.observation_space.n
+
+            self._obs_mean[agid] = np.zeros(self._flatobs_shape[agid])
+            self._obs_meansq[agid] = np.zeros(self._flatobs_shape[agid])
+            self._obs_std[agid] = np.sqrt(self._obs_meansq[agid] - np.square(self._obs_mean[
+                agid])) + self._eps
+            self._rew_mean[agid] = 0.
+            self._rew_meansq[agid] = 0.
+            self._rew_std[agid] = np.sqrt(self._rew_meansq[agid] - np.square(self._rew_mean[
+                agid])) + self._eps
+
+    @property
+    def agents(self):
+        return self._unwrapped.agents
+
+    def update_obs_estimate(self, observations):
+        for agid, obs in enumerate(observations):
+            flatobs = np.asarray(obs).flatten()
+            self._obs_mean[agid] = (1 - self._obs_alpha
+                                   ) * self._obs_mean[agid] + self._obs_alpha * flatobs
+            self._obs_meansq[agid] = (
+                1 - self._obs_alpha) * self._obs_meansq[agid] + self._obs_alpha * np.square(flatobs)
+
+    def update_rew_estimate(self, rewards):
+        for agid, reward in enumerate(rewards):
+            self._rew_mean[agid] = (1 - self._rew_alpha
+                                   ) * self._rew_mean[agid] + self._rew_alpha * reward
+            self._rew_meansq[agid] = (1 - self._rew_alpha) * self._rew_meansq[agid] + (
+                self._rew_alpha * np.square(reward))
+
+    def standardize_obs(self, observation):
+        assert isinstance(observation, list)
+        self.update_obs_estimate(observation)
+        return [(obs - obsmean) / obsstd
+                for (obs, obsmean, obsstd) in zip(observation, self._obs_mean, self._obs_std)]
+
+    def standardize_rew(self, reward):
+        assert isinstance(reward, list)
+        self.update_rew_estimate(reward)
+        return [(rew - rewmean) / rewstd
+                for (rew, rewmean, rewstd) in zip(reward, self._rew_mean, self._rew_std)]
+
+    def seed(self, seed=None):
+        return self._unwrapped.seed(seed)
+
+    def reset(self):
+        obs = self._unwrapped.reset()
+        if self._enable_obsnorm:
+            return self.standardize_obs(obs)
+        else:
+            return obs
+
+    def step(self, *args):
+        return self._unwrapped.step(*args)
+
+    def __getstate__(self):
+        d = EzPickle.__getstate__(self)
+        d['_obs_mean'] = self._obs_mean
+        d['_obs_meansq'] = self._obs_meansq
+
+    def __setstate__(self, d):
+        EzPickle.__setstate__(self, d)
+        self._obs_mean = d['_obs_mean']
+        self._obs_meansq = d['_obs_meansq']
+
+    def __str__(self):
+        return "Normalized {}".format(self._unwrapped)
 
     def render(self, *args, **kwargs):
         return self._unwrapped.render(*args, **kwargs)

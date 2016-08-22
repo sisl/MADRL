@@ -96,3 +96,5 @@ SIMPLE_CONV_ARCH = '''[
     ]
     '''
 
+
+SIMPLE_GRU_ARCH = '''{"gru_hidden_dim": 32, "gru_hidden_nonlin": "tanh", "gru_hidden_init_trainable": false}'''

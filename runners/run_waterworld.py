@@ -18,12 +18,12 @@ import rltools.log
 import rltools.util
 from rltools.samplers.serial import SimpleSampler, ImportanceWeightedSampler, DecSampler
 from rltools.samplers.parallel import ThreadedSampler, ParallelSampler
-from madrl_environments import ObservationBuffer
+from madrl_environments import ObservationBuffer, StandardizedEnv
 from madrl_environments.pursuit import MAWaterWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
-from rltools.policy.gaussian import GaussianMLPPolicy
+from rltools.policy.gaussian import GaussianMLPPolicy, GaussianGRUPolicy
 
 from runners import get_arch
 
@@ -62,6 +62,7 @@ def main():
     parser.add_argument('--poison_reward', type=float, default=-1)
     parser.add_argument('--encounter_reward', type=float, default=0.05)
 
+    parser.add_argument('--recurrent', action='store_true', default=False)
     parser.add_argument('--policy_hidden_spec', type=str, default='GAE_ARCH')
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
@@ -81,16 +82,20 @@ def main():
     args = parser.parse_args()
 
     centralized = True if args.control == 'centralized' else False
+    if args.recurrent:
+        args.policy_hidden_spec = 'SIMPLE_GRU_ARCH'
     args.policy_hidden_spec = get_arch(args.policy_hidden_spec)
     args.baseline_hidden_spec = get_arch(args.baseline_hidden_spec)
 
     sensor_range = np.array(map(float, args.sensor_range.split(',')))
     assert sensor_range.shape == (args.n_pursuers,)
 
-    env = MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
-                       n_sensors=args.n_sensors, food_reward=args.food_reward,
-                       poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
-                       sensor_range=sensor_range, obstacle_loc=None)
+    env = StandardizedEnv(
+        MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
+                     n_sensors=args.n_sensors, food_reward=args.food_reward,
+                     poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
+                     sensor_range=sensor_range, obstacle_loc=None), enable_obsnorm=True,
+        enable_rewnorm=True)
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
@@ -108,14 +113,18 @@ def main():
         obsfeat_space = env.agents[0].observation_space
         action_space = env.agents[0].action_space
 
-    policy = GaussianMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
-                               enable_obsnorm=True, min_stdev=0., init_logstdev=0.,
-                               tblog=args.tblog, varscope_name='gaussmlp_policy')
+    if args.recurrent:
+        policy = GaussianGRUPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
+                                   min_stdev=0., init_logstdev=0., state_include_action=False,
+                                   tblog=args.tblog, varscope_name='gaussgru_policy')
+    else:
+        policy = GaussianMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
+                                   min_stdev=0., init_logstdev=0., tblog=args.tblog,
+                                   varscope_name='gaussmlp_policy')
     if args.baseline_type == 'linear':
-        baseline = LinearFeatureBaseline(obsfeat_space, enable_obsnorm=True,
-                                         varscope_name='pursuit_linear_baseline')
+        baseline = LinearFeatureBaseline(obsfeat_space, varscope_name='pursuit_linear_baseline')
     elif args.baseline_type == 'mlp':
-        baseline = MLPBaseline(obsfeat_space, args.baseline_hidden_spec, True, True,
+        baseline = MLPBaseline(obsfeat_space, args.baseline_hidden_spec, enable_vnorm=True,
                                max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
                                time_scale=1. / args.max_traj_len,
                                varscope_name='pursuit_mlp_baseline')
@@ -132,30 +141,28 @@ def main():
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
                             n_timesteps_min=args.n_timesteps_min,
                             n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
-                            adaptive=args.adaptive_batch, enable_rewnorm=True)
+                            adaptive=args.adaptive_batch)
     elif args.sampler == 'thread':
         sampler_cls = ThreadedSampler
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
                             n_timesteps_min=args.n_timesteps_min,
                             n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
-                            adaptive=args.adaptive_batch, enable_rewnorm=True)
+                            adaptive=args.adaptive_batch)
     elif args.sampler == 'parallel':
         sampler_cls = ParallelSampler
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
                             n_timesteps_min=args.n_timesteps_min,
                             n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
-                            adaptive=args.adaptive_batch, enable_rewnorm=True,
-                            n_workers=args.sampler_workers, mode=args.control)
+                            adaptive=args.adaptive_batch, n_workers=args.sampler_workers)
 
     elif args.sampler == 'imp':
         sampler_cls = ImportanceWeightedSampler
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
                             n_timesteps_min=args.n_timesteps_min,
                             n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
-                            adaptive=args.adaptive_batch, enable_rewnorm=True,
-                            n_backtrack=args.is_n_backtrack, randomize_draw=args.is_randomize_draw,
-                            n_pretrain=args.is_n_pretrain, skip_is=args.is_skip_is,
-                            max_is_ratio=args.is_max_is_ratio)
+                            adaptive=args.adaptive_batch, n_backtrack=args.is_n_backtrack,
+                            randomize_draw=args.is_randomize_draw, n_pretrain=args.is_n_pretrain,
+                            skip_is=args.is_skip_is, max_is_ratio=args.is_max_is_ratio)
     else:
         raise NotImplementedError()
     step_func = rltools.algos.policyopt.TRPO(max_kl=args.max_kl)

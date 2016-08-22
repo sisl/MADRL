@@ -115,9 +115,6 @@ def main():
     else:
         raise NotImplementedError()
 
-    import IPython
-    IPython.embed()
-
     policy = CategoricalMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
                                   enable_obsnorm=True, tblog=args.tblog,
                                   varscope_name='pursuit_catmlp_policy')
