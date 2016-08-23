@@ -34,7 +34,7 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
                  poison_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
                  poison_reward=-1., food_reward=1., encounter_reward=.05, control_penalty=-.5,
                  reward_mech='global', **kwargs):
-        EzPickle.__init__(self, n_pursuers, n_evaders, n_coop, n_poison, radius, obstacle_radius2,
+        EzPickle.__init__(self, n_pursuers, n_evaders, n_coop, n_poison, radius, obstacle_radius,
                           obstacle_loc, ev_speed, poison_speed, n_sensors, sensor_range,
                           action_scale, poison_reward, food_reward, encounter_reward,
                           control_penalty, reward_mech, **kwargs)
