@@ -52,6 +52,7 @@ def main():
 
     parser.add_argument('--control', type=str, default='centralized')
     parser.add_argument('--buffer_size', type=int, default=1)
+    parser.add_argument('--radius', type=float, default=0.015)
     parser.add_argument('--n_evaders', type=int, default=5)
     parser.add_argument('--n_pursuers', type=int, default=3)
     parser.add_argument('--n_poison', type=int, default=10)
@@ -92,7 +93,7 @@ def main():
 
     env = StandardizedEnv(
         MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
-                     n_sensors=args.n_sensors, food_reward=args.food_reward,
+                     radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
                      poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
                      sensor_range=sensor_range, obstacle_loc=None), enable_obsnorm=True,
         enable_rewnorm=True)
