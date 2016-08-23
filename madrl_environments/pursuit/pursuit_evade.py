@@ -52,7 +52,7 @@ class PursuitEvade(AbstractMAEnv):
         self.xs = xs
         self.ys = ys
 
-        self.reward_mech = kwargs.pop('reward_mech', 'global')
+        self._reward_mech = kwargs.pop('reward_mech', 'global')
 
         self.n_evaders = kwargs.pop('n_evaders', 1)
         self.n_pursuers = kwargs.pop('n_pursuers', 1)
@@ -149,6 +149,10 @@ class PursuitEvade(AbstractMAEnv):
     @property
     def agents(self):
         return self.pursuers
+
+    @property
+    def reward_mech(self):
+        return self._reward_mech
 
     def seed(self, seed=None):
         self.np_random, seed_ = seeding.np_random(seed)

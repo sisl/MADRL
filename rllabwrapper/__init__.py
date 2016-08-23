@@ -13,18 +13,18 @@ from rllab.spaces.discrete import Discrete
 import numpy as np
 
 
-def convert_gym_space(space):
+def convert_gym_space(space, n_agents=1):
     if isinstance(space, gym.spaces.Box):
-        return Box(low=space.low, high=space.high)
+        return Box(low=space.low[0], high=space.high[0], shape=(space.shape[0]*n_agents,))
     elif isinstance(space, gym.spaces.Discrete):
-        return Discrete(n=space.n)
+        return Discrete(n=space.n**n_agents)
     else:
         raise NotImplementedError
 
 
 class RLLabEnv(Env, Serializable):
 
-    def __init__(self, env):
+    def __init__(self, env, mode):
         Serializable.quick_init(self, locals())
 
         self.env = env
@@ -33,8 +33,17 @@ class RLLabEnv(Env, Serializable):
         else:
             self.env_id = 'MA-Wrapper-v0'
 
-        self._observation_space = convert_gym_space(env.agents[0].observation_space)
-        self._action_space = convert_gym_space(env.agents[0].action_space)
+        if mode == 'centralized':
+            obsfeat_space = convert_gym_space(env.agents[0].observation_space, n_agents=len(env.agents))
+            action_space = convert_gym_space(env.agents[0].action_space, n_agents=len(env.agents))
+        elif mode == 'decentralized':
+            obsfeat_space = convert_gym_space(env.agents[0].observation_space, n_agents=1)
+            action_space = convert_gym_space(env.agents[0].action_space, n_agents=1)
+        else:
+            raise NotImplementedError
+
+        self._observation_space = obsfeat_space
+        self._action_space = action_space
         if hasattr(env, 'timestep_limit'):
             self._horizon = env.timestep_limit
         else:
