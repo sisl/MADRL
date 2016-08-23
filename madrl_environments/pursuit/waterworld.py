@@ -4,6 +4,7 @@ from gym import spaces
 from gym.utils import seeding
 
 from madrl_environments import AbstractMAEnv, Agent
+from rltools.util import EzPickle
 
 
 class Archea(Agent):
@@ -26,13 +27,17 @@ class Archea(Agent):
         return spaces.Box(low=-1, high=1, shape=(2,))
 
 
-class MAWaterWorld(AbstractMAEnv):
+class MAWaterWorld(AbstractMAEnv, EzPickle):
 
     def __init__(self, n_pursuers, n_evaders, n_coop=2, n_poison=10, radius=0.015,
                  obstacle_radius=0.2, obstacle_loc=np.array([0.5, 0.5]), ev_speed=0.01,
                  poison_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
                  poison_reward=-1., food_reward=1., encounter_reward=.05, control_penalty=-.5,
                  reward_mech='global', **kwargs):
+        EzPickle.__init__(self, n_pursuers, n_evaders, n_coop, n_poison, radius, obstacle_radius2,
+                          obstacle_loc, ev_speed, poison_speed, n_sensors, sensor_range,
+                          action_scale, poison_reward, food_reward, encounter_reward,
+                          control_penalty, reward_mech, **kwargs)
         self.n_pursuers = n_pursuers
         self.n_evaders = n_evaders
         self.n_coop = n_coop
