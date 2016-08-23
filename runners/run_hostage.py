@@ -149,8 +149,8 @@ def main():
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
                             n_timesteps_min=args.n_timesteps_min,
                             n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
-                            adaptive=args.adaptive_batch, enable_rewnorm=True,
-                            n_workers=args.sampler_workers, mode=args.control)
+                            adaptive=args.adaptive_batch, n_workers=args.sampler_workers,
+                            mode=args.control)
     elif args.sampler == 'imp':
         sampler_cls = ImportanceWeightedSampler
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
