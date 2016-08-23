@@ -209,6 +209,10 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
                 agid])) + self._eps
 
     @property
+    def reward_mech(self):
+        return self._unwrapped.reward_mech
+
+    @property
     def agents(self):
         return self._unwrapped.agents
 
