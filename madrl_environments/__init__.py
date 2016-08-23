@@ -40,6 +40,10 @@ class AbstractMAEnv(object):
         """
         raise NotImplementedError()
 
+    @property
+    def reward_mech(self):
+        raise NotImplementedError()
+
     def reset(self):
         """Resets the game"""
         raise NotImplementedError()
@@ -132,6 +136,10 @@ class ObservationBuffer(AbstractMAEnv):
             aglist.append(WrappedAgent(agent, newobservation_space))
 
         return aglist
+
+    @property
+    def reward_mech(self):
+        return self._unwrapped.reward_mech
 
     def seed(self, seed=None):
         return self._unwrapped.seed(seed)
