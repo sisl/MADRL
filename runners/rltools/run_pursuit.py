@@ -28,7 +28,6 @@ from rltools.samplers.parallel import ParallelSampler
 from rltools.samplers.serial import DecSampler, SimpleSampler
 from runners import get_arch
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--discount', type=float, default=0.95)
@@ -62,6 +61,7 @@ def main():
     parser.add_argument('--sample_maps', action='store_true', default=False)
     parser.add_argument('--map_file', type=str, default='maps/map_pool.npy')
     parser.add_argument('--flatten', action='store_true', default=False)
+    parser.add_argument('--reward_mech', type=str, default='global')
 
     parser.add_argument('--policy_hidden_spec', type=str, default='SIMPLE_CONV_ARCH')
 
@@ -99,7 +99,8 @@ def main():
                        train_pursuit=args.train_pursuit, urgency_reward=args.urgency,
                        surround=args.surround, sample_maps=args.sample_maps,
                        constraint_window=args.constraint_window,
-                       flatten=args.flatten)
+                       flatten=args.flatten,
+                       reward_mech=args.reward_mech)
 
     if args.control == 'centralized':
         obsfeat_space = spaces.Box(low=env.agents[0].observation_space.low[0],
@@ -111,7 +112,6 @@ def main():
     elif args.control == 'decentralized':
         obsfeat_space = env.agents[0].observation_space
         action_space = env.agents[0].action_space
-        env.reward_mech = 'local'
     else:
         raise NotImplementedError()
 
