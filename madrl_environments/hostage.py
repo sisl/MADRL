@@ -3,6 +3,7 @@ import scipy.spatial.distance as ssd
 from gym import spaces
 from gym.utils import seeding
 
+from rltools.util import EzPickle
 from madrl_environments import AbstractMAEnv, Agent
 
 
@@ -26,7 +27,7 @@ class Rescuer(Agent):
         return spaces.Box(low=-10, high=10, shape=(2,))  # x,y
 
 
-class ContinuousHostageWorld(AbstractMAEnv):
+class ContinuousHostageWorld(AbstractMAEnv, EzPickle):
 
     def __init__(self, n_good, n_hostages, n_bad, n_coop_save, n_coop_avoid, radius=0.015,
                  key_loc=None, bad_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
@@ -35,6 +36,10 @@ class ContinuousHostageWorld(AbstractMAEnv):
         """
         The environment consists of a square world with hostages behind gates. One of the good agent has to find the keys only then the gates can be obtained. Once the gates are opened the good agents need to find the hostages to save them. They also need to avoid the bomb and the bad agents. Coming across a bomb terminates the game and gives a large negative reward
         """
+        EzPickle.__init__(self, n_good, n_hostages, n_bad, n_coop_save, n_coop_avoid, radius,
+                          key_loc, bad_speed, n_sensors, sensor_range, action_scale, save_reward,
+                          hit_reward, encounter_reward, bomb_reward, bomb_radius, control_penalty,
+                          reward_mech, **kwargs)
         self.n_good = n_good
         self.n_hostages = n_hostages
         self.n_bad = n_bad
@@ -52,8 +57,16 @@ class ContinuousHostageWorld(AbstractMAEnv):
         self.bomb_reward = bomb_reward
         self.bomb_radius = bomb_radius
         self.control_penalty = control_penalty
-        self.reward_mech = reward_mech
+        self._reward_mech = reward_mech
         self.seed()
+
+    @property
+    def reward_mech(self):
+        return self._reward_mech
+
+    @property
+    def timestep_limit(self):
+        return 2000
 
     @property
     def agents(self):

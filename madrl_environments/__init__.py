@@ -40,6 +40,10 @@ class AbstractMAEnv(object):
         """
         raise NotImplementedError()
 
+    @property
+    def reward_mech(self):
+        raise NotImplementedError()
+
     def reset(self):
         """Resets the game"""
         raise NotImplementedError()
@@ -133,6 +137,10 @@ class ObservationBuffer(AbstractMAEnv):
 
         return aglist
 
+    @property
+    def reward_mech(self):
+        return self._unwrapped.reward_mech
+
     def seed(self, seed=None):
         return self._unwrapped.seed(seed)
 
@@ -199,6 +207,10 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
             self._rew_meansq[agid] = 0.
             self._rew_std[agid] = np.sqrt(self._rew_meansq[agid] - np.square(self._rew_mean[
                 agid])) + self._eps
+
+    @property
+    def reward_mech(self):
+        return self._unwrapped.reward_mech
 
     @property
     def agents(self):
