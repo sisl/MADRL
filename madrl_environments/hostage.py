@@ -56,6 +56,10 @@ class ContinuousHostageWorld(AbstractMAEnv):
         self.seed()
 
     @property
+    def timestep_limit(self):
+        return 2000
+
+    @property
     def agents(self):
         return [Rescuer(self.radius, self.n_sensors, self.sensor_range) for _ in range(self.n_good)]
 

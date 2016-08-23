@@ -61,6 +61,10 @@ class MAWaterWorld(AbstractMAEnv):
         self.seed()
 
     @property
+    def timestep_limit(self):
+        return 1000
+
+    @property
     def agents(self):
         return [Archea(self.radius, self.n_sensors, self.sensor_range)
                 for _ in range(self.n_pursuers)]
