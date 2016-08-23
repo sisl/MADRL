@@ -62,8 +62,12 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         # and output observations for each agent
         # TODO: not sure if the observation shape should include the number of agent.
         # IMHO not
-        self.reward_mech = reward_mech
+        self._reward_mech = reward_mech
         self.seed()
+
+    @property
+    def reward_mech(self):
+        return self._reward_mech
 
     @property
     def timestep_limit(self):

@@ -57,8 +57,12 @@ class ContinuousHostageWorld(AbstractMAEnv, EzPickle):
         self.bomb_reward = bomb_reward
         self.bomb_radius = bomb_radius
         self.control_penalty = control_penalty
-        self.reward_mech = reward_mech
+        self._reward_mech = reward_mech
         self.seed()
+
+    @property
+    def reward_mech(self):
+        return self._reward_mech
 
     @property
     def timestep_limit(self):
