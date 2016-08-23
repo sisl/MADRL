@@ -70,7 +70,7 @@ def main():
     parser.add_argument('--sample_maps', action='store_true', default=False)
     parser.add_argument('--map_file', type=str, default='maps/map_pool.npy')
     parser.add_argument('--flatten', action='store_true', default=False)
-    parser.add_argument('--reward_mech', type=str, default='local')
+    parser.add_argument('--reward_mech', type=str, default='global')
 
     parser.add_argument('--policy_hidden_sizes', type=str, default='128,128')
     parser.add_argument('--baselin_hidden_sizes', type=str, default='128,128')
@@ -118,6 +118,7 @@ def main():
         else:
             raise NotImplementedError()
         map_pool = [env_map]
+
     env = PursuitEvade(map_pool, n_evaders=args.n_evaders, n_pursuers=args.n_pursuers,
                        obs_range=args.obs_range, n_catch=args.n_catch,
                        train_pursuit=args.train_pursuit, urgency_reward=args.urgency,
