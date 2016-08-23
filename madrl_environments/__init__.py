@@ -203,7 +203,7 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
             self._obs_meansq[agid] = np.zeros(self._flatobs_shape[agid])
             self._obs_std[agid] = np.sqrt(self._obs_meansq[agid] - np.square(self._obs_mean[
                 agid])) + self._eps
-            self._rew_mean[agid] = 0.
+            self._rew_mean[agid] = 1.
             self._rew_meansq[agid] = 0.
             self._rew_std[agid] = np.sqrt(self._rew_meansq[agid] - np.square(self._rew_mean[
                 agid])) + self._eps
@@ -238,9 +238,9 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
                 for (obs, obsmean, obsstd) in zip(observation, self._obs_mean, self._obs_std)]
 
     def standardize_rew(self, reward):
-        assert isinstance(reward, list)
+        assert isinstance(reward, (list, np.ndarray))
         self.update_rew_estimate(reward)
-        return [self._scale_reward * (rew - rewmean) / rewstd
+        return [self._scale_reward * rew / rewstd
                 for (rew, rewmean, rewstd) in zip(reward, self._rew_mean, self._rew_std)]
 
     def seed(self, seed=None):
