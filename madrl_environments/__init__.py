@@ -260,6 +260,7 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
         d = EzPickle.__getstate__(self)
         d['_obs_mean'] = self._obs_mean
         d['_obs_meansq'] = self._obs_meansq
+        return d
 
     def __setstate__(self, d):
         EzPickle.__setstate__(self, d)
