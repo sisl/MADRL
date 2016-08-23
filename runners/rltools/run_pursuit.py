@@ -63,10 +63,10 @@ def main():
     parser.add_argument('--flatten', action='store_true', default=False)
     parser.add_argument('--reward_mech', type=str, default='global')
 
-    parser.add_argument('--policy_hidden_spec', type=str, default='SIMPLE_CONV_ARCH')
+    parser.add_argument('--policy_hidden_spec', type=str, default='MED_POLICY_ARCH')
 
     parser.add_argument('--baseline_type', type=str, default='mlp')
-    parser.add_argument('--baseline_hidden_spec', type=str, default='SIMPLE_CONV_ARCH')
+    parser.add_argument('--baseline_hidden_spec', type=str, default='MED_POLICY_ARCH')
 
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--vf_max_kl', type=float, default=0.01)

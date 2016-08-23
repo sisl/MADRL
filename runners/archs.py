@@ -42,6 +42,17 @@ GAE_ARCH = '''[
 ]
 '''
 
+
+MED_POLICY_ARCH = '''[
+        {"type": "fc", "n": 256},
+        {"type": "nonlin", "func": "tanh"},
+        {"type": "fc", "n": 128},
+        {"type": "nonlin", "func": "tanh"},
+        {"type": "fc", "n": 64},
+        {"type": "nonlin", "func": "tanh"}
+    ]
+    '''
+
 LARGE_POLICY_ARCH = '''[
         {"type": "fc", "n": 512},
         {"type": "nonlin", "func": "tanh"},
