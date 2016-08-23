@@ -168,6 +168,7 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
 
     def __init__(self, env, scale_reward=1., enable_obsnorm=False, enable_rewnorm=False,
                  obs_alpha=0.001, rew_alpha=0.001, eps=1e-8):
+        assert env is not None
         EzPickle.__init__(self, env, scale_reward, enable_obsnorm, enable_rewnorm, obs_alpha,
                           rew_alpha, eps)
         self._unwrapped = env
