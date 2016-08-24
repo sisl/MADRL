@@ -91,17 +91,17 @@ def main():
     sensor_range = np.array(map(float, args.sensor_range.split(',')))
     assert sensor_range.shape == (args.n_pursuers,)
 
-    # env = MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
-    #                    radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
-    #                    poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
-    #                    sensor_range=sensor_range, obstacle_loc=None)
+    env = MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
+                       radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
+                       poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
+                       sensor_range=sensor_range, obstacle_loc=None)
 
-    env = StandardizedEnv(
-        MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
-                     radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
-                     poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
-                     sensor_range=sensor_range, obstacle_loc=None), enable_obsnorm=True,
-        enable_rewnorm=True)
+    # env = StandardizedEnv(
+    #     MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
+    #                  radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
+    #                  poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
+    #                  sensor_range=sensor_range, obstacle_loc=None), enable_obsnorm=True,
+    #     enable_rewnorm=True)
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
