@@ -23,9 +23,9 @@ from madrl_environments.pursuit import MAWaterWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
-from rltools.policy.gaussian import GaussianMLPPolicy, GaussianGRUPolicy
+from rltools.policy.gaussian import GaussianMLPPolicy
 
-from runners import get_arch
+from runners.rltools import get_arch
 
 
 def main():
@@ -91,12 +91,17 @@ def main():
     sensor_range = np.array(map(float, args.sensor_range.split(',')))
     assert sensor_range.shape == (args.n_pursuers,)
 
-    env = StandardizedEnv(
-        MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
-                     radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
-                     poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
-                     sensor_range=sensor_range, obstacle_loc=None), enable_obsnorm=True,
-        enable_rewnorm=True)
+    env = MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
+                       radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
+                       poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
+                       sensor_range=sensor_range, obstacle_loc=None)
+
+    # env = StandardizedEnv(
+    #     MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
+    #                  radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
+    #                  poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
+    #                  sensor_range=sensor_range, obstacle_loc=None), enable_obsnorm=True,
+    #     enable_rewnorm=True)
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
@@ -115,18 +120,20 @@ def main():
         action_space = env.agents[0].action_space
 
     if args.recurrent:
-        policy = GaussianGRUPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
-                                   min_stdev=0., init_logstdev=0., state_include_action=False,
-                                   tblog=args.tblog, varscope_name='gaussgru_policy')
+        raise NotImplementedError()
+        # policy = GaussianGRUPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
+        #                            min_stdev=0., init_logstdev=0., state_include_action=False,
+        #                            tblog=args.tblog, varscope_name='gaussgru_policy')
     else:
         policy = GaussianMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
-                                   min_stdev=0., init_logstdev=0., tblog=args.tblog,
-                                   varscope_name='gaussmlp_policy')
+                                   enable_obsnorm=True, min_stdev=0., init_logstdev=0.,
+                                   tblog=args.tblog, varscope_name='gaussmlp_policy')
     if args.baseline_type == 'linear':
-        baseline = LinearFeatureBaseline(obsfeat_space, varscope_name='pursuit_linear_baseline')
+        baseline = LinearFeatureBaseline(obsfeat_space,  # enable_obsnorm=False,
+                                         varscope_name='pursuit_linear_baseline')
     elif args.baseline_type == 'mlp':
-        baseline = MLPBaseline(obsfeat_space, args.baseline_hidden_spec, enable_vnorm=True,
-                               max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
+        baseline = MLPBaseline(obsfeat_space, args.baseline_hidden_spec, enable_obsnorm=True,
+                               enable_vnorm=True, max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
                                time_scale=1. / args.max_traj_len,
                                varscope_name='pursuit_mlp_baseline')
     else:
