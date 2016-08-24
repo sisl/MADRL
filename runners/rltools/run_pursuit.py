@@ -72,7 +72,7 @@ def main():
     parser.add_argument('--vf_max_kl', type=float, default=0.01)
     parser.add_argument('--vf_cg_damping', type=float, default=0.01)
 
-    parser.add_argument('--save_freq', type=int, default=20)
+    parser.add_argument('--save_freq', type=int, default=50)
     parser.add_argument('--log', type=str, required=False)
     parser.add_argument('--tblog', type=str, default='/tmp/madrl_tb')
     parser.add_argument('--debug', dest='debug', action='store_true')

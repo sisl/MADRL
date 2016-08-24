@@ -243,8 +243,8 @@ class PursuitEvade(AbstractMAEnv):
         done = self.is_terminal
 
         if self.reward_mech == 'global':
-            return obslist, [rewards.mean()] * self.n_pursuers, done, None
-        return obslist, rewards, done, None
+            return obslist, [rewards.mean()] * self.n_pursuers, done, {'removed': ev_remove}
+        return obslist, rewards, done, {'removed': ev_remove}
 
     def update_curriculum(self, itr):
         self.constraint_window += (1. / 500.) # 0 to 1 in 500 iterations
