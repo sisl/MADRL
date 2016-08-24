@@ -35,8 +35,8 @@ def phase_train(spec, spec_file, git_hash):
     arg_spec = spec['arguments']
     for alg in train_spec['algorithms']:
         for bline in train_spec['baselines']:
-            for parch in arg_spec['policy_archs']:
-                for barch in arg_spec['baseline_archs']:
+            for parch in train_spec['policy_archs']:
+                for barch in train_spec['baseline_archs']:
                     for rad in arg_spec['radius']:
                         for n_se in arg_spec['n_sensors']:
                             for srange in arg_spec['sensor_ranges']:
@@ -61,8 +61,8 @@ def phase_train(spec, spec_file, git_hash):
                                                                             'rad={},n_se={},srange={},n_ev={},n_pu={},n_co={},n_po={},'.
                                                                             format(rad, n_se,
                                                                                    srange, n_ev,
-                                                                                   n_pu, n_se, n_co,
-                                                                                   n_po) +
+                                                                                   n_pu, n_co, n_po)
+                                                                            +
                                                                             'f_rew={},p_rew={},e_rew={},'.
                                                                             format(f_rew, p_rew,
                                                                                    e_rew) +
