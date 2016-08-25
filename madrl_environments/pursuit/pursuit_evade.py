@@ -162,9 +162,6 @@ class PursuitEvade(AbstractMAEnv):
         return [seed_]
 
     def reset(self):
-        print "Pursuers:", self.n_pursuers
-        print "Evaders:", self.n_evaders
-        print "Catch:", self.catchr
         self.pursuers_gone.fill(False)
         self.evaders_gone.fill(False)
         if self.random_opponents:
