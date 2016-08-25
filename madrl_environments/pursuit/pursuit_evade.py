@@ -113,7 +113,6 @@ class PursuitEvade(AbstractMAEnv):
             self.local_obs = np.zeros(
                 (self.n_pursuers, 4, self.obs_range, self.obs_range))  # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_pursuers)]
-            self.total_agents = self.n_pursuers
         else:
             self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2)])
             self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2)])
@@ -128,7 +127,6 @@ class PursuitEvade(AbstractMAEnv):
             self.local_obs = np.zeros(
                 (self.n_evaders, 4, self.obs_range, self.obs_range))  # Nagents X 3 X xsize X ysize
             self.act_dims = [n_act_purs for i in xrange(self.n_evaders)]
-            self.total_agents = self.n_evaders
         self.pursuers_gone = np.array([False for i in xrange(self.n_pursuers)])
         self.evaders_gone = np.array([False for i in xrange(self.n_evaders)])
 
@@ -138,9 +136,14 @@ class PursuitEvade(AbstractMAEnv):
 
         self.constraint_window = kwargs.pop('constraint_window', 1.0)
 
+        self.curriculum_remove_every = kwargs.pop('curriculum_remove_every', 500)
+        self.curriculum_constrain_rate = kwargs.pop('curriculum_constrain_rate', 0.0)
+        self.curriculum_turn_off_shaping = kwargs.pop('curriculum_turn_off_shaping', np.inf)
+
         self.surround_mask = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
 
         self.model_state = np.zeros((4,) + map_matrix.shape, dtype=np.float32)
+
 
     #################################################################
     # The functions below are the interface with MultiAgentSiulator # 
@@ -159,6 +162,9 @@ class PursuitEvade(AbstractMAEnv):
         return [seed_]
 
     def reset(self):
+        print "Pursuers:", self.n_pursuers
+        print "Evaders:", self.n_evaders
+        print "Catch:", self.catchr
         self.pursuers_gone.fill(False)
         self.evaders_gone.fill(False)
         if self.random_opponents:
@@ -175,14 +181,17 @@ class PursuitEvade(AbstractMAEnv):
         ylb, yub = int(self.ys * y_window_start), int(self.ys * (y_window_start + self.constraint_window))
         constraints = [[xlb, xub], [ylb, yub]]
 
-        self.pursuer_layer = AgentLayer(self.xs, self.ys,
-                                        agent_utils.create_agents(self.n_pursuers, self.map_matrix,
-                                                                  self.obs_range, randinit=True,
-                                                                  constraints=constraints))
-        self.evader_layer = AgentLayer(self.xs, self.ys,
-                                       agent_utils.create_agents(self.n_evaders, self.map_matrix,
-                                                                 self.obs_range, randinit=True,
-                                                                 constraints=constraints))
+
+        self.pursuers = agent_utils.create_agents(self.n_pursuers, self.map_matrix,
+                                                 self.obs_range, randinit=True,
+                                                 constraints=constraints) 
+        self.pursuer_layer = AgentLayer(self.xs, self.ys, self.pursuers)
+
+        self.evaders = agent_utils.create_agents(self.n_evaders, self.map_matrix,
+                                                 self.obs_range, randinit=True,
+                                                 constraints=constraints)
+        self.evader_layer = AgentLayer(self.xs, self.ys, self.evaders)
+
         self.model_state[0] = self.map_matrix
         self.model_state[1] = self.pursuer_layer.get_state_matrix()
         self.model_state[2] = self.evader_layer.get_state_matrix()
@@ -247,8 +256,14 @@ class PursuitEvade(AbstractMAEnv):
         return obslist, rewards, done, {'removed': ev_remove}
 
     def update_curriculum(self, itr):
-        self.constraint_window += (1. / 500.) # 0 to 1 in 500 iterations
+        self.constraint_window += self.curriculum_constrain_rate # 0 to 1 in 500 iterations
         self.constraint_window = np.clip(self.constraint_window, 0.0, 1.0)
+        # remove agents every 10 iter?
+        if itr != 0 and itr % self.curriculum_remove_every == 0 and self.n_pursuers > 4:
+            self.n_evaders -= 1
+            self.n_pursuers -= 1
+        if itr > self.curriculum_turn_off_shaping:
+            self.catchr = 0.0
 
     def render(self, plt_delay=1.0):
         plt.matshow(self.model_state[0].T, cmap=plt.get_cmap('Greys'), fignum=1)
@@ -273,7 +288,7 @@ class PursuitEvade(AbstractMAEnv):
         plt.pause(plt_delay)
         plt.clf()
 
-    def animate(self, act_fn, nsteps, file_name, rate=1.5):
+    def animate(self, act_fn, nsteps, file_name, rate=1.5, verbose=False):
         """
             Save an animation to an mp4 file.
         """
@@ -284,13 +299,18 @@ class PursuitEvade(AbstractMAEnv):
         temp_name = join(file_path, "temp_0.png")
         # generate .pngs
         self.save_image(temp_name)
+        removed = 0
         for i in xrange(nsteps):
             a = act_fn(o)
-            o, r, done, _ = self.step(a)
+            o, r, done, info = self.step(a)
             temp_name = join(file_path, "temp_" + str(i + 1) + ".png")
             self.save_image(temp_name)
+            removed += info['removed']
+            if verbose:
+                print r, info
             if done:
                 break
+        if verbose: print "Total removed:", removed
         # use ffmpeg to create .pngs to .mp4 movie
         ffmpeg_cmd = "ffmpeg -framerate " + str(rate) + " -i " + join(
             file_path, "temp_%d.png") + " -c:v libx264 -pix_fmt yuv420p " + file_name
@@ -367,7 +387,7 @@ class PursuitEvade(AbstractMAEnv):
     def collect_obs(self, agent_layer, gone_flags):
         obs = []
         nage = 0
-        for i in xrange(self.total_agents):
+        for i in xrange(self.n_agents()):
             if gone_flags[i]:
                 obs.append(None)
             else:
@@ -386,11 +406,11 @@ class PursuitEvade(AbstractMAEnv):
 
         self.local_obs[agent_idx, 0:3, xolo:xohi, yolo:yohi] = np.abs(
                                                     self.model_state[0:3, xlo:xhi, ylo:yhi]) / self.layer_norm
-        self.local_obs[agent_idx, 3, self.obs_range/2, self.obs_range/2] = float(agent_idx) / self.total_agents
+        self.local_obs[agent_idx, 3, self.obs_range/2, self.obs_range/2] = float(agent_idx) / self.n_agents()
         if self.flatten:
             o = self.local_obs[agent_idx][0:3].flatten() 
             if self.include_id:
-                o = np.append(o, float(agent_idx) / self.total_agents)
+                o = np.append(o, float(agent_idx) / self.n_agents())
             return o
         return self.local_obs[agent_idx]
 

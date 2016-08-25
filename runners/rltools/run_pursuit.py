@@ -62,6 +62,9 @@ def main():
     parser.add_argument('--map_file', type=str, default='maps/map_pool.npy')
     parser.add_argument('--flatten', action='store_true', default=False)
     parser.add_argument('--reward_mech', type=str, default='global')
+    parser.add_argument('--cur_remove', type=int, default=100)
+    parser.add_argument('--cur_const_rate', type=float, default=0.0)
+    parser.add_argument('--cur_shaping', type=int, default=np.inf)
 
     parser.add_argument('--policy_hidden_spec', type=str, default='MED_POLICY_ARCH')
 
@@ -100,7 +103,10 @@ def main():
                        surround=args.surround, sample_maps=args.sample_maps,
                        constraint_window=args.constraint_window,
                        flatten=args.flatten,
-                       reward_mech=args.reward_mech)
+                       reward_mech=args.reward_mech,
+                       curriculum_remove_every=args.cur_remove,
+                       curriculum_constrain_rate=args.cur_const_rate,
+                       curriculum_turn_off_shaping=args.cur_shaping)
 
     if args.control == 'centralized':
         obsfeat_space = spaces.Box(low=env.agents[0].observation_space.low[0],
