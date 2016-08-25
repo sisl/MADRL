@@ -16,14 +16,17 @@ from utils import agent_utils
 from utils.AgentLayer import AgentLayer
 from utils.Controllers import RandomPolicy
 
+from rltools.util import EzPickle
+
 #################################################################
 # Implements an Evade Pursuit Problem in 2D
 #################################################################
 
 
-class PursuitEvade(AbstractMAEnv):
+class PursuitEvade(AbstractMAEnv, EzPickle):
 
     def __init__(self, map_pool, **kwargs):
+        EzPickle.__init__(self, **kwargs)
         """
         In evade purusit a set of pursuers must 'tag' a set of evaders
         Required arguments:
@@ -375,6 +378,21 @@ class PursuitEvade(AbstractMAEnv):
 
     def update_opponent_controller(self, controller):
         self.opponent_controller = controller
+
+    def __getstate__(self):
+        d = EzPickle.__getstate__(self)
+        d['constraint_window'] = self.constraint_window
+        d['n_evaders'] = self.n_evaders
+        d['n_pursuers'] = self.n_pursuers
+        d['catchr'] = self.catchr
+
+    def __setstate__(self, d):
+        # curriculum update attributes here for parallel sampler
+        EzPickle.__setstate__(self, d)
+        self.constraint_window = d['constraint_window']
+        self.n_evaders = d['n_evaders']
+        self.n_pursuers = d['n_pursuers']
+        self.catchr = d['catchr']
 
     #################################################################
 
