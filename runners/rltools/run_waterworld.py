@@ -8,6 +8,7 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import json
+import uuid
 
 import numpy as np
 import tensorflow as tf
@@ -62,6 +63,7 @@ def main():
     parser.add_argument('--food_reward', type=float, default=3)
     parser.add_argument('--poison_reward', type=float, default=-1)
     parser.add_argument('--encounter_reward', type=float, default=0.05)
+    parser.add_argument('--reward_mech', type=str, default='local')
 
     parser.add_argument('--recurrent', action='store_true', default=False)
     parser.add_argument('--policy_hidden_spec', type=str, default='GAE_ARCH')
@@ -75,7 +77,7 @@ def main():
 
     parser.add_argument('--save_freq', type=int, default=20)
     parser.add_argument('--log', type=str, required=False)
-    parser.add_argument('--tblog', type=str, default='/tmp/madrl_tb')
+    parser.add_argument('--tblog', type=str, default='/tmp/madrl_tb_{}'.format(uuid.uuid4()))
     parser.add_argument('--debug', dest='debug', action='store_true')
     parser.add_argument('--no-debug', dest='debug', action='store_false')
     parser.set_defaults(debug=True)
@@ -89,12 +91,15 @@ def main():
     args.baseline_hidden_spec = get_arch(args.baseline_hidden_spec)
 
     sensor_range = np.array(map(float, args.sensor_range.split(',')))
-    assert sensor_range.shape == (args.n_pursuers,)
+    if len(sensor_range) == 1:
+        sensor_range = sensor_range[0]
+    else:
+        assert sensor_range.shape == (args.n_pursuers,)
 
     env = MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
                        radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
                        poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
-                       sensor_range=sensor_range, obstacle_loc=None)
+                       reward_mech=args.reward_mech, sensor_range=sensor_range, obstacle_loc=None)
 
     # env = StandardizedEnv(
     #     MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
@@ -129,7 +134,7 @@ def main():
                                    enable_obsnorm=True, min_stdev=0., init_logstdev=0.,
                                    tblog=args.tblog, varscope_name='gaussmlp_policy')
     if args.baseline_type == 'linear':
-        baseline = LinearFeatureBaseline(obsfeat_space,  # enable_obsnorm=False,
+        baseline = LinearFeatureBaseline(obsfeat_space, enable_obsnorm=False,
                                          varscope_name='pursuit_linear_baseline')
     elif args.baseline_type == 'mlp':
         baseline = MLPBaseline(obsfeat_space, args.baseline_hidden_spec, enable_obsnorm=True,

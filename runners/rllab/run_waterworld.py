@@ -20,17 +20,21 @@ import tensorflow as tf
 from gym import spaces
 
 from madrl_environments.pursuit import MAWaterWorld
-from madrl_environments import StandardizedEnv
+from madrl_environments import StandardizedEnv, ObservationBuffer
 from rllabwrapper import RLLabEnv
 
 from rllab.algos.trpo import TRPO
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
+from rllab.baselines.gaussian_mlp_baseline import GaussianMLPBaseline
+from rllab.baselines.zero_baseline import ZeroBaseline
 from rllab.envs.normalized_env import normalize
 from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from rllab.policies.gaussian_gru_policy import GaussianGRUPolicy
 from rllab.sampler import parallel_sampler
 import rllab.misc.logger as logger
+from rllab.misc.ext import set_seed
 from rllab import config
+
 
 def main():
     now = datetime.datetime.now(dateutil.tz.tzlocal())
@@ -39,8 +43,8 @@ def main():
     default_exp_name = 'experiment_%s_%s' % (timestamp, rand_id)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--exp_name', type=str, default=default_exp_name, help='Name of the experiment.')
+    parser.add_argument('--exp_name', type=str, default=default_exp_name,
+                        help='Name of the experiment.')
 
     parser.add_argument('--discount', type=float, default=0.95)
     parser.add_argument('--gae_lambda', type=float, default=0.99)
@@ -49,9 +53,10 @@ def main():
     parser.add_argument('--sampler_workers', type=int, default=1)
     parser.add_argument('--max_traj_len', type=int, default=250)
     parser.add_argument('--update_curriculum', action='store_true', default=False)
-    parser.add_argument('--n_timesteps', type=int, default=8000)
-    parser.add_argument('--control', type=str, default='centralized')
 
+    parser.add_argument('--n_timesteps', type=int, default=8000)
+
+    parser.add_argument('--control', type=str, default='centralized')
     parser.add_argument('--buffer_size', type=int, default=1)
     parser.add_argument('--radius', type=float, default=0.015)
     parser.add_argument('--n_evaders', type=int, default=5)
@@ -63,11 +68,12 @@ def main():
     parser.add_argument('--food_reward', type=float, default=3)
     parser.add_argument('--poison_reward', type=float, default=-1)
     parser.add_argument('--encounter_reward', type=float, default=0.05)
+    parser.add_argument('--reward_mech', type=str, default='local')
 
     parser.add_argument('--recurrent', action='store_true', default=False)
     parser.add_argument('--baseline_type', type=str, default='linear')
     parser.add_argument('--policy_hidden_sizes', type=str, default='128,128')
-    parser.add_argument('--baselin_hidden_sizes', type=str, default='128,128')
+    parser.add_argument('--baseline_hidden_sizes', type=str, default='128,128')
 
     parser.add_argument('--max_kl', type=float, default=0.01)
 
@@ -78,18 +84,16 @@ def main():
                         help='Name of the text log file (in pure text).')
     parser.add_argument('--params_log_file', type=str, default='params.json',
                         help='Name of the parameter log file (in json).')
-    parser.add_argument('--seed', type=int,
-                        help='Random seed for numpy')
-    parser.add_argument('--args_data', type=str,
-                        help='Pickled data for stub objects')
+    parser.add_argument('--seed', type=int, help='Random seed for numpy')
+    parser.add_argument('--args_data', type=str, help='Pickled data for stub objects')
     parser.add_argument('--snapshot_mode', type=str, default='all',
                         help='Mode to save the snapshot. Can be either "all" '
-                             '(all iterations will be saved), "last" (only '
-                             'the last iteration will be saved), or "none" '
-                             '(do not save snapshots)')
-    parser.add_argument('--log_tabular_only', type=ast.literal_eval, default=False,
-                        help='Whether to only print the tabular log information (in a horizontal format)')
-
+                        '(all iterations will be saved), "last" (only '
+                        'the last iteration will be saved), or "none" '
+                        '(do not save snapshots)')
+    parser.add_argument(
+        '--log_tabular_only', type=ast.literal_eval, default=False,
+        help='Whether to only print the tabular log information (in a horizontal format)')
 
     args = parser.parse_args()
 
@@ -104,12 +108,15 @@ def main():
     centralized = True if args.control == 'centralized' else False
 
     sensor_range = np.array(map(float, args.sensor_range.split(',')))
-    assert sensor_range.shape == (args.n_pursuers,)
+    if len(sensor_range) == 1:
+        sensor_range = sensor_range[0]
+    else:
+        assert sensor_range.shape == (args.n_pursuers,)
 
     env = MAWaterWorld(args.n_pursuers, args.n_evaders, args.n_coop, args.n_poison,
                        radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
                        poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
-                       sensor_range=sensor_range, obstacle_loc=None)
+                       reward_mech=args.reward_mech, sensor_range=sensor_range, obstacle_loc=None)
 
     env = RLLabEnv(StandardizedEnv(env), mode=args.control)
 
@@ -117,14 +124,19 @@ def main():
         env = ObservationBuffer(env, args.buffer_size)
 
     if args.recurrent:
-        policy = GaussianGRUPolicy(env_spec=env.spec, hidden_sizes=args.hidden_sizes)
+        policy = GaussianGRUPolicy(
+            env_spec=env.spec, hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))))
     else:
-        policy = GaussianMLPPolicy(env_spec=env.spec, hidden_sizes=args.hidden_sizes)
+        policy = GaussianMLPPolicy(
+            env_spec=env.spec, hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))))
 
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(env_spec=env.spec)
+    elif args.baseline_type == 'mlp':
+        baseline = GaussianMLPBaseline(
+            env_spec=env.spec, hidden_sizes=tuple(map(int, args.baseline_hidden_sizes.split(','))))
     else:
-        baseline = ZeroBaseline(obsfeat_space)
+        baseline = ZeroBaseline(env_spec=env.spec)
 
     # logger
     default_log_dir = config.LOG_DIR
@@ -147,17 +159,17 @@ def main():
     logger.push_prefix("[%s] " % args.exp_name)
 
     algo = TRPO(env=env,
-            policy=policy,
-            baseline=baseline,
-            batch_size=args.n_timesteps,
-            max_path_length=args.max_traj_len,
-            n_itr=args.n_iter,
-            discount=args.discount,
-            step_size=args.max_kl,
-            mode=args.control,)
+                policy=policy,
+                baseline=baseline,
+                batch_size=args.n_timesteps,
+                max_path_length=args.max_traj_len,
+                n_itr=args.n_iter,
+                discount=args.discount,
+                gae_lambda=args.gae_lambda,
+                step_size=args.max_kl,
+                mode=args.control,)
 
     algo.train()
-
 
 
 if __name__ == '__main__':
