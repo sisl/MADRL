@@ -8,6 +8,8 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import json
+import h5py
+import pprint
 
 import gym
 import numpy as np
@@ -80,6 +82,7 @@ def main():
     parser.add_argument('--tblog', type=str, default='/tmp/madrl_tb')
     parser.add_argument('--debug', dest='debug', action='store_true')
     parser.add_argument('--no-debug', dest='debug', action='store_false')
+    parser.add_argument('--load_checkpoint', type=str, default='')
     parser.set_defaults(debug=True)
 
     args = parser.parse_args()
@@ -121,9 +124,22 @@ def main():
     else:
         raise NotImplementedError()
 
-    policy = CategoricalMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
-                                  enable_obsnorm=True, tblog=args.tblog,
-                                  varscope_name='pursuit_catmlp_policy')
+
+    if args.load_checkpoint is not 'none':
+        filename, file_key = rltools.util.split_h5_name(args.load_checkpoint)
+        print('Loading parameters from {} in {}'.format(file_key, filename))
+        with h5py.File(filename, 'r') as f:
+            train_args = json.loads(f.attrs['args'])
+            dset = f[file_key]
+
+            pprint.pprint(dict(dset.attrs))
+        policy = CategoricalMLPPolicy(obsfeat_space, action_space,
+                                      hidden_spec=train_args['policy_hidden_spec'], enable_obsnorm=True,
+                                      tblog=train_args['tblog'], varscope_name='pursuit_catmlp_policy')
+    else: 
+        policy = CategoricalMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
+                                      enable_obsnorm=True, tblog=args.tblog,
+                                      varscope_name='pursuit_catmlp_policy')
 
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(obsfeat_space, enable_obsnorm=True,
@@ -171,6 +187,8 @@ def main():
 
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
+        if args.load_checkpoint is not '':
+            policy.load_h5(sess, filename, file_key) 
         popt.train(sess, log_f, args.save_freq)
 
 
