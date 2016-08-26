@@ -165,7 +165,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         return [seed_]
 
     def reset(self):
-        print "Check:", self.n_evaders, self.n_pursuers, self.catchr
+        #print "Check:", self.n_evaders, self.n_pursuers, self.catchr
         self.pursuers_gone.fill(False)
         self.evaders_gone.fill(False)
         if self.random_opponents:
