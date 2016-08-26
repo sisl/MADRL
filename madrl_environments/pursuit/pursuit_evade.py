@@ -26,7 +26,7 @@ from rltools.util import EzPickle
 class PursuitEvade(AbstractMAEnv, EzPickle):
 
     def __init__(self, map_pool, **kwargs):
-        EzPickle.__init__(self, **kwargs)
+        EzPickle.__init__(self, map_pool, **kwargs)
         """
         In evade purusit a set of pursuers must 'tag' a set of evaders
         Required arguments:
@@ -165,6 +165,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         return [seed_]
 
     def reset(self):
+        print "Check:", self.n_evaders, self.n_pursuers, self.catchr
         self.pursuers_gone.fill(False)
         self.evaders_gone.fill(False)
         if self.random_opponents:
@@ -385,6 +386,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         d['n_evaders'] = self.n_evaders
         d['n_pursuers'] = self.n_pursuers
         d['catchr'] = self.catchr
+        return d
 
     def __setstate__(self, d):
         # curriculum update attributes here for parallel sampler
