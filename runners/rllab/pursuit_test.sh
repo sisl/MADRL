@@ -1,0 +1,1 @@
+python run_pursuit.py --log_dir pursuit_gru32_test --n_iter 500 --n_evaders 5 --n_pursuers 4 --control decentralized --n_timesteps 30000 --obs_range 5 --map_type complex --rectangle 10,10 --policy_hidden_sizes 64,64 --flatten --surround --reward_mech local
