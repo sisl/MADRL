@@ -23,13 +23,19 @@ from madrl_environments.pursuit import MAWaterWorld
 from madrl_environments import StandardizedEnv, ObservationBuffer
 from rllabwrapper import RLLabEnv
 
-from rllab.algos.trpo import TRPO
+from sandbox.rocky.tf.algos.trpo import TRPO
+from sandbox.rocky.tf.envs.base import TfEnv
+from sandbox.rocky.tf.envs.gaussian_mlp_policy import GaussianMLPPolicy
+from sandbox.rocky.tf.policies.gaussian_gru_policy import GaussianGRUPolicy
+from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
+
+# from rllab.algos.trpo import TRPO
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-from rllab.baselines.gaussian_mlp_baseline import GaussianMLPBaseline
+# from rllab.baselines.gaussian_mlp_baseline import GaussianMLPBaseline
 from rllab.baselines.zero_baseline import ZeroBaseline
-from rllab.envs.normalized_env import normalize
-from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
-from rllab.policies.gaussian_gru_policy import GaussianGRUPolicy
+# from rllab.envs.normalized_env import normalize
+# from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
+# from rllab.policies.gaussian_gru_policy import GaussianGRUPolicy
 from rllab.sampler import parallel_sampler
 import rllab.misc.logger as logger
 from rllab.misc.ext import set_seed
@@ -118,14 +124,18 @@ def main():
                        poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
                        reward_mech=args.reward_mech, sensor_range=sensor_range, obstacle_loc=None)
 
-    env = RLLabEnv(StandardizedEnv(env), mode=args.control)
+    env = TfEnv(RLLabEnv(StandardizedEnv(env), mode=args.control))
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
 
     if args.recurrent:
         policy = GaussianGRUPolicy(
-            env_spec=env.spec, hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))))
+            env_spec=env.spec,
+            hidden_dim=int(
+                args.policy_hidden_sizes)  # tuple(map(int, args.policy_hidden_sizes.split(',')))
+            ,
+            name='policy')
     else:
         policy = GaussianMLPPolicy(
             env_spec=env.spec, hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))))
@@ -133,8 +143,9 @@ def main():
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(env_spec=env.spec)
     elif args.baseline_type == 'mlp':
-        baseline = GaussianMLPBaseline(
-            env_spec=env.spec, hidden_sizes=tuple(map(int, args.baseline_hidden_sizes.split(','))))
+        raise NotImplementedError()
+        # baseline = GaussianMLPBaseline(
+        #     env_spec=env.spec, hidden_sizes=tuple(map(int, args.baseline_hidden_sizes.split(','))))
     else:
         baseline = ZeroBaseline(env_spec=env.spec)
 
@@ -158,16 +169,19 @@ def main():
     logger.set_log_tabular_only(args.log_tabular_only)
     logger.push_prefix("[%s] " % args.exp_name)
 
-    algo = TRPO(env=env,
-                policy=policy,
-                baseline=baseline,
-                batch_size=args.n_timesteps,
-                max_path_length=args.max_traj_len,
-                n_itr=args.n_iter,
-                discount=args.discount,
-                gae_lambda=args.gae_lambda,
-                step_size=args.max_kl,
-                mode=args.control,)
+    algo = TRPO(
+        env=env,
+        policy=policy,
+        baseline=baseline,
+        batch_size=args.n_timesteps,
+        max_path_length=args.max_traj_len,
+        n_itr=args.n_iter,
+        discount=args.discount,
+        gae_lambda=args.gae_lambda,
+        step_size=args.max_kl,
+        optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
+        args.recurrent else None,
+        mode=args.control,)
 
     algo.train()
 
