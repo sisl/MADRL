@@ -25,7 +25,7 @@ from rllabwrapper import RLLabEnv
 
 from sandbox.rocky.tf.algos.trpo import TRPO
 from sandbox.rocky.tf.envs.base import TfEnv
-from sandbox.rocky.tf.envs.gaussian_mlp_policy import GaussianMLPPolicy
+from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from sandbox.rocky.tf.policies.gaussian_gru_policy import GaussianGRUPolicy
 from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
 
