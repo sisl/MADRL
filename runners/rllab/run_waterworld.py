@@ -27,6 +27,7 @@ from sandbox.rocky.tf.algos.trpo import TRPO
 from sandbox.rocky.tf.envs.base import TfEnv
 from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from sandbox.rocky.tf.policies.gaussian_gru_policy import GaussianGRUPolicy
+from sandbox.rocky.tf.policies.gaussian_lstm_policy import GaussianLSTMPolicy
 from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
 
 # from rllab.algos.trpo import TRPO
@@ -77,7 +78,7 @@ def main():
     parser.add_argument('--encounter_reward', type=float, default=0.05)
     parser.add_argument('--reward_mech', type=str, default='local')
 
-    parser.add_argument('--recurrent', action='store_true', default=False)
+    parser.add_argument('--recurrent', type=str, default=None)
     parser.add_argument('--baseline_type', type=str, default='linear')
     parser.add_argument('--policy_hidden_sizes', type=str, default='128,128')
     parser.add_argument('--baseline_hidden_sizes', type=str, default='128,128')
@@ -131,12 +132,17 @@ def main():
         env = ObservationBuffer(env, args.buffer_size)
 
     if args.recurrent:
-        policy = GaussianGRUPolicy(
-            env_spec=env.spec,
-            hidden_dim=int(
-                args.policy_hidden_sizes)  # tuple(map(int, args.policy_hidden_sizes.split(',')))
-            ,
-            name='policy')
+        if args.recurrent == 'gru':
+            policy = GaussianGRUPolicy(
+                env_spec=env.spec,
+                hidden_dim=int(
+                    args.
+                    policy_hidden_sizes)  # tuple(map(int, args.policy_hidden_sizes.split(',')))
+                ,
+                name='policy')
+        elif args.recurrent == 'lstm':
+            policy = GaussianLSTMPolicy(env_spec=env.spec, hidden_dim=int(args.policy_hidden_sizes),
+                                        name='policy')
     else:
         policy = GaussianMLPPolicy(
             env_spec=env.spec, hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))))
