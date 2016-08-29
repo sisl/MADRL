@@ -239,7 +239,7 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
     def standardize_rew(self, reward):
         assert isinstance(reward, (list, np.ndarray))
         self.update_rew_estimate(reward)
-        return [self._scale_reward * rew / (np.sqrt(rewvar) + self._eps)
+        return [rew / (np.sqrt(rewvar) + self._eps)
                 for (rew, rewmean, rewvar) in zip(reward, self._rew_mean, self._rew_var)]
 
     def seed(self, seed=None):
@@ -259,6 +259,7 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
         if self._enable_rewnorm:
             rewardlist = self.standardize_rew(rewardlist)
 
+        rewardlist = [self._scale_reward * rew for rew in rewardlist]
         return nobslist, rewardlist, done, info
 
     def __getstate__(self):

@@ -54,6 +54,7 @@ def main():
 
     parser.add_argument('--discount', type=float, default=0.95)
     parser.add_argument('--gae_lambda', type=float, default=0.99)
+    parser.add_argument('--reward_scale', type=float, default=1.0)
 
     parser.add_argument('--n_iter', type=int, default=250)
     parser.add_argument('--sampler_workers', type=int, default=1)
@@ -124,7 +125,7 @@ def main():
                        poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
                        reward_mech=args.reward_mech, sensor_range=sensor_range, obstacle_loc=None)
 
-    env = TfEnv(RLLabEnv(StandardizedEnv(env), mode=args.control))
+    env = TfEnv(RLLabEnv(StandardizedEnv(env, scale_reward=args.reward_scale), mode=args.control))
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
