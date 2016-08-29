@@ -25,6 +25,7 @@ from rllabwrapper import RLLabEnv
 
 from sandbox.rocky.tf.algos.trpo import TRPO
 from sandbox.rocky.tf.envs.base import TfEnv
+from sandbox.rocky.tf.core.network import MLP
 from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from sandbox.rocky.tf.policies.gaussian_gru_policy import GaussianGRUPolicy
 from sandbox.rocky.tf.policies.gaussian_lstm_policy import GaussianLSTMPolicy
@@ -67,13 +68,13 @@ def main():
     parser.add_argument('--control', type=str, default='centralized')
     parser.add_argument('--buffer_size', type=int, default=1)
     parser.add_argument('--radius', type=float, default=0.015)
-    parser.add_argument('--n_evaders', type=int, default=5)
-    parser.add_argument('--n_pursuers', type=int, default=3)
+    parser.add_argument('--n_evaders', type=int, default=10)
+    parser.add_argument('--n_pursuers', type=int, default=8)
     parser.add_argument('--n_poison', type=int, default=10)
-    parser.add_argument('--n_coop', type=int, default=2)
+    parser.add_argument('--n_coop', type=int, default=4)
     parser.add_argument('--n_sensors', type=int, default=30)
-    parser.add_argument('--sensor_range', type=str, default='0.2,0.2,0.2')
-    parser.add_argument('--food_reward', type=float, default=3)
+    parser.add_argument('--sensor_range', type=str, default='0.2')
+    parser.add_argument('--food_reward', type=float, default=5)
     parser.add_argument('--poison_reward', type=float, default=-1)
     parser.add_argument('--encounter_reward', type=float, default=0.05)
     parser.add_argument('--reward_mech', type=str, default='local')
@@ -126,23 +127,26 @@ def main():
                        poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
                        reward_mech=args.reward_mech, sensor_range=sensor_range, obstacle_loc=None)
 
-    env = TfEnv(RLLabEnv(StandardizedEnv(env, scale_reward=args.reward_scale), mode=args.control))
+    env = TfEnv(
+        RLLabEnv(
+            StandardizedEnv(env, scale_reward=args.reward_scale, enable_obsnorm=True),
+            mode=args.control))
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
 
     if args.recurrent:
+        feature_network = MLP(
+            name='feature_net',
+            input_shape=(env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
+            output_dim=16, hidden_sizes=(128, 64, 32), hidden_nonlinearity=tf.nn.tanh,
+            output_nonlinearity=None)
         if args.recurrent == 'gru':
-            policy = GaussianGRUPolicy(
-                env_spec=env.spec,
-                hidden_dim=int(
-                    args.
-                    policy_hidden_sizes)  # tuple(map(int, args.policy_hidden_sizes.split(',')))
-                ,
-                name='policy')
+            policy = GaussianGRUPolicy(env_spec=env.spec, feature_network=feature_network,
+                                       hidden_dim=int(args.policy_hidden_sizes), name='policy')
         elif args.recurrent == 'lstm':
-            policy = GaussianLSTMPolicy(env_spec=env.spec, hidden_dim=int(args.policy_hidden_sizes),
-                                        name='policy')
+            policy = GaussianLSTMPolicy(env_spec=env.spec, feature_network=feature_network,
+                                        hidden_dim=int(args.policy_hidden_sizes), name='policy')
     else:
         policy = GaussianMLPPolicy(
             env_spec=env.spec, hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))))
