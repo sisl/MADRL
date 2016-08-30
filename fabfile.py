@@ -34,11 +34,14 @@ def githash():
     git_hash = local('git rev-parse HEAD', capture=True)
     return git_hash
 
+@task
+def sync():
+    rsync_project(remote_dir=os.path.split(MADRL_LOC)[0], exclude=['*.h5'])
 
 @task(alias='pipe')
 def runpipeline(script, fname):
     git_hash = githash()
-    rsync_project(remote_dir=os.path.split(MADRL_LOC)[0], exclude=['*.h5'])
+    sync()
     pipetm = Tmux('pipeline')
     pipetm.run('export PYTHONPATH={}:{}'.format(RLTOOLS_LOC, MADRL_LOC))
     pipetm.run('cd {}'.format(MADRL_LOC))

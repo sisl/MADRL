@@ -206,7 +206,8 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         return sensed_objspeedfeatures_Np_K
 
     def step(self, action_Np2):
-        action_Np_2 = action_Np2.reshape(self.n_pursuers, 2)
+        action_Np2 = np.asarray(action_Np2)
+        action_Np_2 = action_Np2.reshape((self.n_pursuers, 2))
         # Players
         actions_Np_2 = action_Np_2 * self.action_scale
 
