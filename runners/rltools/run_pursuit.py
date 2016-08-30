@@ -67,6 +67,8 @@ def main():
     parser.add_argument('--cur_remove', type=int, default=100)
     parser.add_argument('--cur_const_rate', type=float, default=0.0)
     parser.add_argument('--cur_shaping', type=int, default=np.inf)
+    parser.add_argument('--catchr', type=float, default=0.1)
+    parser.add_argument('--term_pursuit', type=float, default=5.0)
 
     parser.add_argument('--policy_hidden_spec', type=str, default='MED_POLICY_ARCH')
 
@@ -109,7 +111,9 @@ def main():
                        reward_mech=args.reward_mech,
                        curriculum_remove_every=args.cur_remove,
                        curriculum_constrain_rate=args.cur_const_rate,
-                       curriculum_turn_off_shaping=args.cur_shaping)
+                       curriculum_turn_off_shaping=args.cur_shaping,
+                       catchr=args.catchr,
+                       term_pursuit=args.term_pursuit)
 
     if args.control == 'centralized':
         obsfeat_space = spaces.Box(low=env.agents[0].observation_space.low[0],
