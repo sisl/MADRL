@@ -70,6 +70,8 @@ def main():
     parser.add_argument('--map_file', type=str, default='../maps/map_pool.npy')
     parser.add_argument('--flatten', action='store_true', default=False)
     parser.add_argument('--reward_mech', type=str, default='global')
+    parser.add_argument('--catchr', type=float, default=0.1)
+    parser.add_argument('--term_pursuit', type=float, default=5.0)
 
     parser.add_argument('--recurrent', action='store_true', default=False)
     parser.add_argument('--policy_hidden_sizes', type=str, default='128,128')
@@ -125,7 +127,9 @@ def main():
                        surround=args.surround, sample_maps=args.sample_maps,
                        constraint_window=args.constraint_window,
                        flatten=args.flatten,
-                       reward_mech=args.reward_mech)
+                       reward_mech=args.reward_mech,
+                       catchr=args.catchr,
+                       term_pursuit=args.term_pursuit)
 
     env = RLLabEnv(StandardizedEnv(env), mode=args.control)
 
