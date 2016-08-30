@@ -70,7 +70,7 @@ def main():
         obsfeat_space = env.agents[0].observation_space
         action_space = env.agents[0].action_space
 
-    policy = GaussianMLPPolicy(env.observation_space, env.action_space,
+    policy = GaussianMLPPolicy(obsfeat_space, action_space,
                                hidden_spec=train_args['policy_hidden_spec'], enable_obsnorm=True,
                                min_stdev=0., init_logstdev=0., tblog=train_args['tblog'],
                                varscope_name='gaussmlp_policy')
@@ -80,8 +80,8 @@ def main():
         policy.load_h5(sess, filename, file_key)
 
         rew = env.animate(
-            act_fn=lambda o: policy.sample_actions(sess, o[None, ...], deterministic=args.deterministic),
-            nsteps=args.n_steps, file_name=args.vid)
+            act_fn=lambda o: policy.sample_actions(o[None, ...], deterministic=args.deterministic)[0],
+            nsteps=args.n_steps)
         print(rew)
 
 

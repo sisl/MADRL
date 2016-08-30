@@ -187,10 +187,8 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
         self._eps = eps
         self._flatobs_shape = [None for _ in env.agents]
         self._obs_mean = [None for _ in env.agents]
-        self._obs_meansq = [None for _ in env.agents]
-        self._obs_std = [None for _ in env.agents]
+        self._obs_var = [None for _ in env.agents]
         self._rew_mean = [None for _ in env.agents]
-        self._rew_meansq = [None for _ in env.agents]
         self._rew_var = [None for _ in env.agents]
 
         for agid, agent in enumerate(env.agents):
@@ -200,9 +198,7 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
                 self._flatobs_shape[agid] = agent.observation_space.n
 
             self._obs_mean[agid] = np.zeros(self._flatobs_shape[agid])
-            self._obs_meansq[agid] = np.zeros(self._flatobs_shape[agid])
-            self._obs_std[agid] = np.sqrt(self._obs_meansq[agid] - np.square(self._obs_mean[
-                agid])) + self._eps
+            self._obs_var[agid] = np.ones(self._flatobs_shape[agid])
             self._rew_mean[agid] = 0.
             self._rew_var[agid] = 1.
 
@@ -219,8 +215,9 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
             flatobs = np.asarray(obs).flatten()
             self._obs_mean[agid] = (1 - self._obs_alpha
                                    ) * self._obs_mean[agid] + self._obs_alpha * flatobs
-            self._obs_meansq[agid] = (
-                1 - self._obs_alpha) * self._obs_meansq[agid] + self._obs_alpha * np.square(flatobs)
+            self._obs_var[agid] = (
+                1 - self._obs_alpha
+            ) * self._obs_var[agid] + self._obs_alpha * np.square(flatobs - self._obs_mean[agid])
 
     def update_rew_estimate(self, rewards):
         for agid, reward in enumerate(rewards):
@@ -233,8 +230,8 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
     def standardize_obs(self, observation):
         assert isinstance(observation, list)
         self.update_obs_estimate(observation)
-        return [(obs - obsmean) / obsstd
-                for (obs, obsmean, obsstd) in zip(observation, self._obs_mean, self._obs_std)]
+        return [(obs - obsmean) / (np.sqrt(obsvar) + self._eps)
+                for (obs, obsmean, obsvar) in zip(observation, self._obs_mean, self._obs_var)]
 
     def standardize_rew(self, reward):
         assert isinstance(reward, (list, np.ndarray))
@@ -265,13 +262,13 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
     def __getstate__(self):
         d = EzPickle.__getstate__(self)
         d['_obs_mean'] = self._obs_mean
-        d['_obs_meansq'] = self._obs_meansq
+        d['_obs_var'] = self._obs_var
         return d
 
     def __setstate__(self, d):
         EzPickle.__setstate__(self, d)
         self._obs_mean = d['_obs_mean']
-        self._obs_meansq = d['_obs_meansq']
+        self._obs_var = d['_obs_var']
 
     def __str__(self):
         return "Normalized {}".format(self._unwrapped)
