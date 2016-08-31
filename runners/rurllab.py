@@ -62,7 +62,7 @@ class RLLabRunner(object):
                     feature_network = MLP(name='feature_net', input_shape=(
                         env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
                                           output_dim=args.feature_output,
-                                          hidden_sizes=tuple(args.hidden_sizes),
+                                          hidden_sizes=tuple(args.feature_hidden),
                                           hidden_nonlinearity=tf.nn.tanh, output_nonlinearity=None)
                 else:
                     feature_network = None
@@ -114,7 +114,7 @@ class RLLabRunner(object):
                     feature_network = thMLP(input_shape=(
                         env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
                                             output_dim=args.feature_output,
-                                            hidden_sizes=tuple(args.hidden_sizes),
+                                            hidden_sizes=tuple(args.feature_hidden),
                                             hidden_nonlinearity=tf.nn.tanh,
                                             output_nonlinearity=None)
                 else:
