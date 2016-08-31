@@ -235,8 +235,8 @@ class BipedalWalker(Agent):
 
     @property
     def observation_space(self):
-        # 24 original obs (joints, etc), 2 displacement obs for each walker, 3 for package, 1 ID
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(24 + 2 * (self._n_walkers - 1) + 3 + 1,))
+        # 24 original obs (joints, etc), 2 displacement obs for each neighboring walker, 3 for package, 1 ID
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(24 + 4 + 3 + 1,))
 
     @property
     def action_space(self):
@@ -250,7 +250,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
     hardcore = False
 
     def __init__(self, n_walkers=2,
-                       position_noise=1e-2,
+                       position_noise=1e-3,
                        angle_noise=1e-3):
         EzPickle.__init__(self, n_walkers, position_noise, angle_noise)
 
@@ -267,7 +267,8 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
                         for i in xrange(self.n_walkers)]
         self.walkers = [BipedalWalker(self.world, init_x=sx, init_y=init_y) for sx in self.start_x]
 
-        self.package_length = PACKAGE_LENGTH / SCALE
+        self.package_scale = n_walkers / 1.75
+        self.package_length = PACKAGE_LENGTH / SCALE * self.package_scale
 
         self.total_agents = n_walkers
 
@@ -348,8 +349,21 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
             wobs = self.walkers[i].get_observation()
             nobs = []
+            """
             for j in xrange(self.n_walkers):
                 if i != j:
+                    xm = (self.walkers[j].hull.position.x - x) / self.package_length
+                    ym = (self.walkers[j].hull.position.y - y) / self.package_length
+                    nobs.append(np.random.normal(xm, self.position_noise))
+                    nobs.append(np.random.normal(ym, self.position_noise))
+            """
+            for j in [i - 1, i + 1]:
+                if j < 0 or j == self.n_walkers:
+                    #nobs.append(np.random.normal(0.0, self.position_noise))
+                    #nobs.append(np.random.normal(0.0, self.position_noise))
+                    nobs.append(0.0)
+                    nobs.append(0.0)
+                else:
                     xm = (self.walkers[j].hull.position.x - x) / self.package_length
                     ym = (self.walkers[j].hull.position.y - y) / self.package_length
                     nobs.append(np.random.normal(xm, self.position_noise))
@@ -394,28 +408,32 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
                 self.viewer = None
             return
 
+        render_scale = 0.75
+
         from gym.envs.classic_control import rendering
         if self.viewer is None:
             self.viewer = rendering.Viewer(VIEWPORT_W, VIEWPORT_H)
-        self.viewer.set_bounds(self.scroll, VIEWPORT_W / SCALE + self.scroll, 0, VIEWPORT_H / SCALE)
+        self.viewer.set_bounds(self.scroll, VIEWPORT_W / SCALE * self.package_scale * render_scale+ self.scroll, 0, VIEWPORT_H / SCALE
+                * self.package_scale * render_scale)
 
         self.viewer.draw_polygon([
             (self.scroll, 0),
-            (self.scroll + VIEWPORT_W / SCALE, 0),
-            (self.scroll + VIEWPORT_W / SCALE, VIEWPORT_H / SCALE),
-            (self.scroll, VIEWPORT_H / SCALE),
+            (self.scroll + VIEWPORT_W * self.package_scale / SCALE * render_scale, 0),
+            (self.scroll + VIEWPORT_W * self.package_scale / SCALE * render_scale, VIEWPORT_H / SCALE *
+                self.package_scale * render_scale),
+            (self.scroll, VIEWPORT_H / SCALE * self.package_scale * render_scale),
         ], color=(0.9, 0.9, 1.0))
         for poly, x1, x2 in self.cloud_poly:
             if x2 < self.scroll / 2:
                 continue
-            if x1 > self.scroll / 2 + VIEWPORT_W / SCALE:
+            if x1 > self.scroll / 2 + VIEWPORT_W / SCALE * self.package_scale:
                 continue
             self.viewer.draw_polygon([(p[0] + self.scroll / 2, p[1]) for p in poly], color=(1, 1,
                                                                                             1))
         for poly, color in self.terrain_poly:
             if poly[1][0] < self.scroll:
                 continue
-            if poly[0][0] > self.scroll + VIEWPORT_W / SCALE:
+            if poly[0][0] > self.scroll + VIEWPORT_W / SCALE * self.package_scale:
                 continue
             self.viewer.draw_polygon(poly, color=color)
 
@@ -457,7 +475,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.package = self.world.CreateDynamicBody(
             position=(init_x, init_y),
             fixtures=fixtureDef(
-                shape=polygonShape(vertices=[(x / SCALE, y / SCALE) for x, y in PACKAGE_POLY]),
+                shape=polygonShape(vertices=[(x*self.package_scale / SCALE, y / SCALE) for x, y in PACKAGE_POLY]),
                 density=1.0,
                 friction=0.5,
                 categoryBits=0x004,
@@ -599,14 +617,14 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
 
 if __name__ == "__main__":
-    n_walkers = 2
+    n_walkers = 3
     env = MultiWalkerEnv(n_walkers=n_walkers)
     env.reset()
     for i in xrange(1000):
         env.render()
-        a = np.array([env.action_space.sample() for _ in xrange(n_walkers)])
+        a = np.array([env.agents[0].action_space.sample() for _ in xrange(n_walkers)])
         o, r, done, _ = env.step(a)
-        print "Step:", i
+        print "\nStep:", i
         print "Obs:", o
         print "Rewards:", r
         print "Term:", done
