@@ -20,7 +20,7 @@ def comma_sep_ints(s):
         return []
 
 
-class Runner(object):
+class RunnerParser(object):
 
     DEFAULT_OPTS = [
         ('discount', float, 0.95, ''),
@@ -77,8 +77,12 @@ class Runner(object):
         parser.add_argument('--n_parallel', type=int, default=1)
 
         parser.add_argument('--feature_net', type=str, default=None)
+        parser.add_argument('--feature_output', type=int, default=16)
         parser.add_argument('--feature_hidden', type=comma_sep_ints, default='128,64,32')
         parser.add_argument('--policy_hidden', type=comma_sep_ints, default='32')
+        parser.add_argument('--min_std', type=float, default=1e-6)
+
+        parser.add_argument('--step_size', type=float, default=0.01, help='max kl wall limit')
 
         parser.add_argument('--log_dir', type=str, required=False)
         parser.add_argument('--tabular_log_file', type=str, default='progress.csv',
