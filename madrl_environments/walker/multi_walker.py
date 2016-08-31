@@ -12,6 +12,8 @@ from Box2D.b2 import (circleShape, contactListener, edgeShape, fixtureDef, polyg
                       revoluteJointDef)
 from madrl_environments import AbstractMAEnv, Agent
 
+from rltools.util import EzPickle
+
 FPS = 50
 SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as well
 
@@ -241,7 +243,7 @@ class BipedalWalker(Agent):
         return spaces.Box(low=-1, high=1, shape=(4,))
 
 
-class MultiWalkerEnv(AbstractMAEnv):
+class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': FPS}
 
@@ -250,6 +252,7 @@ class MultiWalkerEnv(AbstractMAEnv):
     def __init__(self, n_walkers=2,
                        position_noise=1e-2,
                        angle_noise=1e-3):
+        EzPickle.__init__(self, n_walkers, position_noise, angle_noise)
 
         self._seed()
         self.viewer = None
