@@ -71,9 +71,18 @@ class RunnerParser(object):
         self.update_argument_parser(parser, self.DEFAULT_OPTS)
         self.update_argument_parser(parser, self.DEFAULT_POLICY_OPTS)
 
+        parser.add_argument(
+            '--algo', type=str, default='tftrpo',
+            help='Add tf or th to the algo name to run tensorflow or theano version')
+
         parser.add_argument('--max_path_length', type=int, default=500)
         parser.add_argument('--batch_size', type=int, default=12000)
         parser.add_argument('--n_parallel', type=int, default=1)
+
+        parser.add_argument('--epoch_length', type=int, default=1000)
+        parser.add_argument('--min_pool_size', type=int, default=10000)
+        parser.add_argument('--qfunc_lr', type=float, default=1e-3)
+        parser.add_argument('--policy_lr', type=float, default=1e-4)
 
         parser.add_argument('--feature_net', type=str, default=None)
         parser.add_argument('--feature_output', type=int, default=16)
