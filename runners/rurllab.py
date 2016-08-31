@@ -70,12 +70,12 @@ class RLLabRunner(object):
                     if isinstance(env.spec.observation_space, Box):
                         policy = GaussianGRUPolicy(env_spec=env.spec,
                                                    feature_network=feature_network,
-                                                   hidden_dim=int(args.policy_hidden),
+                                                   hidden_dim=int(args.policy_hidden[0]),
                                                    name='policy')
                     elif isinstance(env.spec.observation_space, Discrete):
                         policy = CategoricalGRUPolicy(env_spec=env.spec,
                                                       feature_network=feature_network,
-                                                      hidden_dim=int(args.policy_hidden),
+                                                      hidden_dim=int(args.policy_hidden[0]),
                                                       name='policy')
                     else:
                         raise NotImplementedError(env.spec.observation_space)
@@ -110,20 +110,24 @@ class RLLabRunner(object):
         elif args.algo[:2] == 'th':
             # Policy
             if args.recurrent:
-                feature_network = thMLP(input_shape=(
-                    env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
-                                        output_dim=args.feature_output,
-                                        hidden_sizes=tuple(args.hidden_sizes),
-                                        hidden_nonlinearity=tf.nn.tanh, output_nonlinearity=None)
+                if args.feature_net:
+                    feature_network = thMLP(input_shape=(
+                        env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
+                                            output_dim=args.feature_output,
+                                            hidden_sizes=tuple(args.hidden_sizes),
+                                            hidden_nonlinearity=tf.nn.tanh,
+                                            output_nonlinearity=None)
+                else:
+                    feature_network = None
                 if args.recurrent == 'gru':
                     if isinstance(env.spec.observation_space, thBox):
                         policy = thGaussianGRUPolicy(env_spec=env.spec,
                                                      feature_network=feature_network,
-                                                     hidden_dim=int(args.policy_hidden),)
+                                                     hidden_dim=int(args.policy_hidden[0]),)
                     elif isinstance(env.spec.observation_space, thDiscrete):
                         policy = thCategoricalGRUPolicy(env_spec=env.spec,
                                                         feature_network=feature_network,
-                                                        hidden_dim=int(args.policy_hidden),)
+                                                        hidden_dim=int(args.policy_hidden[0]),)
                     else:
                         raise NotImplementedError(env.spec.observation_space)
 
