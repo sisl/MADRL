@@ -40,13 +40,13 @@ class RunnerParser(object):
 
         parser.add_argument('mode', help='rllab or rltools')
         args = parser.parse_args(sys.argv[1:2])
-        if not hasattr(self, args.command):
+        if not hasattr(self, args.mode):
             print('Unrecognized command')
             parser.print_help()
             exit(1)
 
-        self._mode = args.command
-        getattr(self, args.command)(self._env_options, **kwargs)
+        self._mode = args.mode
+        getattr(self, args.mode)(self._env_options, **kwargs)
 
     def update_argument_parser(self, parser, options, **kwargs):
         kwargs = kwargs.copy()
@@ -73,7 +73,6 @@ class RunnerParser(object):
 
         parser.add_argument('--max_path_length', type=int, default=500)
         parser.add_argument('--batch_size', type=int, default=12000)
-        parser.add_argument('--seed', type=int, default=None)
         parser.add_argument('--n_parallel', type=int, default=1)
 
         parser.add_argument('--feature_net', type=str, default=None)
@@ -103,8 +102,8 @@ class RunnerParser(object):
             help='Whether to only print the tabular log information (in a horizontal format)')
 
         self.update_argument_parser(parser, env_options, **kwargs)
-        args = parser.parse_known_args([arg for arg in sys.argv[2:] if arg not in ('-h', '--help')])
-        return args
+        self.args = parser.parse_known_args(
+            [arg for arg in sys.argv[2:] if arg not in ('-h', '--help')])[0]
 
     def rltools(self, env_options, **kwargs):
         parser = argparse.ArgumentParser()
@@ -116,15 +115,18 @@ class RunnerParser(object):
         parser.add_argument('--max_traj_len', type=int, default=500)
         parser.add_argument('--n_timesteps', type=int, default=12000)
 
+        parser.add_argument('--adaptive_batch', action='store_true', default=False)
         parser.add_argument('--n_timesteps_min', type=int, default=4000)
         parser.add_argument('--n_timesteps_max', type=int, default=64000)
         parser.add_argument('--timestep_rate', type=int, default=20)
 
         parser.add_argument('--policy_hidden_spec', type=get_arch, default='GAE_ARCH')
         parser.add_argument('--baseline_hidden_spec', type=get_arch, default='GAE_ARCH')
+        parser.add_argument('--min_std', type=float, default=1e-6)
         parser.add_argument('--max_kl', type=float, default=0.01)
         parser.add_argument('--vf_max_kl', type=float, default=0.01)
         parser.add_argument('--vf_cg_damping', type=float, default=0.01)
+        parser.add_argument('--enable_obsnorm', action='store_true')
 
         parser.add_argument('--save_freq', type=int, default=10)
         parser.add_argument('--log', type=str, required=False)
@@ -132,5 +134,5 @@ class RunnerParser(object):
         parser.add_argument('--no-debug', dest='debug', action='store_false')
         parser.set_defaults(debug=True)
         self.update_argument_parser(parser, env_options, **kwargs)
-        args = parser.parse_known_args([arg for arg in sys.argv[2:] if arg not in ('-h', '--help')])
-        return args
+        self.args = parser.parse_known_args(
+            [arg for arg in sys.argv[2:] if arg not in ('-h', '--help')])[0]
