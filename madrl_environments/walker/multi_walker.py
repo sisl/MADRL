@@ -247,7 +247,9 @@ class MultiWalkerEnv(AbstractMAEnv):
 
     hardcore = False
 
-    def __init__(self, n_walkers=2):
+    def __init__(self, n_walkers=2,
+                       position_noise=1e-2,
+                       angle_noise=1e-3):
 
         self._seed()
         self.viewer = None
@@ -267,6 +269,10 @@ class MultiWalkerEnv(AbstractMAEnv):
         self.total_agents = n_walkers
 
         self.prev_shaping = np.zeros(self.n_walkers)
+
+        self.position_noise = position_noise
+        self.angle_noise = angle_noise
+
         self.reset()
 
     @property
@@ -341,11 +347,15 @@ class MultiWalkerEnv(AbstractMAEnv):
             nobs = []
             for j in xrange(self.n_walkers):
                 if i != j:
-                    nobs.append((self.walkers[j].hull.position.x - x) / self.package_length)
-                    nobs.append((self.walkers[j].hull.position.y - y) / self.package_length)
-            nobs.append((self.package.position.x - x) / self.package_length)
-            nobs.append((self.package.position.y - y) / self.package_length)
-            nobs.append(self.package.angle)
+                    xm = (self.walkers[j].hull.position.x - x) / self.package_length
+                    ym = (self.walkers[j].hull.position.y - y) / self.package_length
+                    nobs.append(np.random.normal(xm, self.position_noise))
+                    nobs.append(np.random.normal(ym, self.position_noise))
+            xd = (self.package.position.x - x) / self.package_length
+            yd = (self.package.position.y - y) / self.package_length
+            nobs.append(np.random.normal(xd, self.position_noise))
+            nobs.append(np.random.normal(yd, self.position_noise))
+            nobs.append(np.random.normal(self.package.angle, self.angle_noise))
             nobs.append(float(i) / self.n_walkers)
             obs.append(np.array(wobs + nobs))
 
