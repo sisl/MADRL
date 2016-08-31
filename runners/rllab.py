@@ -2,32 +2,32 @@ import os.path as osp
 
 import tensorflow as tf
 
-from rllabwrapper import RLLabEnv
-
-from sandbox.rocky.tf.spaces.discrete import Discrete
-from sandbox.rocky.tf.spaces.box import Box
-from sandbox.rocky.tf.algos.trpo import TRPO
-from sandbox.rocky.tf.envs.base import TfEnv
-from sandbox.rocky.tf.core.network import MLP
-from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-from sandbox.rocky.tf.policies.gaussian_gru_policy import GaussianGRUPolicy
-from sandbox.rocky.tf.policies.gaussian_lstm_policy import GaussianLSTMPolicy
-from sandbox.rocky.tf.policies.categorical_mlp_policy import CategoricalMLPPolicy
-from sandbox.rocky.tf.policies.categorical_gru_policy import CategoricalGRUPolicy
-from sandbox.rocky.tf.policies.categorical_lstm_policy import CategoricalLSTMPolicy
-from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
-
+import rllab.misc.logger as logger
+from rllab import config
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
 from rllab.baselines.zero_baseline import ZeroBaseline
-from rllab.sampler import parallel_sampler
-import rllab.misc.logger as logger
 from rllab.misc.ext import set_seed
-from rllab import config
+from rllab.sampler import parallel_sampler
+from rllabwrapper import RLLabEnv
+from sandbox.rocky.tf.algos.trpo import TRPO
+from sandbox.rocky.tf.core.network import MLP
+from sandbox.rocky.tf.envs.base import TfEnv
+from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (ConjugateGradientOptimizer,
+                                                                      FiniteDifferenceHvp)
+from sandbox.rocky.tf.policies.categorical_gru_policy import CategoricalGRUPolicy
+from sandbox.rocky.tf.policies.categorical_lstm_policy import CategoricalLSTMPolicy
+from sandbox.rocky.tf.policies.categorical_mlp_policy import CategoricalMLPPolicy
+from sandbox.rocky.tf.policies.gaussian_gru_policy import GaussianGRUPolicy
+from sandbox.rocky.tf.policies.gaussian_lstm_policy import GaussianLSTMPolicy
+from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
+from sandbox.rocky.tf.spaces.box import Box
+from sandbox.rocky.tf.spaces.discrete import Discrete
 
 
 class RLLabRunner(object):
 
     def __init__(self, env, args):
+        self.args = args
         # Parallel setup
         parallel_sampler.initialize(n_parallel=args.n_parallel)
         if args.seed is not None:
@@ -110,14 +110,12 @@ class RLLabRunner(object):
         logger.set_log_tabular_only(args.log_tabular_only)
         logger.push_prefix("[%s] " % args.exp_name)
 
-        algo = TRPO(
+        self.algo = TRPO(
             env=env, policy=policy, baseline=baseline, batch_size=args.batch_size,
             max_path_length=args.max_path_length, n_itr=args.n_iter, discount=args.discount,
             gae_lambda=args.gae_lambda, step_size=args.step_size,
             optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
             args.recurrent else None, mode=args.control)
 
-        self._run = algo.train
-
-    def run(self, *args, **kwargs):
-        self._run(*args, **kwargs)
+    def __call__(self):
+        self.algo.train()

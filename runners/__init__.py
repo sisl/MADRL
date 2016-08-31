@@ -103,7 +103,7 @@ class RunnerParser(object):
             help='Whether to only print the tabular log information (in a horizontal format)')
 
         self.update_argument_parser(parser, env_options, **kwargs)
-        args = parser.parse_known_args(sys.argv[2:])
+        args = parser.parse_known_args([arg for arg in sys.argv[2:] if arg not in ('-h', '--help')])
         return args
 
     def rltools(self, env_options, **kwargs):
@@ -116,8 +116,12 @@ class RunnerParser(object):
         parser.add_argument('--max_traj_len', type=int, default=500)
         parser.add_argument('--n_timesteps', type=int, default=12000)
 
-        parser.add_argument('--policy_hidden_spec', type=str, default='GAE_ARCH')
-        parser.add_argument('--baseline_hidden_spec', type=str, default='GAE_ARCH')
+        parser.add_argument('--n_timesteps_min', type=int, default=4000)
+        parser.add_argument('--n_timesteps_max', type=int, default=64000)
+        parser.add_argument('--timestep_rate', type=int, default=20)
+
+        parser.add_argument('--policy_hidden_spec', type=get_arch, default='GAE_ARCH')
+        parser.add_argument('--baseline_hidden_spec', type=gat_arch, default='GAE_ARCH')
         parser.add_argument('--max_kl', type=float, default=0.01)
         parser.add_argument('--vf_max_kl', type=float, default=0.01)
         parser.add_argument('--vf_cg_damping', type=float, default=0.01)
