@@ -57,7 +57,7 @@ def main():
     parser.add_argument('--max_traj_len', type=int, default=500)
     parser.add_argument('--update_curriculum', action='store_true', default=False)
 
-    parser.add_argument('--n_timesteps', type=int, default=20000)
+    parser.add_argument('--n_timesteps', type=int, default=10000)
 
     parser.add_argument('--control', type=str, default='centralized')
 
@@ -122,7 +122,7 @@ def main():
             policy = GaussianLSTMPolicy(env_spec=env.spec, feature_network=feature_network,
                                         hidden_dim=int(args.policy_hidden_sizes), name='policy')
     else:
-        policy = GaussianMLPPolicy(
+        policy = GaussianMLPPolicy(name='policy',
             env_spec=env.spec, hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))))
 
     if args.baseline_type == 'linear':
