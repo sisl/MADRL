@@ -43,6 +43,22 @@ import rllab.misc.logger as logger
 from rllab.misc.ext import set_seed
 from rllab import config
 
+# yapf: disable
+ENV_OPTIONS = [
+    ('radius', float, 0.015, 'Radius of agents'),
+    ('n_evaders', int, 10, ''),
+    ('n_pursuers', int, 8, ''),
+    ('n_poison', int, 10, ''),
+    ('n_coop', int, 4, ''),
+    ('n_sensors', int, 30, ''),
+    ('sensor_range', int, 0.2, ''),
+    ('food_reward', float, 5, ''),
+    ('poison_reard', float, -1, ''),
+    ('encounter_reward', float, 0.05, ''),
+    ('reward_mech', str, 'local', ''),
+    ('buffer_size', int, 1, '')
+]
+# yapf: enable
 
 def main():
     now = datetime.datetime.now(dateutil.tz.tzlocal())
@@ -57,11 +73,14 @@ def main():
     parser.add_argument('--discount', type=float, default=0.95)
     parser.add_argument('--gae_lambda', type=float, default=0.99)
     parser.add_argument('--reward_scale', type=float, default=1.0)
+    parser.add_argument('--enable_obsnorm', action='store_true', default=False)
+    parser.add_argument('--chunked', action='store_true', default=False)
 
     parser.add_argument('--n_iter', type=int, default=250)
     parser.add_argument('--sampler_workers', type=int, default=1)
     parser.add_argument('--max_traj_len', type=int, default=250)
     parser.add_argument('--update_curriculum', action='store_true', default=False)
+    parser.add_argument('--anneal_step_size', type=int, default=0)
 
     parser.add_argument('--n_timesteps', type=int, default=8000)
 
@@ -129,8 +148,8 @@ def main():
 
     env = TfEnv(
         RLLabEnv(
-            StandardizedEnv(env, scale_reward=args.reward_scale, enable_obsnorm=True),
-            mode=args.control))
+            StandardizedEnv(env, scale_reward=args.reward_scale,
+                            enable_obsnorm=args.enable_obsnorm), mode=args.control))
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
@@ -149,7 +168,8 @@ def main():
                                         hidden_dim=int(args.policy_hidden_sizes), name='policy')
     else:
         policy = GaussianMLPPolicy(
-            env_spec=env.spec, hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))))
+            name='policy', env_spec=env.spec,
+            hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))), min_std=10e-5)
 
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -186,13 +206,16 @@ def main():
         baseline=baseline,
         batch_size=args.n_timesteps,
         max_path_length=args.max_traj_len,
+        #max_path_length_limit=args.max_path_length_limit,
+        update_max_path_length=args.update_curriculum,
+        anneal_step_size=args.anneal_step_size,
         n_itr=args.n_iter,
         discount=args.discount,
         gae_lambda=args.gae_lambda,
         step_size=args.max_kl,
         optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
         args.recurrent else None,
-        mode=args.control,)
+        mode=args.control if not args.chunked else 'chunk_{}'.format(args.control),)
 
     algo.train()
 

@@ -18,13 +18,13 @@ import rltools.algos.policyopt
 import rltools.log
 import rltools.util
 from rltools.samplers.serial import SimpleSampler, ImportanceWeightedSampler, DecSampler
-from rltools.samplers.parallel import ThreadedSampler, ParallelSampler
+from rltools.samplers.parallel import ParallelSampler
 from madrl_environments import ObservationBuffer, StandardizedEnv
 from madrl_environments.pursuit import MAWaterWorld
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
-from rltools.policy.gaussian import GaussianMLPPolicy
+from rltools.policy.gaussian import GaussianMLPPolicy, GaussianGRUPolicy
 
 from runners.rltools import get_arch
 
@@ -54,13 +54,13 @@ def main():
     parser.add_argument('--control', type=str, default='centralized')
     parser.add_argument('--buffer_size', type=int, default=1)
     parser.add_argument('--radius', type=float, default=0.015)
-    parser.add_argument('--n_evaders', type=int, default=5)
-    parser.add_argument('--n_pursuers', type=int, default=3)
+    parser.add_argument('--n_evaders', type=int, default=10)
+    parser.add_argument('--n_pursuers', type=int, default=8)
     parser.add_argument('--n_poison', type=int, default=10)
-    parser.add_argument('--n_coop', type=int, default=2)
+    parser.add_argument('--n_coop', type=int, default=4)
     parser.add_argument('--n_sensors', type=int, default=30)
-    parser.add_argument('--sensor_range', type=str, default='0.2,0.2,0.2')
-    parser.add_argument('--food_reward', type=float, default=3)
+    parser.add_argument('--sensor_range', type=str, default='0.2')
+    parser.add_argument('--food_reward', type=float, default=5)
     parser.add_argument('--poison_reward', type=float, default=-1)
     parser.add_argument('--encounter_reward', type=float, default=0.05)
     parser.add_argument('--reward_mech', type=str, default='local')
@@ -125,10 +125,10 @@ def main():
         action_space = env.agents[0].action_space
 
     if args.recurrent:
-        raise NotImplementedError()
-        # policy = GaussianGRUPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
-        #                            min_stdev=0., init_logstdev=0., state_include_action=False,
-        #                            tblog=args.tblog, varscope_name='gaussgru_policy')
+        policy = GaussianGRUPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
+                                   min_stdev=0., init_logstdev=0., enable_obsnorm=False,
+                                   state_include_action=False, tblog=args.tblog,
+                                   varscope_name='gaussgru_policy')
     else:
         policy = GaussianMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
                                    enable_obsnorm=True, min_stdev=0., init_logstdev=0.,
@@ -151,12 +151,6 @@ def main():
             sampler_cls = DecSampler
         else:
             raise NotImplementedError()
-        sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
-                            n_timesteps_min=args.n_timesteps_min,
-                            n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
-                            adaptive=args.adaptive_batch)
-    elif args.sampler == 'thread':
-        sampler_cls = ThreadedSampler
         sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
                             n_timesteps_min=args.n_timesteps_min,
                             n_timesteps_max=args.n_timesteps_max, timestep_rate=args.timestep_rate,
