@@ -121,7 +121,7 @@ class RunnerParser(object):
         parser.add_argument('--timestep_rate', type=int, default=20)
 
         parser.add_argument('--policy_hidden_spec', type=get_arch, default='GAE_ARCH')
-        parser.add_argument('--baseline_hidden_spec', type=gat_arch, default='GAE_ARCH')
+        parser.add_argument('--baseline_hidden_spec', type=get_arch, default='GAE_ARCH')
         parser.add_argument('--max_kl', type=float, default=0.01)
         parser.add_argument('--vf_max_kl', type=float, default=0.01)
         parser.add_argument('--vf_cg_damping', type=float, default=0.01)
