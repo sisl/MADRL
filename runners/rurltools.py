@@ -97,7 +97,7 @@ class RLToolsRunner(object):
                                 n_timesteps_max=args.n_timesteps_max,
                                 timestep_rate=args.timestep_rate, adaptive=args.adaptive_batch,
                                 enable_rewnorm=args.enable_rewnorm, n_workers=args.sampler_workers,
-                                mode=args.control)
+                                mode=args.control, discard_extra=False)
 
         else:
             raise NotImplementedError()

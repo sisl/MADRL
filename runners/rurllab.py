@@ -58,11 +58,14 @@ class RLLabRunner(object):
 
             # Policy
             if args.recurrent:
-                feature_network = MLP(name='feature_net', input_shape=(
-                    env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
-                                      output_dim=args.feature_output,
-                                      hidden_sizes=tuple(args.hidden_sizes),
-                                      hidden_nonlinearity=tf.nn.tanh, output_nonlinearity=None)
+                if args.feature_net:
+                    feature_network = MLP(name='feature_net', input_shape=(
+                        env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
+                                          output_dim=args.feature_output,
+                                          hidden_sizes=tuple(args.hidden_sizes),
+                                          hidden_nonlinearity=tf.nn.tanh, output_nonlinearity=None)
+                else:
+                    feature_network = None
                 if args.recurrent == 'gru':
                     if isinstance(env.spec.observation_space, Box):
                         policy = GaussianGRUPolicy(env_spec=env.spec,
