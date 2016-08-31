@@ -32,7 +32,7 @@ from runners import get_arch
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--discount', type=float, default=0.95)
+    parser.add_argument('--discount', type=float, default=0.99)
     parser.add_argument('--gae_lambda', type=float, default=0.99)
 
     parser.add_argument('--n_iter', type=int, default=250)
