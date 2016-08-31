@@ -75,7 +75,7 @@ class RLToolsRunner(object):
                                    damping=args.vf_cg_dampoing, time_scale=1. / args.max_traj_len,
                                    varscope_name='baseline')
         elif args.baseline_type == 'zero':
-            baselien = ZeroBaseline(obs_space)
+            baseline = ZeroBaseline(obs_space)
         else:
             raise NotImplementedError()
 
@@ -102,7 +102,7 @@ class RLToolsRunner(object):
             raise NotImplementedError()
 
         step_func = TRPO(max_kl=args.max_kl)
-        self.algo = SamplingPolicyOptimizer(env=env, policy=policy, baselien=baseline,
+        self.algo = SamplingPolicyOptimizer(env=env, policy=policy, baseline=baseline,
                                             step_func=step_func, discount=args.discount,
                                             gae_lambda=args.gae_lambda, sampler_cls=sampler_cls,
                                             sampler_args=sampler_args, n_iter=args.n_iter)

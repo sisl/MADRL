@@ -1,7 +1,6 @@
 import os.path as osp
 
 import tensorflow as tf
-
 import rllab.misc.logger as logger
 from rllab import config
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
