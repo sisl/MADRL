@@ -401,7 +401,7 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
 
         self._timesteps += 1
         done = self.is_terminal
-        info = None
+        info = dict(evcatches=len(ev_caught), pocatches=len(po_caught))
         return obslist, rewards, done, info
 
     def render(self, screen_size=800, rate=10):

@@ -7,14 +7,14 @@ import tensorflow as tf
 from gym import spaces
 
 from rltools import log, util
-from rltools.algos.policyopt import TRPO, SamplingPolicyOptimizer
+from rltools.algos.policyopt import TRPO, SamplingPolicyOptimizer, ConcurrentPolicyOptimizer
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
 from rltools.policy.categorical import CategoricalMLPPolicy
 from rltools.policy.gaussian import GaussianGRUPolicy, GaussianMLPPolicy
 from rltools.samplers.parallel import ParallelSampler
-from rltools.samplers.serial import DecSampler, SimpleSampler
+from rltools.samplers.serial import DecSampler, SimpleSampler, ConcSampler
 
 
 class RLToolsRunner(object):
@@ -46,6 +46,16 @@ class RLToolsRunner(object):
                                                enable_obsnorm=args.enable_obsnorm,
                                                state_include_action=False, tblog=args.tblog,
                                                varscope_name='policy')
+                    if args.control == 'concurrent':
+                        policies = [GaussianGRUPolicy(env.agents[agid].observation_space,
+                                                      env.agents[agid], action_space,
+                                                      hidden_spec=args.policy_hidden_spec,
+                                                      min_stdev=args.min_std, init_logstdev=0.,
+                                                      enable_obsnorm=args.enable_obsnorm,
+                                                      state_include_action=False,
+                                                      tblog=args.tblog + str(agid),
+                                                      varscope_name='policy_{}'.format(agid))
+                                    for agid in range(len(env.agents))]
                 elif isinstance(action_space, spaces.Discrete):
                     raise NotImplementedError(args.recurrent)
             else:
@@ -57,23 +67,54 @@ class RLToolsRunner(object):
                                            min_stdev=args.min_std, init_logstdev=0.,
                                            enable_obsnorm=args.enable_obsnorm, tblog=args.tblog,
                                            varscope_name='policy')
+                if args.control == 'concurrent':
+                    policies = [GaussianMLPPolicy(env.agents[agid].observation_space,
+                                                  env.agents[agid].action_space,
+                                                  hidden_spec=args.policy_hidden_spec,
+                                                  min_stdev=args.min_std, init_logstdev=0.,
+                                                  enable_obsnorm=args.enable_obsnorm,
+                                                  tblog=args.tblog + str(agid),
+                                                  varscope_name='{}_policy'.format(agid))
+                                for agid in range(len(env.agents))]
             elif isinstance(action_space, spaces.Discrete):
                 policy = CategoricalMLPPolicy(obs_space, action_space,
                                               hidden_spec=args.policy_hidden_spec,
                                               enable_obsnorm=args.enable_obsnorm, tblog=args.tblog,
                                               varscope_name='policy')
+                if args.control == 'concurrent':
+                    policies = [CategoricalMLPPolicy(env.agents[agid].observation_space,
+                                                     env.agents[agid].action_space,
+                                                     hidden_spec=args.policy_hidden_spec,
+                                                     enable_obsnorm=args.enable_obsnorm,
+                                                     tblog=args.tblog + str(agid),
+                                                     varscope_name='policy_{}'.format(agid))
+                                for agid in range(len(env.agents))]
             else:
                 raise NotImplementedError()
 
         if args.baseline_type == 'linear':
             baseline = LinearFeatureBaseline(obs_space, enable_obsnorm=args.enable_obsnorm,
                                              varscope_name='baseline')
+            if args.control == 'concurrent':
+                baselines = [LinearFeatureBaseline(env.agents[agid].observation_space,
+                                                   enable_obsnorm=args.enable_obsnorm,
+                                                   varscope_name='baseline_{}'.format(agid))
+                             for agid in range(len(env.agents))]
         elif args.baseline_type == 'mlp':
             baseline = MLPBaseline(obs_space, hidden_spec=args.baseline_hidden_spec,
                                    enable_obsnorm=args.enable_obsnorm,
-                                   enable_vnorm=args.enable_vnorm, max_kl=args.max_vf_max_kl,
-                                   damping=args.vf_cg_dampoing, time_scale=1. / args.max_traj_len,
+                                   enable_vnorm=args.enable_vnorm, max_kl=args.vf_max_kl,
+                                   damping=args.vf_cg_damping, time_scale=1. / args.max_traj_len,
                                    varscope_name='baseline')
+            if args.control == 'concurrent':
+                baselines = [MLPBaseline(env.agents[agid].observation_space,
+                                         hidden_spec=args.baseline_hidden_spec,
+                                         enable_obsnorm=args.enable_obsnorm,
+                                         enable_vnorm=args.enable_vnorm, max_kl=args.vf_max_kl,
+                                         damping=args.vf_cg_damping,
+                                         time_scale=1. / args.max_traj_len,
+                                         varscope_name='{}_baseline'.format(agid))
+                             for agid in range(len(env.agents))]
         elif args.baseline_type == 'zero':
             baseline = ZeroBaseline(obs_space)
         else:
@@ -84,6 +125,8 @@ class RLToolsRunner(object):
                 sampler_cls = SimpleSampler
             elif args.control == 'decentralized':
                 sampler_cls = DecSampler
+            elif args.control == 'concurrent':
+                sampler_cls = ConcSampler
             else:
                 raise NotImplementedError()
             sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
@@ -97,16 +140,23 @@ class RLToolsRunner(object):
                                 n_timesteps_max=args.n_timesteps_max,
                                 timestep_rate=args.timestep_rate, adaptive=args.adaptive_batch,
                                 enable_rewnorm=args.enable_rewnorm, n_workers=args.sampler_workers,
-                                mode=args.control)
+                                mode=args.control, discard_extra=False)
 
         else:
             raise NotImplementedError()
 
         step_func = TRPO(max_kl=args.max_kl)
-        self.algo = SamplingPolicyOptimizer(env=env, policy=policy, baseline=baseline,
-                                            step_func=step_func, discount=args.discount,
-                                            gae_lambda=args.gae_lambda, sampler_cls=sampler_cls,
-                                            sampler_args=sampler_args, n_iter=args.n_iter)
+        if args.control == 'concurrent':
+            self.algo = ConcurrentPolicyOptimizer(env=env, policies=policies, baselines=baselines,
+                                                  step_func=step_func, discount=args.discount,
+                                                  gae_lambda=args.gae_lambda,
+                                                  sampler_cls=sampler_cls,
+                                                  sampler_args=sampler_args, n_iter=args.n_iter)
+        else:
+            self.algo = SamplingPolicyOptimizer(env=env, policy=policy, baseline=baseline,
+                                                step_func=step_func, discount=args.discount,
+                                                gae_lambda=args.gae_lambda, sampler_cls=sampler_cls,
+                                                sampler_args=sampler_args, n_iter=args.n_iter)
 
         argstr = json.dumps(vars(args), separators=(',', ':'), indent=2)
         util.header(argstr)
