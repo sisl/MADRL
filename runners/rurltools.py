@@ -14,7 +14,7 @@ from rltools.baselines.zero import ZeroBaseline
 from rltools.policy.categorical import CategoricalMLPPolicy
 from rltools.policy.gaussian import GaussianGRUPolicy, GaussianMLPPolicy
 from rltools.samplers.parallel import ParallelSampler
-from rltools.samplers.serial import DecSampler, SimpleSampler
+from rltools.samplers.serial import DecSampler, SimpleSampler, ConcSampler
 
 
 class RLToolsRunner(object):
@@ -74,7 +74,7 @@ class RLToolsRunner(object):
                                                   min_stdev=args.min_std, init_logstdev=0.,
                                                   enable_obsnorm=args.enable_obsnorm,
                                                   tblog=args.tblog + str(agid),
-                                                  varscope_name='policy_{}'.format(agid))
+                                                  varscope_name='{}_policy'.format(agid))
                                 for agid in range(len(env.agents))]
             elif isinstance(action_space, spaces.Discrete):
                 policy = CategoricalMLPPolicy(obs_space, action_space,
@@ -103,17 +103,17 @@ class RLToolsRunner(object):
         elif args.baseline_type == 'mlp':
             baseline = MLPBaseline(obs_space, hidden_spec=args.baseline_hidden_spec,
                                    enable_obsnorm=args.enable_obsnorm,
-                                   enable_vnorm=args.enable_vnorm, max_kl=args.max_vf_max_kl,
-                                   damping=args.vf_cg_dampoing, time_scale=1. / args.max_traj_len,
+                                   enable_vnorm=args.enable_vnorm, max_kl=args.vf_max_kl,
+                                   damping=args.vf_cg_damping, time_scale=1. / args.max_traj_len,
                                    varscope_name='baseline')
             if args.control == 'concurrent':
                 baselines = [MLPBaseline(env.agents[agid].observation_space,
                                          hidden_spec=args.baseline_hidden_spec,
                                          enable_obsnorm=args.enable_obsnorm,
-                                         enable_vnorm=args.enable_vnorm, max_kl=args.max_vf_max_kl,
-                                         damping=args.vf_cg_dampoing,
+                                         enable_vnorm=args.enable_vnorm, max_kl=args.vf_max_kl,
+                                         damping=args.vf_cg_damping,
                                          time_scale=1. / args.max_traj_len,
-                                         varscope_name='baseline_{}'.format(agid))
+                                         varscope_name='{}_baseline'.format(agid))
                              for agid in range(len(env.agents))]
         elif args.baseline_type == 'zero':
             baseline = ZeroBaseline(obs_space)
@@ -125,6 +125,8 @@ class RLToolsRunner(object):
                 sampler_cls = SimpleSampler
             elif args.control == 'decentralized':
                 sampler_cls = DecSampler
+            elif args.control == 'concurrent':
+                sampler_cls = ConcSampler
             else:
                 raise NotImplementedError()
             sampler_args = dict(max_traj_len=args.max_traj_len, n_timesteps=args.n_timesteps,
