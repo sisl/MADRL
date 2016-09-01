@@ -24,15 +24,20 @@ from madrl_environments.pursuit.utils import TwoDMaps
 from madrl_environments import StandardizedEnv
 from rllabwrapper import RLLabEnv
 
-from rllab.algos.trpo import TRPO
+from sandbox.rocky.tf.algos.trpo import TRPO
+from sandbox.rocky.tf.envs.base import TfEnv
+from sandbox.rocky.tf.core.network import MLP
+from sandbox.rocky.tf.policies.categorical_mlp_policy import CategoricalMLPPolicy
+from sandbox.rocky.tf.policies.categorical_gru_policy import CategoricalGRUPolicy
+from sandbox.rocky.tf.policies.categorical_lstm_policy import CategoricalLSTMPolicy
+from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
+
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-from rllab.envs.normalized_env import normalize
-from rllab.policies.categorical_mlp_policy import CategoricalMLPPolicy
-from rllab.policies.categorical_gru_policy import CategoricalGRUPolicy
+from rllab.baselines.zero_baseline import ZeroBaseline
 from rllab.sampler import parallel_sampler
 import rllab.misc.logger as logger
+from rllab.misc.ext import set_seed
 from rllab import config
-
 
 def main():
     now = datetime.datetime.now(dateutil.tz.tzlocal())
@@ -44,8 +49,9 @@ def main():
     parser.add_argument(
         '--exp_name', type=str, default=default_exp_name, help='Name of the experiment.')
 
-    parser.add_argument('--discount', type=float, default=0.95)
-    parser.add_argument('--gae_lambda', type=float, default=0.99)
+    parser.add_argument('--discount', type=float, default=0.99)
+    parser.add_argument('--gae_lambda', type=float, default=1.0)
+    parser.add_argument('--reward_scale', type=float, default=1.0)
 
     parser.add_argument('--n_iter', type=int, default=250)
     parser.add_argument('--sampler_workers', type=int, default=1)
@@ -77,6 +83,8 @@ def main():
     parser.add_argument('--policy_hidden_sizes', type=str, default='128,128')
     parser.add_argument('--baselin_hidden_sizes', type=str, default='128,128')
     parser.add_argument('--baseline_type', type=str, default='linear')
+
+    parser.add_argument('--conv', action='store_true', default=False)
 
     parser.add_argument('--max_kl', type=float, default=0.01)
 
@@ -131,12 +139,31 @@ def main():
                        catchr=args.catchr,
                        term_pursuit=args.term_pursuit)
 
-    env = RLLabEnv(StandardizedEnv(env), mode=args.control)
+    env = TfEnv(
+        RLLabEnv(
+            StandardizedEnv(env, scale_reward=args.reward_scale, enable_obsnorm=True),
+            mode=args.control))
+
+    import IPython
+    IPython.embed()
 
     if args.recurrent:
-        policy = CategoricalGRUPolicy(env_spec=env.spec, hidden_sizes=args.hidden_sizes)
+        policy = CategoricalGRUPolicy(name='policy',env_spec=env.spec, hidden_dim=args.hidden_sizes[0])
+    elif args.conv:
+        feature_network = ConvNetwork(
+            name='feature_net',
+            input_shape=(env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
+            output_dim=4, 
+            conv_filters=(8,16,16),
+            conv_filter_sizes=(3,3,3),
+            conv_strides=(1,1,1),
+            conv_pads=('VALID','VALID','VALID'),
+            hidden_sizes=(64,), 
+            hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.nn.softmax)
+        policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, prob_network=feature_network)
     else:
-        policy = CategoricalMLPPolicy(env_spec=env.spec, hidden_sizes=args.hidden_sizes)
+        policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, hidden_sizes=args.hidden_sizes)
 
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -163,15 +190,19 @@ def main():
     logger.set_log_tabular_only(args.log_tabular_only)
     logger.push_prefix("[%s] " % args.exp_name)
 
-    algo = TRPO(env=env,
-            policy=policy,
-            baseline=baseline,
-            batch_size=args.n_timesteps,
-            max_path_length=args.max_traj_len,
-            n_itr=args.n_iter,
-            discount=args.discount,
-            step_size=args.max_kl,
-            mode=args.control,)
+    algo = TRPO(
+        env=env,
+        policy=policy,
+        baseline=baseline,
+        batch_size=args.n_timesteps,
+        max_path_length=args.max_traj_len,
+        n_itr=args.n_iter,
+        discount=args.discount,
+        gae_lambda=args.gae_lambda,
+        step_size=args.max_kl,
+        optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
+        args.recurrent else None,
+        mode=args.control,)
 
     algo.train()
 
