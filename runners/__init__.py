@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 import argparse
 import sys
 import datetime
@@ -6,6 +8,13 @@ import uuid
 import ast
 
 import archs
+
+
+def tonamedtuple(dictionary):
+    for key, value in dictionary.iteritems():
+        if isinstance(value, dict):
+            dictionary[key] = tonamedtuple(value)
+    return namedtuple('GenericDict', dictionary.keys())(**dictionary)
 
 
 def get_arch(name):
