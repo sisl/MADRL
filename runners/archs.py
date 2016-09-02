@@ -103,7 +103,8 @@ SIMPLE_CONV_ARCH = '''[
         {"type": "conv", "chanout": 16, "filtsize": 3, "stride": 1, "padding": "VALID"},
         {"type": "nonlin", "func": "relu"},
         {"type": "conv", "chanout": 8, "filtsize": 3, "stride": 1, "padding": "VALID"},
-        {"type": "nonlin", "func": "relu"}
+        {"type": "nonlin", "func": "relu"},
+        {"type": "flatten"}
     ]
     '''
 

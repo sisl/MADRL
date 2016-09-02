@@ -1,4 +1,4 @@
-from rltools.util import EzPickle
+from rltools.util import EzPickle, stack_dict_list
 from gym import spaces
 import numpy as np
 
@@ -66,14 +66,20 @@ class AbstractMAEnv(object):
         obs = self.reset()
         self.render(**kwargs)
         rew = np.zeros((len(self.agents)))
+        traj_info_list = []
         for step in range(nsteps):
             a = map(lambda afn, o: afn(o), act_fn, obs)
-            obs, r, done, _ = self.step(a)
+            obs, r, done, info = self.step(a)
             rew += r
+            if info:
+                traj_info_list.append(info)
+
             self.render(**kwargs)
             if done:
                 break
-        return rew
+
+        traj_info = stack_dict_list(traj_info_list)
+        return rew, traj_info
 
     def update_curriculum(self, itr):
         """Updates curriculum learning parameters"""

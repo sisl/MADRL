@@ -16,7 +16,8 @@ import ast
 
 import gym
 import numpy as np
-import tensorflow as tf
+import lasagne.layers as L
+import lasagne.nonlinearities as NL
 from gym import spaces
 
 from madrl_environments.pursuit import PursuitEvade
@@ -25,14 +26,17 @@ from madrl_environments import StandardizedEnv
 from rllabwrapper import RLLabEnv
 
 from rllab.algos.trpo import TRPO
-from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-from rllab.envs.normalized_env import normalize
+from rllab.core.network import MLP, ConvNetwork
 from rllab.policies.categorical_mlp_policy import CategoricalMLPPolicy
 from rllab.policies.categorical_gru_policy import CategoricalGRUPolicy
+from rllab.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
+
+from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
+from rllab.baselines.zero_baseline import ZeroBaseline
 from rllab.sampler import parallel_sampler
 import rllab.misc.logger as logger
+from rllab.misc.ext import set_seed
 from rllab import config
-
 
 def main():
     now = datetime.datetime.now(dateutil.tz.tzlocal())
@@ -44,8 +48,9 @@ def main():
     parser.add_argument(
         '--exp_name', type=str, default=default_exp_name, help='Name of the experiment.')
 
-    parser.add_argument('--discount', type=float, default=0.95)
-    parser.add_argument('--gae_lambda', type=float, default=0.99)
+    parser.add_argument('--discount', type=float, default=0.99)
+    parser.add_argument('--gae_lambda', type=float, default=1.0)
+    parser.add_argument('--reward_scale', type=float, default=1.0)
 
     parser.add_argument('--n_iter', type=int, default=250)
     parser.add_argument('--sampler_workers', type=int, default=1)
@@ -73,10 +78,12 @@ def main():
     parser.add_argument('--catchr', type=float, default=0.1)
     parser.add_argument('--term_pursuit', type=float, default=5.0)
 
-    parser.add_argument('--recurrent', action='store_true', default=False)
+    parser.add_argument('--recurrent', type=str, default=None)
     parser.add_argument('--policy_hidden_sizes', type=str, default='128,128')
     parser.add_argument('--baselin_hidden_sizes', type=str, default='128,128')
     parser.add_argument('--baseline_type', type=str, default='linear')
+
+    parser.add_argument('--conv', action='store_true', default=False)
 
     parser.add_argument('--max_kl', type=float, default=0.01)
 
@@ -131,10 +138,42 @@ def main():
                        catchr=args.catchr,
                        term_pursuit=args.term_pursuit)
 
-    env = RLLabEnv(StandardizedEnv(env), mode=args.control)
+    env = RLLabEnv(
+            StandardizedEnv(env, scale_reward=args.reward_scale, enable_obsnorm=False),
+            mode=args.control)
 
     if args.recurrent:
-        policy = CategoricalGRUPolicy(env_spec=env.spec, hidden_sizes=args.hidden_sizes)
+        if args.conv:
+            feature_network = ConvNetwork(
+                input_shape=emv.spec.observation_space.shape,
+                output_dim=5, 
+                conv_filters=(8,16,16),
+                conv_filter_sizes=(3,3,3),
+                conv_strides=(1,1,1),
+                conv_pads=('VALID','VALID','VALID'),
+                hidden_sizes=(64,), 
+                hidden_nonlinearity=NL.rectify,
+                output_nonlinearity=NL.softmax)
+        else:
+            feature_network = MLP(
+                input_shape=(env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
+                output_dim=5, hidden_sizes=(128,128,128), hidden_nonlinearity=NL.tanh,
+                output_nonlinearity=None)
+        if args.recurrent == 'gru':
+            policy = CategoricalGRUPolicy(env_spec=env.spec, feature_network=feature_network,
+                                       hidden_dim=int(args.policy_hidden_sizes))
+    elif args.conv:
+        feature_network = ConvNetwork(
+            input_shape=env.spec.observation_space.shape,
+            output_dim=5, 
+            conv_filters=(8,16,16),
+            conv_filter_sizes=(3,3,3),
+            conv_strides=(1,1,1),
+            conv_pads=('valid','valid','valid'),
+            hidden_sizes=(64,), 
+            hidden_nonlinearity=NL.rectify,
+            output_nonlinearity=NL.softmax)
+        policy = CategoricalMLPPolicy(env_spec=env.spec, prob_network=feature_network)
     else:
         policy = CategoricalMLPPolicy(env_spec=env.spec, hidden_sizes=args.hidden_sizes)
 
@@ -163,15 +202,17 @@ def main():
     logger.set_log_tabular_only(args.log_tabular_only)
     logger.push_prefix("[%s] " % args.exp_name)
 
-    algo = TRPO(env=env,
-            policy=policy,
-            baseline=baseline,
-            batch_size=args.n_timesteps,
-            max_path_length=args.max_traj_len,
-            n_itr=args.n_iter,
-            discount=args.discount,
-            step_size=args.max_kl,
-            mode=args.control,)
+    algo = TRPO(
+        env=env,
+        policy=policy,
+        baseline=baseline,
+        batch_size=args.n_timesteps,
+        max_path_length=args.max_traj_len,
+        n_itr=args.n_iter,
+        discount=args.discount,
+        gae_lambda=args.gae_lambda,
+        step_size=args.max_kl,
+        mode=args.control,)
 
     algo.train()
 

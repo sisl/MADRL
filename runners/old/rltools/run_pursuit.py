@@ -129,7 +129,7 @@ def main():
         raise NotImplementedError()
 
 
-    if args.load_checkpoint is not 'none':
+    if args.load_checkpoint is not '':
         filename, file_key = rltools.util.split_h5_name(args.load_checkpoint)
         print('Loading parameters from {} in {}'.format(file_key, filename))
         with h5py.File(filename, 'r') as f:
@@ -138,15 +138,15 @@ def main():
 
             pprint.pprint(dict(dset.attrs))
         policy = CategoricalMLPPolicy(obsfeat_space, action_space,
-                                      hidden_spec=train_args['policy_hidden_spec'], enable_obsnorm=True,
+                                      hidden_spec=train_args['policy_hidden_spec'], enable_obsnorm=False,
                                       tblog=train_args['tblog'], varscope_name='pursuit_catmlp_policy')
     else: 
         policy = CategoricalMLPPolicy(obsfeat_space, action_space, hidden_spec=args.policy_hidden_spec,
-                                      enable_obsnorm=True, tblog=args.tblog,
+                                      enable_obsnorm=False, tblog=args.tblog,
                                       varscope_name='pursuit_catmlp_policy')
 
     if args.baseline_type == 'linear':
-        baseline = LinearFeatureBaseline(obsfeat_space, enable_obsnorm=True,
+        baseline = LinearFeatureBaseline(obsfeat_space, enable_obsnorm=False,
                                          varscope_name='pursuit_linear_baseline')
     elif args.baseline_type == 'mlp':
         baseline = MLPBaseline(obsfeat_space, args.baseline_hidden_spec, True, True,
