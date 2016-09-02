@@ -1,3 +1,9 @@
+import uuid
+import os
+import json
+import pprint
+import h5py
+
 import numpy as np
 import tensorflow as tf
 from gym import spaces
@@ -6,6 +12,46 @@ import rltools.util
 
 from runners.rurllab import rllab_envpolicy_parser
 from runners.rurltools import rltools_envpolicy_parser
+
+
+class FileHandler(object):
+
+    def __init__(self, filename):
+        self.filename = filename
+        # Handle remote files
+        if ':' in filename:
+            tmpfilename = str(uuid.uuid4())
+            if 'h5' in filename.split('.')[-1]:
+                os.system('rsync -avrz {}.h5 /tmp/{}.h5'.format(filename.split('.')[0],
+                                                                tmpfilename))
+                newfilename = '/tmp/{}.{}'.format(tmpfilename, filename.split('.')[-1])
+                self.filename = newfilename
+            else:
+                os.system('rsync -avrz {} /tmp/{}.pkl'.format(filename, tmpfilename))
+                newfilename = '/tmp/{}.pkl'.format(tmpfilename)
+                self.filename = newfilename
+                # json file?
+                # TODO
+
+            # Loading file
+        if 'h5' in self.filename.split('.')[-1]:
+            self.mode = 'rltools'
+            self.filename, self.file_key = rltools.util.split_h5_name(self.filename)
+            print('Loading parameters from {} in {}'.format(self.file_key, filename))
+            with h5py.File(self.filename, 'r') as f:
+                self.train_args = json.loads(f.attrs['args'])
+                dset = f[self.file_key]
+                pprint.pprint(dict(dset.attrs))
+
+        else:
+            self.mode = 'rllab'
+            policy_dir = os.path.dirname(self.filename)
+            params_file = os.path.join(policy_dir, 'params.json')
+            self.filename = self.filename
+            self.file_key = None
+            print('Loading parameters from {} in {}'.format('params.json', policy_dir))
+            with open(params_file, 'r') as df:
+                self.train_args = json.load(df)
 
 
 class PolicyLoad(object):
