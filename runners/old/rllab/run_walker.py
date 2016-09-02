@@ -113,7 +113,7 @@ def main():
         feature_network = MLP(
             name='feature_net',
             input_shape=(env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
-            output_dim=4, hidden_sizes=(64, 64), hidden_nonlinearity=tf.nn.tanh,
+            output_dim=4, hidden_sizes=(128,64,32), hidden_nonlinearity=tf.nn.tanh,
             output_nonlinearity=None)
         if args.recurrent == 'gru':
             policy = GaussianGRUPolicy(env_spec=env.spec, feature_network=feature_network,
@@ -144,7 +144,6 @@ def main():
     text_log_file = osp.join(log_dir, args.text_log_file)
     params_log_file = osp.join(log_dir, args.params_log_file)
 
-    """
     logger.log_parameters_lite(params_log_file, args)
     logger.add_text_output(text_log_file)
     logger.add_tabular_output(tabular_log_file)
@@ -154,7 +153,6 @@ def main():
     logger.set_snapshot_mode(args.snapshot_mode)
     logger.set_log_tabular_only(args.log_tabular_only)
     logger.push_prefix("[%s] " % args.exp_name)
-    """
 
     algo = TRPO(
         env=env,

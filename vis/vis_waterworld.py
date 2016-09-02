@@ -28,7 +28,7 @@ from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
 from rltools.policy.gaussian import GaussianMLPPolicy
 
-from vis import Evaluator, Visualizer
+from vis import Evaluator, Visualizer, FileHandler
 
 
 def main():
@@ -41,63 +41,30 @@ def main():
     parser.add_argument('--n_steps', type=int, default=500)
     args = parser.parse_args()
 
-    # Handle remote files
-    if ':' in args.filename:
-        import uuid
+    fh = FileHandler(args.filename)
 
-        tmpfilename = str(uuid.uuid4())
-        if 'h5' in args.filename.split('.')[-1]:
-            os.system('rsync -avrz {}.h5 /tmp/{}.h5'.format(
-                args.filename.split('.')[0], tmpfilename))
-            newfilename = '/tmp/{}.{}'.format(tmpfilename, args.filename.split('.')[-1])
-            args.filename = newfilename
-        else:
-            os.system('rsync -avrz {} /tmp/{}.pkl'.format(args.filename, tmpfilename))
-            newfilename = '/tmp/{}.pkl'.format(tmpfilename)
-            args.filename = newfilename
-            # json file?
-            # TODO
+    env = MAWaterWorld(fh.train_args['n_pursuers'],
+                       fh.train_args['n_evaders'],
+                       fh.train_args['n_coop'],
+                       fh.train_args['n_poison'],
+                       n_sensors=fh.train_args['n_sensors'],
+                       food_reward=fh.train_args['food_reward'],
+                       poison_reward=fh.train_args['poison_reward'],
+                       encounter_reward=fh.train_args['encounter_reward'],)
 
-        # Load file
-    if 'h5' in args.filename.split('.')[-1]:
-        mode = 'rltools'
-        filename, file_key = rltools.util.split_h5_name(args.filename)
-        print('Loading parameters from {} in {}'.format(file_key, filename))
-        with h5py.File(filename, 'r') as f:
-            train_args = json.loads(f.attrs['args'])
-            dset = f[file_key]
-            pprint.pprint(dict(dset.attrs))
-    else:
-        # Pickle file
-        mode = 'rllab'
-        policy_dir = os.path.dirname(args.filename)
-        params_file = os.path.join(policy_dir, 'params.json')
-        filename = args.filename
-        file_key = None
-        print('Loading parameters from {} in {}'.format('params.json', policy_dir))
-        with open(params_file, 'r') as df:
-            train_args = json.load(df)
-
-    env = MAWaterWorld(train_args['n_pursuers'],
-                       train_args['n_evaders'],
-                       train_args['n_coop'],
-                       train_args['n_poison'],
-                       n_sensors=train_args['n_sensors'],
-                       food_reward=train_args['food_reward'],
-                       poison_reward=train_args['poison_reward'],
-                       encounter_reward=train_args['encounter_reward'],)
-
-    if train_args['buffer_size'] > 1:
-        env = ObservationBuffer(env, train_args['buffer_size'])
+    if fh.train_args['buffer_size'] > 1:
+        env = ObservationBuffer(env, fh.train_args['buffer_size'])
 
     if args.evaluate:
-        minion = Evaluator(env, train_args, args.n_steps, args.n_trajs, args.deterministic, mode)
-        evr = minion(filename, file_key=file_key)
+        minion = Evaluator(env, fh.train_args, args.n_steps, args.n_trajs, args.deterministic,
+                           fh.mode)
+        evr = minion(fh.filename, file_key=fh.file_key)
         from tabulate import tabulate
         print(tabulate(evr, headers='keys'))
     else:
-        minion = Visualizer(env, train_args, args.n_steps, args.n_trajs, args.deterministic, mode)
-        rew, info = minion(filename, file_key=file_key, vid=args.vid)
+        minion = Visualizer(env, fh.train_args, args.n_steps, args.n_trajs, args.deterministic,
+                            fh.mode)
+        rew, info = minion(fh.filename, file_key=fh.file_key, vid=args.vid)
         pprint.pprint(rew)
         pprint.pprint(info)
 
