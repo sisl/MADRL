@@ -28,12 +28,11 @@ class FileHandler(object):
                 self.filename = newfilename
             else:
                 os.system('rsync -avrz {} /tmp/{}.pkl'.format(filename, tmpfilename))
+                os.system('rsync -avrz {} /tmp/params.json'.format(
+                    os.path.join(os.path.dirname(filename), 'params.json')))
                 newfilename = '/tmp/{}.pkl'.format(tmpfilename)
                 self.filename = newfilename
-                # json file?
-                # TODO
-
-            # Loading file
+        # Loading file
         if 'h5' in self.filename.split('.')[-1]:
             self.mode = 'rltools'
             self.filename, self.file_key = rltools.util.split_h5_name(self.filename)
