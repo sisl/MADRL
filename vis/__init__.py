@@ -20,7 +20,7 @@ class PolicyLoad(object):
         if self.mode == 'rltools':
             self.env, self.policy = rltools_envpolicy_parser(env, train_args)
         elif self.mode == 'rllab':
-            self.env.self.policy = rllab_envpolicy_parser(env, train_args)
+            self.env, self.policy = rllab_envpolicy_parser(env, train_args)
 
         self.deterministic = deterministic
         self.max_traj_len = max_traj_len
@@ -66,3 +66,17 @@ class Visualizer(PolicyLoad):
                     nsteps=self.max_traj_len)
                 info = {key: np.sum(value) for key, value in trajinfo.items()}
                 return (rew, info)
+
+        if self.mode == 'rllab':
+            import joblib
+            from rllab.sampler.utils import rollout, decrollout
+
+            with tf.Session() as sess:
+                data = joblib.load(filename)
+                policy = data['policy']
+                if self.control == 'centralized':
+                    paths = rollout(self.env, policy, max_path_length=self.max_path_length,
+                                    animated=True)
+                elif self.control == 'decentralized':
+                    paths = decrollout(self.env, policy, max_path_length=self.max_path_length,
+                                       animated=True)
