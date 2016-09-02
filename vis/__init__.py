@@ -68,12 +68,20 @@ class Visualizer(PolicyLoad):
             import joblib
             from rllab.sampler.utils import rollout, decrollout
 
+            # XXX
+            tf.reset_default_graph()
             with tf.Session() as sess:
+
                 data = joblib.load(filename)
                 policy = data['policy']
                 if self.control == 'centralized':
-                    paths = rollout(self.env, policy, max_path_length=self.max_path_length,
-                                    animated=True)
+                    path = rollout(self.env, policy, max_path_length=self.max_traj_len,
+                                   animated=True)
+                    rew = path['rewards'].mean()
+                    info = path['env_infos'].mean()
                 elif self.control == 'decentralized':
-                    paths = decrollout(self.env, policy, max_path_length=self.max_path_length,
+                    paths = decrollout(self.env, policy, max_path_length=self.max_traj_len,
                                        animated=True)
+                    rew = [path['rewards'].mean() for path in paths]
+                    info = {key: value.sum() for key, value in paths[0]['env_infos'].items()}
+                return rew, info
