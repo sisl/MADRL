@@ -430,7 +430,8 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
                 o = np.append(o, float(agent_idx) / self.n_agents())
             return o
         # reshape output from (C, H, W) to (H, W, C)
-        return np.rollaxis(self.local_obs[agent_idx], 0, 3)
+        return self.local_obs[agent_idx]
+        #return np.rollaxis(self.local_obs[agent_idx], 0, 3)
 
     def obs_clip(self, x, y):
         # :( this is a mess, beter way to do the slicing? (maybe np.ix_)
