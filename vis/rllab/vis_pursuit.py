@@ -17,6 +17,7 @@ import os
 
 from gym import spaces
 import numpy as np
+import tensorflow as tf
 
 from rllab.sampler.utils import rollout, decrollout
 
@@ -41,15 +42,18 @@ def main():
         train_args = json.load(data_file)
     print('Loading parameters from {} in {}'.format(policy_dir, 'params.json'))
 
-    data = joblib.load(args.policy_file)
 
-    policy = data['policy']
-    env = data['env']
+    with tf.Session() as sess:
 
-    if train_args['control'] == 'centralized':
-        paths = rollout(env, policy, max_path_length=args.n_steps, animated=True)
-    elif train_args['control'] == 'decentralized':
-        paths = decrollout(env, policy, max_path_length=args.n_steps, animated=True)
+        data = joblib.load(args.policy_file)
+
+        policy = data['policy']
+        env = data['env']
+
+        if train_args['control'] == 'centralized':
+            paths = rollout(env, policy, max_path_length=args.n_steps, animated=True)
+        elif train_args['control'] == 'decentralized':
+            paths = decrollout(env, policy, max_path_length=args.n_steps, animated=True)
 
 
     """
