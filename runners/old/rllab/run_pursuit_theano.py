@@ -16,7 +16,8 @@ import ast
 
 import gym
 import numpy as np
-import tensorflow as tf
+import lasagne.layers as L
+import lasagne.nonlinearities as NL
 from gym import spaces
 
 from madrl_environments.pursuit import PursuitEvade
@@ -24,13 +25,11 @@ from madrl_environments.pursuit.utils import TwoDMaps
 from madrl_environments import StandardizedEnv
 from rllabwrapper import RLLabEnv
 
-from sandbox.rocky.tf.algos.trpo import TRPO
-from sandbox.rocky.tf.envs.base import TfEnv
-from sandbox.rocky.tf.core.network import MLP, ConvNetwork
-from sandbox.rocky.tf.policies.categorical_mlp_policy import CategoricalMLPPolicy
-from sandbox.rocky.tf.policies.categorical_gru_policy import CategoricalGRUPolicy
-from sandbox.rocky.tf.policies.categorical_lstm_policy import CategoricalLSTMPolicy
-from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
+from rllab.algos.trpo import TRPO
+from rllab.core.network import MLP, ConvNetwork
+from rllab.policies.categorical_mlp_policy import CategoricalMLPPolicy
+from rllab.policies.categorical_gru_policy import CategoricalGRUPolicy
+from rllab.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
 
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
 from rllab.baselines.zero_baseline import ZeroBaseline
@@ -139,15 +138,13 @@ def main():
                        catchr=args.catchr,
                        term_pursuit=args.term_pursuit)
 
-    env = TfEnv(
-        RLLabEnv(
+    env = RLLabEnv(
             StandardizedEnv(env, scale_reward=args.reward_scale, enable_obsnorm=False),
-            mode=args.control))
+            mode=args.control)
 
     if args.recurrent:
         if args.conv:
             feature_network = ConvNetwork(
-                name='feature_net',
                 input_shape=emv.spec.observation_space.shape,
                 output_dim=5, 
                 conv_filters=(8,16,16),
@@ -155,37 +152,30 @@ def main():
                 conv_strides=(1,1,1),
                 conv_pads=('VALID','VALID','VALID'),
                 hidden_sizes=(64,), 
-                hidden_nonlinearity=tf.nn.relu,
-                output_nonlinearity=tf.nn.softmax)
+                hidden_nonlinearity=NL.rectify,
+                output_nonlinearity=NL.softmax)
         else:
             feature_network = MLP(
-                name='feature_net',
                 input_shape=(env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
-                output_dim=5, hidden_sizes=(128,128,128), hidden_nonlinearity=tf.nn.tanh,
+                output_dim=5, hidden_sizes=(128,128,128), hidden_nonlinearity=NL.tanh,
                 output_nonlinearity=None)
         if args.recurrent == 'gru':
             policy = CategoricalGRUPolicy(env_spec=env.spec, feature_network=feature_network,
-                                       hidden_dim=int(args.policy_hidden_sizes), name='policy')
-        elif args.recurrent == 'lstm':
-            policy = CategoricalLSTMPolicy(env_spec=env.spec, feature_network=feature_network,
-                                        hidden_dim=int(args.policy_hidden_sizes), name='policy')
+                                       hidden_dim=int(args.policy_hidden_sizes))
     elif args.conv:
-        import IPython
-        IPython.embed()
         feature_network = ConvNetwork(
-            name='feature_net',
             input_shape=env.spec.observation_space.shape,
             output_dim=5, 
             conv_filters=(8,16,16),
             conv_filter_sizes=(3,3,3),
             conv_strides=(1,1,1),
-            conv_pads=('VALID','VALID','VALID'),
+            conv_pads=('valid','valid','valid'),
             hidden_sizes=(64,), 
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.softmax)
-        policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, prob_network=feature_network)
+            hidden_nonlinearity=NL.rectify,
+            output_nonlinearity=NL.softmax)
+        policy = CategoricalMLPPolicy(env_spec=env.spec, prob_network=feature_network)
     else:
-        policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, hidden_sizes=args.hidden_sizes)
+        policy = CategoricalMLPPolicy(env_spec=env.spec, hidden_sizes=args.hidden_sizes)
 
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -222,8 +212,6 @@ def main():
         discount=args.discount,
         gae_lambda=args.gae_lambda,
         step_size=args.max_kl,
-        optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
-        args.recurrent else None,
         mode=args.control,)
 
     algo.train()
