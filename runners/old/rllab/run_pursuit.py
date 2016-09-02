@@ -170,8 +170,6 @@ def main():
             policy = CategoricalLSTMPolicy(env_spec=env.spec, feature_network=feature_network,
                                         hidden_dim=int(args.policy_hidden_sizes), name='policy')
     elif args.conv:
-        import IPython
-        IPython.embed()
         feature_network = ConvNetwork(
             name='feature_net',
             input_shape=env.spec.observation_space.shape,
@@ -223,7 +221,7 @@ def main():
         gae_lambda=args.gae_lambda,
         step_size=args.max_kl,
         optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
-        args.recurrent else None,
+        args.recurrent or args.conv else None,
         mode=args.control,)
 
     algo.train()

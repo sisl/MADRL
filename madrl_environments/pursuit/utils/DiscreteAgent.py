@@ -50,8 +50,8 @@ class DiscreteAgent(Agent):
         if flatten:
             self._obs_shape = (n_channels * obs_range**2 + 1,)
         else:
-            #self._obs_shape = (obs_range, obs_range, 4)
-            self._obs_shape = (4, obs_range, obs_range)
+            self._obs_shape = (obs_range, obs_range, 4)
+            #self._obs_shape = (4, obs_range, obs_range)
 
 
     @property
