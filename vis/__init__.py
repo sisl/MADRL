@@ -1,12 +1,8 @@
-from collections import namedtuple
-
 import numpy as np
 import tensorflow as tf
 from gym import spaces
 
 import rltools.util
-from rltools.policy.categorical import CategoricalMLPPolicy
-from rltools.policy.gaussian import GaussianGRUPolicy, GaussianMLPPolicy
 
 from runners.rurllab import rllab_envpolicy_parser
 from runners.rurltools import rltools_envpolicy_parser
@@ -20,7 +16,8 @@ class PolicyLoad(object):
         if self.mode == 'rltools':
             self.env, self.policy = rltools_envpolicy_parser(env, train_args)
         elif self.mode == 'rllab':
-            self.env, self.policy = rllab_envpolicy_parser(env, train_args)
+            self.env, _ = rllab_envpolicy_parser(env, train_args)
+            self.policy = None
 
         self.deterministic = deterministic
         self.max_traj_len = max_traj_len
