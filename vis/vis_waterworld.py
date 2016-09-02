@@ -9,6 +9,8 @@ from __future__ import absolute_import, print_function
 import argparse
 import json
 import pprint
+import os
+import os.path
 
 from gym import spaces
 import h5py
@@ -39,7 +41,24 @@ def main():
     parser.add_argument('--n_steps', type=int, default=500)
     args = parser.parse_args()
 
-    # Load file
+    # Handle remote files
+    if ':' in args.filename:
+        import uuid
+
+        tmpfilename = str(uuid.uuid4())
+        if 'h5' in args.filename.split('.')[-1]:
+            os.system('rsync -avrz {}.h5 /tmp/{}.h5'.format(
+                args.filename.split('.')[0], tmpfilename))
+            newfilename = '/tmp/{}.{}'.format(tmpfilename, args.filename.split('.')[-1])
+            args.filename = newfilename
+        else:
+            os.system('rsync -avrz {} /tmp/{}.pkl'.format(args.filename, tmpfilename))
+            newfilename = '/tmp/{}.pkl'.format(tmpfilename)
+            args.filename = newfilename
+            # json file?
+            # TODO
+
+        # Load file
     if 'h5' in args.filename.split('.')[-1]:
         mode = 'rltools'
         filename, file_key = rltools.util.split_h5_name(args.filename)
@@ -51,6 +70,13 @@ def main():
     else:
         # Pickle file
         mode = 'rllab'
+        policy_dir = os.path.dirname(args.filename)
+        params_file = os.path.join(policy_dir, 'params.json')
+        filename = args.filename
+        file_key = None
+        print('Loading parameters from {} in {}'.format('params.json', policy_dir))
+        with open(params_file, 'r') as df:
+            train_args = json.load(df)
 
     env = MAWaterWorld(train_args['n_pursuers'],
                        train_args['n_evaders'],

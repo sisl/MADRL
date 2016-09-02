@@ -1,12 +1,8 @@
-from collections import namedtuple
-
 import numpy as np
 import tensorflow as tf
 from gym import spaces
 
 import rltools.util
-from rltools.policy.categorical import CategoricalMLPPolicy
-from rltools.policy.gaussian import GaussianGRUPolicy, GaussianMLPPolicy
 
 from runners.rurllab import rllab_envpolicy_parser
 from runners.rurltools import rltools_envpolicy_parser
@@ -20,7 +16,8 @@ class PolicyLoad(object):
         if self.mode == 'rltools':
             self.env, self.policy = rltools_envpolicy_parser(env, train_args)
         elif self.mode == 'rllab':
-            self.env.self.policy = rllab_envpolicy_parser(env, train_args)
+            self.env, _ = rllab_envpolicy_parser(env, train_args)
+            self.policy = None
 
         self.deterministic = deterministic
         self.max_traj_len = max_traj_len
@@ -66,3 +63,25 @@ class Visualizer(PolicyLoad):
                     nsteps=self.max_traj_len)
                 info = {key: np.sum(value) for key, value in trajinfo.items()}
                 return (rew, info)
+
+        if self.mode == 'rllab':
+            import joblib
+            from rllab.sampler.utils import rollout, decrollout
+
+            # XXX
+            tf.reset_default_graph()
+            with tf.Session() as sess:
+
+                data = joblib.load(filename)
+                policy = data['policy']
+                if self.control == 'centralized':
+                    path = rollout(self.env, policy, max_path_length=self.max_traj_len,
+                                   animated=True)
+                    rew = path['rewards'].mean()
+                    info = path['env_infos'].mean()
+                elif self.control == 'decentralized':
+                    paths = decrollout(self.env, policy, max_path_length=self.max_traj_len,
+                                       animated=True)
+                    rew = [path['rewards'].mean() for path in paths]
+                    info = {key: value.sum() for key, value in paths[0]['env_infos'].items()}
+                return rew, info
