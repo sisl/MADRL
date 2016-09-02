@@ -40,12 +40,6 @@ def rltools_envpolicy_parser(env, args):
     if args.recurrent:
         if args.recurrent == 'gru':
             if isinstance(action_space, spaces.Box):
-                policy = GaussianGRUPolicy(obs_space, action_space,
-                                           hidden_spec=args.policy_hidden_spec,
-                                           min_stdev=args.min_std, init_logstdev=0.,
-                                           enable_obsnorm=args.enable_obsnorm,
-                                           state_include_action=False, tblog=args.tblog,
-                                           varscope_name='policy')
                 if args.control == 'concurrent':
                     policies = [GaussianGRUPolicy(env.agents[agid].observation_space,
                                                   env.agents[agid], action_space,
@@ -53,41 +47,50 @@ def rltools_envpolicy_parser(env, args):
                                                   min_stdev=args.min_std, init_logstdev=0.,
                                                   enable_obsnorm=args.enable_obsnorm,
                                                   state_include_action=False,
-                                                  tblog=args.tblog + str(agid),
                                                   varscope_name='policy_{}'.format(agid))
                                 for agid in range(len(env.agents))]
+                else:
+                    policy = GaussianGRUPolicy(obs_space, action_space,
+                                               hidden_spec=args.policy_hidden_spec,
+                                               min_stdev=args.min_std, init_logstdev=0.,
+                                               enable_obsnorm=args.enable_obsnorm,
+                                               state_include_action=False, varscope_name='policy')
+
             elif isinstance(action_space, spaces.Discrete):
                 raise NotImplementedError(args.recurrent)
         else:
             raise NotImplementedError()
     else:
         if isinstance(action_space, spaces.Box):
-            policy = GaussianMLPPolicy(obs_space, action_space, hidden_spec=args.policy_hidden_spec,
-                                       min_stdev=args.min_std, init_logstdev=0.,
-                                       enable_obsnorm=args.enable_obsnorm, tblog=args.tblog,
-                                       varscope_name='policy')
             if args.control == 'concurrent':
                 policies = [GaussianMLPPolicy(env.agents[agid].observation_space,
                                               env.agents[agid].action_space,
                                               hidden_spec=args.policy_hidden_spec,
                                               min_stdev=args.min_std, init_logstdev=0.,
                                               enable_obsnorm=args.enable_obsnorm,
-                                              tblog=args.tblog + str(agid),
                                               varscope_name='{}_policy'.format(agid))
                             for agid in range(len(env.agents))]
+            else:
+                policy = GaussianMLPPolicy(obs_space, action_space,
+                                           hidden_spec=args.policy_hidden_spec,
+                                           min_stdev=args.min_std, init_logstdev=0.,
+                                           enable_obsnorm=args.enable_obsnorm,
+                                           varscope_name='policy')
+
         elif isinstance(action_space, spaces.Discrete):
-            policy = CategoricalMLPPolicy(obs_space, action_space,
-                                          hidden_spec=args.policy_hidden_spec,
-                                          enable_obsnorm=args.enable_obsnorm, tblog=args.tblog,
-                                          varscope_name='policy')
             if args.control == 'concurrent':
                 policies = [CategoricalMLPPolicy(env.agents[agid].observation_space,
                                                  env.agents[agid].action_space,
                                                  hidden_spec=args.policy_hidden_spec,
                                                  enable_obsnorm=args.enable_obsnorm,
-                                                 tblog=args.tblog + str(agid),
                                                  varscope_name='policy_{}'.format(agid))
                             for agid in range(len(env.agents))]
+            else:
+                policy = CategoricalMLPPolicy(obs_space, action_space,
+                                              hidden_spec=args.policy_hidden_spec,
+                                              enable_obsnorm=args.enable_obsnorm,
+                                              varscope_name='policy')
+
         else:
             raise NotImplementedError()
 
@@ -105,19 +108,17 @@ class RLToolsRunner(object):
         if isinstance(policy, list):
             policies = policy
         if args.baseline_type == 'linear':
-            baseline = LinearFeatureBaseline(obs_space, enable_obsnorm=args.enable_obsnorm,
-                                             varscope_name='baseline')
             if args.control == 'concurrent':
                 baselines = [LinearFeatureBaseline(env.agents[agid].observation_space,
                                                    enable_obsnorm=args.enable_obsnorm,
                                                    varscope_name='baseline_{}'.format(agid))
                              for agid in range(len(env.agents))]
+            else:
+                baseline = LinearFeatureBaseline(policy.observation_space,
+                                                 enable_obsnorm=args.enable_obsnorm,
+                                                 varscope_name='baseline')
+
         elif args.baseline_type == 'mlp':
-            baseline = MLPBaseline(obs_space, hidden_spec=args.baseline_hidden_spec,
-                                   enable_obsnorm=args.enable_obsnorm,
-                                   enable_vnorm=args.enable_vnorm, max_kl=args.vf_max_kl,
-                                   damping=args.vf_cg_damping, time_scale=1. / args.max_traj_len,
-                                   varscope_name='baseline')
             if args.control == 'concurrent':
                 baselines = [MLPBaseline(env.agents[agid].observation_space,
                                          hidden_spec=args.baseline_hidden_spec,
@@ -127,8 +128,20 @@ class RLToolsRunner(object):
                                          time_scale=1. / args.max_traj_len,
                                          varscope_name='{}_baseline'.format(agid))
                              for agid in range(len(env.agents))]
+            else:
+                baseline = MLPBaseline(policy.observation_space,
+                                       hidden_spec=args.baseline_hidden_spec,
+                                       enable_obsnorm=args.enable_obsnorm,
+                                       enable_vnorm=args.enable_vnorm, max_kl=args.vf_max_kl,
+                                       damping=args.vf_cg_damping,
+                                       time_scale=1. / args.max_traj_len, varscope_name='baseline')
+
         elif args.baseline_type == 'zero':
-            baseline = ZeroBaseline(obs_space)
+            if args.control == 'concurrent':
+                baselines = [ZeroBaseline(env.agents[agid].observation_space)
+                             for agid in range(len(env.agents))]
+            else:
+                baseline = ZeroBaseline(policy.observation_space)
         else:
             raise NotImplementedError()
 
@@ -177,4 +190,5 @@ class RLToolsRunner(object):
     def __call__(self):
         with tf.Session() as sess:
             sess.run(tf.initialize_all_variables())
+            summary_writer = tf.train.SummaryWriter(self.args.tblog, graph=sess.graph)
             self.algo.train(sess, self.log_f, self.args.save_freq)
