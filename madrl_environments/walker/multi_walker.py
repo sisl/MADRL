@@ -249,12 +249,10 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
     hardcore = False
 
-    def __init__(self, n_walkers=2,
-                       position_noise=1e-3,
-                       angle_noise=1e-3):
+    def __init__(self, n_walkers=2, position_noise=1e-3, angle_noise=1e-3):
         EzPickle.__init__(self, n_walkers, position_noise, angle_noise)
 
-        self._seed()
+        self.seed()
         self.viewer = None
 
         self.world = Box2D.b2World()
@@ -283,9 +281,9 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
     def agents(self):
         return self.walkers
 
-    def _seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
+    def seed(self, seed=None):
+        self.np_random, seed_ = seeding.np_random(seed)
+        return [seed_]
 
     def _destroy(self):
         if not self.terrain:
@@ -413,14 +411,15 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         from gym.envs.classic_control import rendering
         if self.viewer is None:
             self.viewer = rendering.Viewer(VIEWPORT_W, VIEWPORT_H)
-        self.viewer.set_bounds(self.scroll, VIEWPORT_W / SCALE * self.package_scale * render_scale+ self.scroll, 0, VIEWPORT_H / SCALE
-                * self.package_scale * render_scale)
+        self.viewer.set_bounds(self.scroll,
+                               VIEWPORT_W / SCALE * self.package_scale * render_scale + self.scroll,
+                               0, VIEWPORT_H / SCALE * self.package_scale * render_scale)
 
         self.viewer.draw_polygon([
             (self.scroll, 0),
             (self.scroll + VIEWPORT_W * self.package_scale / SCALE * render_scale, 0),
-            (self.scroll + VIEWPORT_W * self.package_scale / SCALE * render_scale, VIEWPORT_H / SCALE *
-                self.package_scale * render_scale),
+            (self.scroll + VIEWPORT_W * self.package_scale / SCALE * render_scale,
+             VIEWPORT_H / SCALE * self.package_scale * render_scale),
             (self.scroll, VIEWPORT_H / SCALE * self.package_scale * render_scale),
         ], color=(0.9, 0.9, 1.0))
         for poly, x1, x2 in self.cloud_poly:
@@ -474,13 +473,13 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         init_y = TERRAIN_HEIGHT + 3 * LEG_H
         self.package = self.world.CreateDynamicBody(
             position=(init_x, init_y),
-            fixtures=fixtureDef(
-                shape=polygonShape(vertices=[(x*self.package_scale / SCALE, y / SCALE) for x, y in PACKAGE_POLY]),
-                density=1.0,
-                friction=0.5,
-                categoryBits=0x004,
-                #maskBits=0x001,  # collide only with ground
-                restitution=0.0)  # 0.99 bouncy
+            fixtures=fixtureDef(shape=polygonShape(
+                vertices=[(x * self.package_scale / SCALE, y / SCALE) for x, y in PACKAGE_POLY]),
+                                density=1.0,
+                                friction=0.5,
+                                categoryBits=0x004,
+                                #maskBits=0x001,  # collide only with ground
+                                restitution=0.0)  # 0.99 bouncy
         )
         self.package.color1 = (0.5, 0.4, 0.9)
         self.package.color2 = (0.3, 0.3, 0.5)

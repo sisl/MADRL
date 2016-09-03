@@ -5,7 +5,7 @@ from utils import *
 
 xs = 10
 ys = 10
-n_evaders = 6
+n_evaders = 4
 n_pursuers = 10
 
 map_mat = TwoDMaps.rectangle_map(xs, ys) 
@@ -36,11 +36,13 @@ env.evader_layer.set_position(0, 8, 1)
 env.evader_layer.set_position(1, 8, 1)
 
 env.evader_layer.set_position(2, 0, 3)
-env.evader_layer.set_position(3, 0, 3)
+#env.evader_layer.set_position(3, 0, 3)
 
-env.evader_layer.set_position(4, 3, 5)
-env.evader_layer.set_position(5, 3, 5)
+env.evader_layer.set_position(3, 3, 5)
+#env.evader_layer.set_position(4, 3, 5)
+#env.evader_layer.set_position(5, 3, 5)
 
+r = env.reward()
 
 o, r, done, info = env.step(a)
 
