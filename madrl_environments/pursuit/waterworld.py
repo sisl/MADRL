@@ -100,9 +100,12 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
 
         self.n_obstacles = 1
         self._reward_mech = reward_mech
+        self._addid = addid
         self.seed()
-        self._pursuers = [Archea(npu + 1, self.radius, self.n_sensors, self.sensor_range[npu])
-                          for npu in range(self.n_pursuers)]
+        self._pursuers = [
+            Archea(npu + 1, self.radius, self.n_sensors, self.sensor_range[npu], addid=self._id)
+            for npu in range(self.n_pursuers)
+        ]
         self._evaders = [
             Archea(nev + 1, self.radius * 2, self.n_pursuers, self.sensor_range.mean() / 2)
             for nev in range(self.n_evaders)
