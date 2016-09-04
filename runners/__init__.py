@@ -148,6 +148,10 @@ class RunnerParser(object):
         parser.add_argument('--enable_rewnorm', action='store_true')
         parser.add_argument('--enable_vnorm', action='store_true')
 
+        parser.add_argument('--interp_alpha', type=float, default=0.1)
+        parser.add_argument('--blend_freq', type=int, default=0)
+        parser.add_argument('--keep_kmax', type=int, default=0)
+
         parser.add_argument('--save_freq', type=int, default=10)
         parser.add_argument('--log', type=str, required=False)
         parser.add_argument('--tblog', type=str, default='/tmp/madrl_tb_{}'.format(uuid.uuid4()))

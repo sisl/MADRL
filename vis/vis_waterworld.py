@@ -39,6 +39,7 @@ def main():
     parser.add_argument('--evaluate', action='store_true', default=False)
     parser.add_argument('--n_trajs', type=int, default=10)
     parser.add_argument('--n_steps', type=int, default=500)
+    parser.add_argument('--same_con_pol', action='store_true')
     args = parser.parse_args()
 
     fh = FileHandler(args.filename)
@@ -58,7 +59,7 @@ def main():
     if args.evaluate:
         minion = Evaluator(env, fh.train_args, args.n_steps, args.n_trajs, args.deterministic,
                            fh.mode)
-        evr = minion(fh.filename, file_key=fh.file_key)
+        evr = minion(fh.filename, file_key=fh.file_key, same_con_pol=args.same_con_pol)
         from tabulate import tabulate
         print(tabulate(evr, headers='keys'))
     else:

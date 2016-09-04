@@ -59,7 +59,7 @@ class PolicyLoad(object):
 
         self.mode = mode
         if self.mode == 'rltools':
-            self.env, self.policy = rltools_envpolicy_parser(env, train_args)
+            self.env, self.policies, self.policy = rltools_envpolicy_parser(env, train_args)
         elif self.mode == 'rllab':
             self.env, _ = rllab_envpolicy_parser(env, train_args)
             self.policy = None
@@ -79,11 +79,21 @@ class Evaluator(PolicyLoad):
     def __call__(self, filename, **kwargs):
         if self.mode == 'rltools':
             file_key = kwargs.pop('file_key', None)
+            same_con_pol = kwargs.pop('same_con_pol', None)
             assert file_key
             with tf.Session() as sess:
                 sess.run(tf.initialize_all_variables())
                 self.policy.load_h5(sess, filename, file_key)
-                return rltools.util.evaluate_policy(self.env, self.policy,
+                if self.control == 'concurrent':
+                    if same_con_pol:
+                        rpolicy = [self.policy] * len(self.env.agents)
+                    else:
+                        for pol in self.policies:
+                            pol.load_h5(sess, filename, file_key)
+                        rpolicy = self.policies
+                else:
+                    rpolicy = self.policy
+                return rltools.util.evaluate_policy(self.env, rpolicy,
                                                     deterministic=self.deterministic,
                                                     disc=self.disc, mode=self.control,
                                                     max_traj_len=self.max_traj_len,

@@ -49,12 +49,12 @@ def rltools_envpolicy_parser(env, args):
                                                   state_include_action=False,
                                                   varscope_name='policy_{}'.format(agid))
                                 for agid in range(len(env.agents))]
-                else:
-                    policy = GaussianGRUPolicy(obs_space, action_space,
-                                               hidden_spec=args.policy_hidden_spec,
-                                               min_stdev=args.min_std, init_logstdev=0.,
-                                               enable_obsnorm=args.enable_obsnorm,
-                                               state_include_action=False, varscope_name='policy')
+
+                policy = GaussianGRUPolicy(obs_space, action_space,
+                                           hidden_spec=args.policy_hidden_spec,
+                                           min_stdev=args.min_std, init_logstdev=0.,
+                                           enable_obsnorm=args.enable_obsnorm,
+                                           state_include_action=False, varscope_name='policy')
 
             elif isinstance(action_space, spaces.Discrete):
                 raise NotImplementedError(args.recurrent)
@@ -70,12 +70,10 @@ def rltools_envpolicy_parser(env, args):
                                               enable_obsnorm=args.enable_obsnorm,
                                               varscope_name='{}_policy'.format(agid))
                             for agid in range(len(env.agents))]
-            else:
-                policy = GaussianMLPPolicy(obs_space, action_space,
-                                           hidden_spec=args.policy_hidden_spec,
-                                           min_stdev=args.min_std, init_logstdev=0.,
-                                           enable_obsnorm=args.enable_obsnorm,
-                                           varscope_name='policy')
+
+            policy = GaussianMLPPolicy(obs_space, action_space, hidden_spec=args.policy_hidden_spec,
+                                       min_stdev=args.min_std, init_logstdev=0.,
+                                       enable_obsnorm=args.enable_obsnorm, varscope_name='policy')
 
         elif isinstance(action_space, spaces.Discrete):
             if args.control == 'concurrent':
@@ -85,28 +83,26 @@ def rltools_envpolicy_parser(env, args):
                                                  enable_obsnorm=args.enable_obsnorm,
                                                  varscope_name='policy_{}'.format(agid))
                             for agid in range(len(env.agents))]
-            else:
-                policy = CategoricalMLPPolicy(obs_space, action_space,
-                                              hidden_spec=args.policy_hidden_spec,
-                                              enable_obsnorm=args.enable_obsnorm,
-                                              varscope_name='policy')
+
+            policy = CategoricalMLPPolicy(obs_space, action_space,
+                                          hidden_spec=args.policy_hidden_spec,
+                                          enable_obsnorm=args.enable_obsnorm,
+                                          varscope_name='policy')
 
         else:
             raise NotImplementedError()
 
     if args.control == 'concurrent':
-        return env, policies
+        return env, policies, policy
     else:
-        return env, policy
+        return env, None, policy
 
 
 class RLToolsRunner(object):
 
     def __init__(self, env, args):
         self.args = args
-        env, policy = rltools_envpolicy_parser(env, args)
-        if isinstance(policy, list):
-            policies = policy
+        env, policies, policy = rltools_envpolicy_parser(env, args)
         if args.baseline_type == 'linear':
             if args.control == 'concurrent':
                 baselines = [LinearFeatureBaseline(env.agents[agid].observation_space,
@@ -177,7 +173,9 @@ class RLToolsRunner(object):
                                                   step_func=step_func, discount=args.discount,
                                                   gae_lambda=args.gae_lambda,
                                                   sampler_cls=sampler_cls,
-                                                  sampler_args=sampler_args, n_iter=args.n_iter)
+                                                  sampler_args=sampler_args, n_iter=args.n_iter,
+                                                  target_policy=policy,
+                                                  interp_alpha=args.interp_alpha)
         else:
             self.algo = SamplingPolicyOptimizer(env=env, policy=policy, baseline=baseline,
                                                 step_func=step_func, discount=args.discount,
@@ -192,4 +190,5 @@ class RLToolsRunner(object):
         with tf.Session() as sess:
             sess.run(tf.initialize_all_variables())
             summary_writer = tf.train.SummaryWriter(self.args.tblog, graph=sess.graph)
-            self.algo.train(sess, self.log_f, self.args.save_freq)
+            self.algo.train(sess, self.log_f, self.args.save_freq, blend_freq=self.args.blend_freq,
+                            keep_kmax=self.args.keep_kmax)

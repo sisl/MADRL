@@ -80,7 +80,7 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         EzPickle.__init__(self, n_pursuers, n_evaders, n_coop, n_poison, radius, obstacle_radius,
                           obstacle_loc, ev_speed, poison_speed, n_sensors, sensor_range,
                           action_scale, poison_reward, food_reward, encounter_reward,
-                          control_penalty, reward_mech, **kwargs)
+                          control_penalty, reward_mech, addid, **kwargs)
         self.n_pursuers = n_pursuers
         self.n_evaders = n_evaders
         self.n_coop = n_coop
@@ -103,7 +103,7 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         self._addid = addid
         self.seed()
         self._pursuers = [
-            Archea(npu + 1, self.radius, self.n_sensors, self.sensor_range[npu], addid=self._id)
+            Archea(npu + 1, self.radius, self.n_sensors, self.sensor_range[npu], addid=self._addid)
             for npu in range(self.n_pursuers)
         ]
         self._evaders = [
@@ -399,11 +399,19 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
 
         obslist = []
         for inp in range(self.n_pursuers):
-            obslist.append(
-                np.concatenate([sensorfeatures_Np_K_O[inp, ...].ravel(), [float((
-                    is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((is_colliding_po_Np_Npo[inp, :]
-                                                                     ).sum() > 0)], [inp + 1]]))
+            if self._addid:
+                obslist.append(
+                    np.concatenate([sensorfeatures_Np_K_O[inp, ...].ravel(), [float((
+                        is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((is_colliding_po_Np_Npo[
+                            inp, :]).sum() > 0)], [inp + 1]]))
+            else:
+                obslist.append(
+                    np.concatenate([sensorfeatures_Np_K_O[inp, ...].ravel(), [float((
+                        is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((is_colliding_po_Np_Npo[
+                            inp, :]).sum() > 0)]]))
 
+        assert all([obs.shape == agent.observation_space.shape
+                    for obs, agent in zip(obslist, self.agents)])
         self._timesteps += 1
         done = self.is_terminal
         info = dict(evcatches=len(ev_caught), pocatches=len(po_caught))
