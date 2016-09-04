@@ -150,6 +150,7 @@ class RunnerParser(object):
 
         parser.add_argument('--interp_alpha', type=float, default=0.1)
         parser.add_argument('--blend_freq', type=int, default=0)
+        parser.add_argument('--blend_eval_trajs', type=int, default=50)
         parser.add_argument('--keep_kmax', type=int, default=0)
 
         parser.add_argument('--save_freq', type=int, default=10)
