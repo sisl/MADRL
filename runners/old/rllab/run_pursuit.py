@@ -150,7 +150,7 @@ def main():
                 name='feature_net',
                 input_shape=emv.spec.observation_space.shape,
                 output_dim=5, 
-                conv_filters=(8,16,16),
+                conv_filters=(16,32,32),
                 conv_filter_sizes=(3,3,3),
                 conv_strides=(1,1,1),
                 conv_pads=('VALID','VALID','VALID'),
@@ -161,7 +161,7 @@ def main():
             feature_network = MLP(
                 name='feature_net',
                 input_shape=(env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
-                output_dim=5, hidden_sizes=(128,128,128), hidden_nonlinearity=tf.nn.tanh,
+                output_dim=5, hidden_sizes=(256,128,64), hidden_nonlinearity=tf.nn.tanh,
                 output_nonlinearity=None)
         if args.recurrent == 'gru':
             policy = CategoricalGRUPolicy(env_spec=env.spec, feature_network=feature_network,
@@ -174,11 +174,11 @@ def main():
             name='feature_net',
             input_shape=env.spec.observation_space.shape,
             output_dim=5, 
-            conv_filters=(8,16,16),
-            conv_filter_sizes=(3,3,3),
-            conv_strides=(1,1,1),
-            conv_pads=('VALID','VALID','VALID'),
-            hidden_sizes=(64,), 
+            conv_filters=(16,16),
+            conv_filter_sizes=(4,4),
+            conv_strides=(1,1),
+            conv_pads=('VALID','VALID'),
+            hidden_sizes=(32,), 
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.nn.softmax)
         policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, prob_network=feature_network)
@@ -221,7 +221,7 @@ def main():
         gae_lambda=args.gae_lambda,
         step_size=args.max_kl,
         optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
-        args.recurrent or args.conv else None,
+        args.recurrent else None,
         mode=args.control,)
 
     algo.train()

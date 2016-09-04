@@ -358,11 +358,23 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         # rewarded for each tagged evader
         ps = self.pursuer_layer.get_state_matrix()  # pursuer positions
         es = self.evader_layer.get_state_matrix()  # evader positions
-        tagged = (ps > 0) * es
+        # tag reward
+        #tagged = (ps > 0) * es
+        #rewards = [
+        #    self.catchr *
+        #    tagged[self.pursuer_layer.get_position(i)[0], self.pursuer_layer.get_position(i)[1]]
+        #    for i in xrange(self.n_pursuers)
+        #]
+        # proximity reward
         rewards = [
-            self.catchr *
-            tagged[self.pursuer_layer.get_position(i)[0], self.pursuer_layer.get_position(i)[1]]
-            for i in xrange(self.n_pursuers)
+                self.catchr *
+                np.sum(
+                    es[np.clip(self.pursuer_layer.get_position(i)[0] +
+                        self.surround_mask[:,0], 0, self.xs-1),
+                       np.clip(self.pursuer_layer.get_position(i)[1] +
+                        self.surround_mask[:,1], 0, self.ys-1)]
+                       ) 
+                for i in xrange(self.n_pursuers)
         ]
         return np.array(rewards)
 
@@ -520,4 +532,5 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
             if self.model_state[0][xn, yn] == -1:
                 tosur -= 1
         return tosur
+
 
