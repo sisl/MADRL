@@ -9,7 +9,7 @@ from rltools.util import EzPickle
 
 class Archea(Agent):
 
-    def __init__(self, idx, radius, n_sensors, sensor_range):
+    def __init__(self, idx, radius, n_sensors, sensor_range, addid=True):
         self._idx = idx
         self._radius = radius
         self._n_sensors = n_sensors
@@ -17,7 +17,9 @@ class Archea(Agent):
         # Number of observation coordinates from each sensor
         self._sensor_obscoord = 7
         self._obscoord_from_sensors = self._n_sensors * self._sensor_obscoord
-        self._obs_dim = self._obscoord_from_sensors + 2 + 1  #2 for type, 1 for id
+        self._obs_dim = self._obscoord_from_sensors + 2  #+ 1  #2 for type, 1 for id
+        if addid:
+            self._obs_dim += 1
 
         self._position = None
         self._velocity = None
@@ -74,7 +76,7 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
                  obstacle_radius=0.2, obstacle_loc=np.array([0.5, 0.5]), ev_speed=0.01,
                  poison_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
                  poison_reward=-1., food_reward=1., encounter_reward=.05, control_penalty=-.5,
-                 reward_mech='local', **kwargs):
+                 reward_mech='local', addid=True, **kwargs):
         EzPickle.__init__(self, n_pursuers, n_evaders, n_coop, n_poison, radius, obstacle_radius,
                           obstacle_loc, ev_speed, poison_speed, n_sensors, sensor_range,
                           action_scale, poison_reward, food_reward, encounter_reward,
