@@ -42,7 +42,6 @@ GAE_ARCH = '''[
 ]
 '''
 
-
 MED_POLICY_ARCH = '''[
         {"type": "fc", "n": 256},
         {"type": "nonlin", "func": "tanh"},
@@ -97,8 +96,6 @@ HUGE_VAL_ARCH = '''[
     ]
     '''
 
-
-
 SIMPLE_CONV_ARCH = '''[
         {"type": "conv", "chanout": 16, "filtsize": 3, "stride": 1, "padding": "VALID"},
         {"type": "nonlin", "func": "relu"},
@@ -108,5 +105,17 @@ SIMPLE_CONV_ARCH = '''[
     ]
     '''
 
-
 SIMPLE_GRU_ARCH = '''{"gru_hidden_dim": 32, "gru_hidden_nonlin": "tanh", "gru_hidden_init_trainable": false}'''
+
+SIMPLE_GAE_FEAT_GRU_ARCH = '''{
+       "feature_network": [
+        {"type": "flatten"},
+        {"type": "fc", "n": 100},
+        {"type": "nonlin", "func": "tanh"},
+        {"type": "fc", "n": 50},
+        {"type": "nonlin", "func": "tanh"},
+        {"type": "fc", "n": 25},
+        {"type": "nonlin", "func": "tanh"}
+      ],
+      "gru_hidden_dim": 32, "gru_hidden_nonlin": "tanh", "gru_hidden_init_trainable": false
+}'''
