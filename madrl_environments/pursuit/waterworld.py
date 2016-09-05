@@ -30,7 +30,7 @@ class Archea(Agent):
 
     @property
     def observation_space(self):
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(self._obs_dim,))
+        return spaces.Box(low=-10, high=10, shape=(self._obs_dim,))
 
     @property
     def action_space(self):
