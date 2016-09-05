@@ -7,6 +7,7 @@ import datetime
 import dateutil.tz
 import os.path as osp
 import ast
+import joblib
 
 import gym
 import numpy as np
@@ -88,6 +89,7 @@ def main():
     parser.add_argument(
         '--log_tabular_only', type=ast.literal_eval, default=False,
         help='Whether to only print the tabular log information (in a horizontal format)')
+    parser.add_argument('--checkpoint', type=str, default=None)
 
     args = parser.parse_args()
 
@@ -101,74 +103,82 @@ def main():
 
     centralized = True if args.control == 'centralized' else False
 
-    env = MultiWalkerEnv(n_walkers=args.n_walkers)
+    with tf.Session() as sess:
+        if args.checkpoint:
+            data = joblib.load(args.checkpoint)
+            policy = data['policy']
+            env = data['env']
 
-    env = TfEnv(
-        RLLabEnv(
-            StandardizedEnv(env, scale_reward=args.reward_scale, enable_obsnorm=True),
-            mode=args.control))
+            import IPython
+            IPython.embed()
+        else:
+            env = MultiWalkerEnv(n_walkers=args.n_walkers)
 
+            env = TfEnv(
+                RLLabEnv(
+                    StandardizedEnv(env, scale_reward=args.reward_scale, enable_obsnorm=True),
+                    mode=args.control))
 
-    if args.recurrent:
-        feature_network = MLP(
-            name='feature_net',
-            input_shape=(env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
-            output_dim=4, hidden_sizes=(128,64,32), hidden_nonlinearity=tf.nn.tanh,
-            output_nonlinearity=None)
-        if args.recurrent == 'gru':
-            policy = GaussianGRUPolicy(env_spec=env.spec, feature_network=feature_network,
-                                       hidden_dim=int(args.policy_hidden_sizes), name='policy')
-        elif args.recurrent == 'lstm':
-            policy = GaussianLSTMPolicy(env_spec=env.spec, feature_network=feature_network,
-                                        hidden_dim=int(args.policy_hidden_sizes), name='policy')
-    else:
-        policy = GaussianMLPPolicy(name='policy',
-            env_spec=env.spec, hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))))
+            if args.recurrent:
+                feature_network = MLP(
+                    name='feature_net',
+                    input_shape=(env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
+                    output_dim=4, hidden_sizes=(128,64,32), hidden_nonlinearity=tf.nn.tanh,
+                    output_nonlinearity=None)
+                if args.recurrent == 'gru':
+                    policy = GaussianGRUPolicy(env_spec=env.spec, feature_network=feature_network,
+                                               hidden_dim=int(args.policy_hidden_sizes), name='policy')
+                elif args.recurrent == 'lstm':
+                    policy = GaussianLSTMPolicy(env_spec=env.spec, feature_network=feature_network,
+                                                hidden_dim=int(args.policy_hidden_sizes), name='policy')
+            else:
+                policy = GaussianMLPPolicy(name='policy',
+                    env_spec=env.spec, hidden_sizes=tuple(map(int, args.policy_hidden_sizes.split(','))))
 
-    if args.baseline_type == 'linear':
-        baseline = LinearFeatureBaseline(env_spec=env.spec)
-    elif args.baseline_type == 'mlp':
-        raise NotImplementedError()
-        # baseline = GaussianMLPBaseline(
-        #     env_spec=env.spec, hidden_sizes=tuple(map(int, args.baseline_hidden_sizes.split(','))))
-    else:
-        baseline = ZeroBaseline(env_spec=env.spec)
+        if args.baseline_type == 'linear':
+            baseline = LinearFeatureBaseline(env_spec=env.spec)
+        elif args.baseline_type == 'mlp':
+            raise NotImplementedError()
+            # baseline = GaussianMLPBaseline(
+            #     env_spec=env.spec, hidden_sizes=tuple(map(int, args.baseline_hidden_sizes.split(','))))
+        else:
+            baseline = ZeroBaseline(env_spec=env.spec)
 
-    # logger
-    default_log_dir = config.LOG_DIR
-    if args.log_dir is None:
-        log_dir = osp.join(default_log_dir, args.exp_name)
-    else:
-        log_dir = args.log_dir
-    tabular_log_file = osp.join(log_dir, args.tabular_log_file)
-    text_log_file = osp.join(log_dir, args.text_log_file)
-    params_log_file = osp.join(log_dir, args.params_log_file)
+        # logger
+        default_log_dir = config.LOG_DIR
+        if args.log_dir is None:
+            log_dir = osp.join(default_log_dir, args.exp_name)
+        else:
+            log_dir = args.log_dir
+        tabular_log_file = osp.join(log_dir, args.tabular_log_file)
+        text_log_file = osp.join(log_dir, args.text_log_file)
+        params_log_file = osp.join(log_dir, args.params_log_file)
 
-    logger.log_parameters_lite(params_log_file, args)
-    logger.add_text_output(text_log_file)
-    logger.add_tabular_output(tabular_log_file)
-    prev_snapshot_dir = logger.get_snapshot_dir()
-    prev_mode = logger.get_snapshot_mode()
-    logger.set_snapshot_dir(log_dir)
-    logger.set_snapshot_mode(args.snapshot_mode)
-    logger.set_log_tabular_only(args.log_tabular_only)
-    logger.push_prefix("[%s] " % args.exp_name)
+        logger.log_parameters_lite(params_log_file, args)
+        logger.add_text_output(text_log_file)
+        logger.add_tabular_output(tabular_log_file)
+        prev_snapshot_dir = logger.get_snapshot_dir()
+        prev_mode = logger.get_snapshot_mode()
+        logger.set_snapshot_dir(log_dir)
+        logger.set_snapshot_mode(args.snapshot_mode)
+        logger.set_log_tabular_only(args.log_tabular_only)
+        logger.push_prefix("[%s] " % args.exp_name)
 
-    algo = TRPO(
-        env=env,
-        policy=policy,
-        baseline=baseline,
-        batch_size=args.n_timesteps,
-        max_path_length=args.max_traj_len,
-        n_itr=args.n_iter,
-        discount=args.discount,
-        gae_lambda=args.gae_lambda,
-        step_size=args.max_kl,
-        optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
-        args.recurrent else None,
-        mode=args.control,)
+        algo = TRPO(
+            env=env,
+            policy=policy,
+            baseline=baseline,
+            batch_size=args.n_timesteps,
+            max_path_length=args.max_traj_len,
+            n_itr=args.n_iter,
+            discount=args.discount,
+            gae_lambda=args.gae_lambda,
+            step_size=args.max_kl,
+            optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
+            args.recurrent else None,
+            mode=args.control,)
 
-    algo.train()
+        algo.train()
 
 
 if __name__ == '__main__':

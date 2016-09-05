@@ -271,6 +271,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.total_agents = n_walkers
 
         self.prev_shaping = np.zeros(self.n_walkers)
+        self.prev_package_shaping = 0.0
 
         self.position_noise = position_noise
         self.angle_noise = angle_noise
@@ -304,6 +305,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.world.contactListener = self.world.contactListener_bug_workaround
         self.game_over = False
         self.prev_shaping = np.zeros(self.n_walkers)
+        self.prev_package_shaping = 0.0
         self.scroll = 0.0
         self.lidar_render = 0
 
@@ -374,7 +376,8 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
             nobs.append(float(i) / self.n_walkers)
             obs.append(np.array(wobs + nobs))
 
-            shaping = 130 * pos[0] / SCALE
+            #shaping = 130 * pos[0] / SCALE
+            shaping = 0.0
             shaping -= 5.0 * abs(wobs[0])
             rewards[i] = shaping - self.prev_shaping[i]
             self.prev_shaping[i] = shaping
@@ -382,7 +385,9 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         #import IPython
         #IPython.embed()
 
-        #rewards += 10*self.package.position.x/SCALE # reward for moving package forward
+        package_shaping = 130 * self.package.position.x / SCALE
+        rewards += (package_shaping - self.prev_package_shaping)
+        self.prev_package_shaping = package_shaping
 
         self.scroll = xpos.mean() - VIEWPORT_W / SCALE / 5 - (self.n_walkers - 1
                                                              ) * WALKER_SEPERATION * TERRAIN_STEP
@@ -616,7 +621,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
 
 if __name__ == "__main__":
-    n_walkers = 3
+    n_walkers = 10
     env = MultiWalkerEnv(n_walkers=n_walkers)
     env.reset()
     for i in xrange(1000):
