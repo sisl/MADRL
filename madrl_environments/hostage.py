@@ -227,8 +227,6 @@ class ContinuousHostageWorld(AbstractMAEnv, EzPickle):
         action_Nr2 = np.asarray(action_Nr2)
         action_Nr_2 = action_Nr2.reshape((len(self.agents), 2))
         action_Nr_2 = action_Nr_2 * self.action_scale
-        # action_Ng_2 = action_Ng2.reshape((len(self.agents), 2))
-        # action_Ng_2 = action_Ng_2 * self.action_scale
 
         rewards = np.zeros((len(self.agents,)))
         assert action_Nr_2.shape == (len(self.agents), 2)
@@ -236,9 +234,6 @@ class ContinuousHostageWorld(AbstractMAEnv, EzPickle):
         for nru, rescuer in enumerate(self._rescuers):
             rescuer.set_velocity(rescuer.velocity + action_Nr_2[nru])
             rescuer.set_position(rescuer.position + rescuer.velocity)
-
-        # self.goodv_Ng_2 += action_Ng_2
-        # self.goodx_Ng_2 += self.goodv_Ng_2
 
         # Penalize large actions
         if self.reward_mech == 'global':
@@ -254,10 +249,6 @@ class ContinuousHostageWorld(AbstractMAEnv, EzPickle):
             rescuer.set_velocity(vel_2)
             rescuer.set_position(clippedx_2)
 
-        # clippedx_Ng_2 = np.clip(self.goodx_Ng_2, 0, 1)
-        # self.goodv_Ng_2[self.goodx_Ng_2 != clippedx_Ng_2] = 0
-        # self.goodx_Ng_2 = clippedx_Ng_2
-
         # Players rebound on hitting a gate
         if not self.is_gate_open:
             for nru, rescuer in enumerate(self._rescuers):
@@ -267,11 +258,7 @@ class ContinuousHostageWorld(AbstractMAEnv, EzPickle):
                 rescuer.set_velocity(vel_2)
                 rescuer.set_position(clippedx_2)
 
-            # clippedx_Ng_2 = np.clip(self.goodx_Ng_2, 0.5 + self.radius, 1)
-            # self.goodv_Ng_2[self.goodx_Ng_2 != clippedx_Ng_2] *= -1
-            # self.goodx_Ng_2 = clippedx_Ng_2
-
-            # Find collisions
+        # Find collisions
         rescuerx_Nr_2 = np.array([rescuer.position for rescuer in self._rescuers])
         criminalx_Nc_2 = np.array([criminal.position for criminal in self._criminals])
         hostagex_Nh_2 = np.array([hostage.position for hostage in self._hostages])
