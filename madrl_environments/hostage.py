@@ -74,16 +74,16 @@ class ContinuousHostageWorld(AbstractMAEnv, EzPickle):
 
     def __init__(self, n_good, n_hostages, n_bad, n_coop_save, n_coop_avoid, radius=0.015,
                  key_loc=None, bad_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
-                 save_reward=5., hit_reward=-1., encounter_reward=0.01, bomb_reward=-5.,
-                 bomb_radius=0.05, key_radius=0.0075, control_penalty=-.1, reward_mech='global',
-                 addid=True, **kwargs):
+                 save_reward=5., hit_reward=-1., encounter_reward=0.01, not_saved_reward=-3,
+                 bomb_reward=-5., bomb_radius=0.05, key_radius=0.0075, control_penalty=-.1,
+                 reward_mech='global', addid=True, **kwargs):
         """
         The environment consists of a square world with hostages behind gates. One of the good agent has to find the keys only then the gates can be obtained. Once the gates are opened the good agents need to find the hostages to save them. They also need to avoid the bomb and the bad agents. Coming across a bomb terminates the game and gives a large negative reward
         """
         EzPickle.__init__(self, n_good, n_hostages, n_bad, n_coop_save, n_coop_avoid, radius,
                           key_loc, bad_speed, n_sensors, sensor_range, action_scale, save_reward,
-                          hit_reward, encounter_reward, bomb_reward, bomb_radius, key_radius,
-                          control_penalty, reward_mech, addid, **kwargs)
+                          hit_reward, encounter_reward, not_saved_reward, bomb_reward, bomb_radius,
+                          key_radius, control_penalty, reward_mech, addid, **kwargs)
         self.n_good = n_good
         self.n_hostages = n_hostages
         self.n_bad = n_bad
@@ -100,6 +100,7 @@ class ContinuousHostageWorld(AbstractMAEnv, EzPickle):
         self.save_reward = save_reward
         self.hit_reward = hit_reward
         self.encounter_reward = encounter_reward
+        self.not_saved_reward = not_saved_reward
         self.bomb_reward = bomb_reward
         self.bomb_radius = bomb_radius
         self.control_penalty = control_penalty
@@ -179,7 +180,8 @@ class ContinuousHostageWorld(AbstractMAEnv, EzPickle):
 
     @property
     def is_terminal(self):
-        return self._bombed or self.curr_host_saved_mask.all()
+        return self._bombed or self.curr_host_saved_mask.all() or (
+            self._timesteps >= self.timestep_limit)
 
     def _caught(self, is_colliding_N1_N2, n_coop):
         """ Checke whether collision results in catching the object
@@ -420,6 +422,8 @@ class ContinuousHostageWorld(AbstractMAEnv, EzPickle):
 
         self._timesteps += 1
         done = self.is_terminal
+        if done:
+            rewards += np.sum(~self.curr_host_saved_mask) * self.not_saved_reward
         info = dict(ho_saved=len(ho_caught), cr_encs=len(cr_caught))
 
         return obslist, rewards, done, info
