@@ -19,9 +19,9 @@ ENV_OPTIONS = [
     ('n_coop', int, 4, ''),
     ('n_sensors', int, 30, ''),
     ('sensor_range', int, 0.2, ''),
-    ('food_reward', float, 5, ''),
+    ('food_reward', float, 10, ''),
     ('poison_reward', float, -1, ''),
-    ('encounter_reward', float, 0.05, ''),
+    ('encounter_reward', float, 0.01, ''),
     ('reward_mech', str, 'local', ''),
     ('noid', str, None, ''),
     ('buffer_size', int, 1, '')
