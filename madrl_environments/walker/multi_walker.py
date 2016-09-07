@@ -248,9 +248,11 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
     hardcore = False
 
     def __init__(self, n_walkers=2, position_noise=1e-3, angle_noise=1e-3, 
-                       reward_mech='local', forward_reward=1.0, fall_reward=-100.0, drop_reward=-100.0):
+                       reward_mech='local', forward_reward=1.0, fall_reward=-100.0, drop_reward=-100.0,
+                       terminate_on_fall=True):
         EzPickle.__init__(self, n_walkers, position_noise, angle_noise, 
-                                reward_mech, forward_reward, fall_reward, drop_reward)
+                                reward_mech, forward_reward, fall_reward, drop_reward,
+                                terminate_on_fall)
 
         self.seed()
         self.viewer = None
@@ -282,6 +284,8 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.forward_reward = forward_reward
         self.fall_reward = fall_reward
         self.drop_reward = drop_reward
+
+        self.terminate_on_fall = terminate_on_fall
 
         self.reset()
 
@@ -399,7 +403,8 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         if pos[0] > (self.terrain_length - TERRAIN_GRASS) * TERRAIN_STEP:
             done = True
         rewards += self.fall_reward * self.fallen_walkers
-        if np.sum(self.fallen_walkers) > 0: done = True
+        if self.terminate_on_fall and np.sum(self.fallen_walkers) > 0:
+            done = True
 
         if self.reward_mech == 'local':
             return obs, rewards, done, {}
