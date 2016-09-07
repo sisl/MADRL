@@ -100,6 +100,12 @@ class Evaluator(PolicyLoad):
                                                     disc=self.disc, mode=self.control,
                                                     max_traj_len=self.max_traj_len,
                                                     n_trajs=self.n_trajs)
+        if self.mode == 'heuristic':
+            hpolicy = kwargs.pop('hpolicy', None)
+            assert hpolicy
+            return rltools.util.evaluate_policy(
+                self.env, hpolicy, deterministic=self.deterministic, disc=self.disc,
+                mode=self.control, max_traj_len=self.max_traj_len, n_trajs=self.n_trajs)
 
 
 class Visualizer(PolicyLoad):
