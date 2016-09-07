@@ -277,6 +277,8 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.angle_noise = angle_noise
         self._reward_mech = reward_mech
 
+        self.terrain_length = int(TERRAIN_LENGTH * n_walkers * 1/4.)
+
         self.reset()
 
     @property
@@ -387,9 +389,6 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
             rewards[i] = shaping - self.prev_shaping[i]
             self.prev_shaping[i] = shaping
 
-        #import IPython
-        #IPython.embed()
-
         package_shaping = 130 * self.package.position.x / SCALE
         rewards += (package_shaping - self.prev_package_shaping)
         self.prev_package_shaping = package_shaping
@@ -401,12 +400,9 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         if self.game_over or pos[0] < 0:
             rewards -= 100
             done = True
-        if pos[0] > (TERRAIN_LENGTH - TERRAIN_GRASS) * TERRAIN_STEP:
+        if pos[0] > (self.terrain_length - TERRAIN_GRASS) * TERRAIN_STEP:
             done = True
 
-        #if self.centralized:
-        #    obs = np.concatenate(obs).flatten()
-        
         if self.reward_mech == 'local':
             return obs, rewards, done, {}
         return obs, [rewards.mean()] * self.n_walkers, done, {}
@@ -506,7 +502,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.terrain = []
         self.terrain_x = []
         self.terrain_y = []
-        for i in range(TERRAIN_LENGTH):
+        for i in range(self.terrain_length):
             x = i * TERRAIN_STEP
             self.terrain_x.append(x)
 
@@ -594,7 +590,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
                     oneshot = True
 
         self.terrain_poly = []
-        for i in range(TERRAIN_LENGTH - 1):
+        for i in range(self.terrain_length - 1):
             poly = [
                 (self.terrain_x[i], self.terrain_y[i]),
                 (self.terrain_x[i + 1], self.terrain_y[i + 1])
@@ -614,8 +610,8 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
     def _generate_clouds(self):
         # Sorry for the clouds, couldn't resist
         self.cloud_poly = []
-        for i in range(TERRAIN_LENGTH // 20):
-            x = self.np_random.uniform(0, TERRAIN_LENGTH) * TERRAIN_STEP
+        for i in range(self.terrain_length // 20):
+            x = self.np_random.uniform(0, self.terrain_length) * TERRAIN_STEP
             y = VIEWPORT_H / SCALE * 3 / 4
             poly = [
                 (x + 15 * TERRAIN_STEP * math.sin(3.14 * 2 * a / 5) + self.np_random.uniform(
@@ -628,7 +624,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
 
 if __name__ == "__main__":
-    n_walkers = 10
+    n_walkers = 3
     reward_mech = 'local'
     env = MultiWalkerEnv(n_walkers=n_walkers, reward_mech=reward_mech)
     env.reset()
