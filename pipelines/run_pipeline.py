@@ -49,7 +49,7 @@ def phase1_train(spec, spec_file, git_hash, n_workers=2):
                 cmd_templates.append(alg['cmd'].replace('\n', ' ').strip())
                 output_filenames.append(strid + '.txt')
                 argdict = {'sampler_workers': sampler_workers,
-                           'log': os.path.join(checkptdir, strid + 'h5')}
+                           'log': os.path.join(checkptdir, strid + '.h5')}
                 argdict.update(agent_args)
                 argdicts.append(argdict)
 
