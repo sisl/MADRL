@@ -40,7 +40,6 @@ class FileHandler(object):
             with h5py.File(self.filename, 'r') as f:
                 self.train_args = json.loads(f.attrs['args'])
                 dset = f[self.file_key]
-                pprint.pprint(dict(dset.attrs))
 
         else:
             self.mode = 'rllab'
@@ -103,9 +102,10 @@ class Evaluator(PolicyLoad):
         if self.mode == 'heuristic':
             hpolicy = kwargs.pop('hpolicy', None)
             assert hpolicy
-            return rltools.util.evaluate_policy(
-                self.env, hpolicy, deterministic=self.deterministic, disc=self.disc,
-                mode=self.control, max_traj_len=self.max_traj_len, n_trajs=self.n_trajs)
+            return rltools.util.evaluate_policy(self.env, hpolicy, deterministic=self.deterministic,
+                                                disc=self.disc, mode=self.control,
+                                                max_traj_len=self.max_traj_len,
+                                                n_trajs=self.n_trajs)
 
 
 class Visualizer(PolicyLoad):
