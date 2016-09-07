@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import sys
+import rltools.util
 
 
 def runcommand(cmd):
