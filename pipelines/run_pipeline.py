@@ -63,7 +63,7 @@ def phase1_train(spec, spec_file, git_hash, n_workers=2):
         sys.exit(1)
 
     shutil.copyfile(spec_file, os.path.join(checkptdir, 'pipeline.yaml'))
-    with open(os.path.join(checkptdir, 'git_has.txt', 'w')) as f:
+    with open(os.path.join(checkptdir, 'git_has.txt'), 'w') as f:
         f.write(git_hash + '\n')
 
 
