@@ -277,7 +277,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.angle_noise = angle_noise
         self._reward_mech = reward_mech
 
-        self.terrain_length = int(TERRAIN_LENGTH * n_walkers * 1/4.)
+        self.terrain_length = int(TERRAIN_LENGTH * n_walkers * 1/8.)
 
         self.reset()
 
@@ -624,7 +624,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
 
 if __name__ == "__main__":
-    n_walkers = 3
+    n_walkers = 50
     reward_mech = 'local'
     env = MultiWalkerEnv(n_walkers=n_walkers, reward_mech=reward_mech)
     env.reset()
