@@ -32,7 +32,7 @@ def phase1_train(spec, spec_file, git_hash, n_workers=2):
     # Make sure dir is empty
     assert not os.listdir(checkptdir), 'Checkpint directory {} is not empty!'.format(checkptdir)
 
-    sample_workers = spec['options']['sample_workers']
+    sampler_workers = spec['options']['sampler_workers']
 
     # Assemble the commands to run
     cmd_templates, output_filenames, argdicts = [], [], []
@@ -48,7 +48,7 @@ def phase1_train(spec, spec_file, git_hash, n_workers=2):
                 strid = 'alg={},{}run={}'.format(alg['name'], agent_id, run)
                 cmd_templates.append(alg['cmd'].replace('\n', ' ').strip())
                 output_filenames.append(strid + '.txt')
-                argdict = {'sample_workers': sample_workers,
+                argdict = {'sampler_workers': sampler_workers,
                            'log': os.path.join(checkptdir, strid + 'h5')}
                 argdict.update(agent_args)
                 argdicts.append(argdict)
