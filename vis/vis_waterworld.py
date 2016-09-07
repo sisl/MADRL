@@ -36,6 +36,7 @@ def main():
     parser.add_argument('filename', type=str)  # defaultIS.h5/snapshots/iter0000480
     parser.add_argument('--vid', type=str, default='/tmp/madrl.mp4')
     parser.add_argument('--deterministic', action='store_true', default=False)
+    parser.add_argument('--heuristic', action='store_true', default=False)
     parser.add_argument('--evaluate', action='store_true', default=False)
     parser.add_argument('--n_trajs', type=int, default=10)
     parser.add_argument('--n_steps', type=int, default=500)
@@ -56,10 +57,16 @@ def main():
     if fh.train_args['buffer_size'] > 1:
         env = ObservationBuffer(env, fh.train_args['buffer_size'])
 
+    if args.heuristic:
+        from heuristic.waterworld import WaterworldHeuristicPolicy
+        hpolicy = WaterworldHeuristicPolicy(env.agents[0].observation_space,
+                                            env.agents[0].action_space)
+
     if args.evaluate:
         minion = Evaluator(env, fh.train_args, args.n_steps, args.n_trajs, args.deterministic,
-                           fh.mode)
-        evr = minion(fh.filename, file_key=fh.file_key, same_con_pol=args.same_con_pol)
+                           'heuristic' if args.heuristic else fh.mode)
+        evr = minion(fh.filename, file_key=fh.file_key, same_con_pol=args.same_con_pol,
+                     hpolicy=hpolicy)
         from tabulate import tabulate
         print(tabulate(evr, headers='keys'))
     else:
