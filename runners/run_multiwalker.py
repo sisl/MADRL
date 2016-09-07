@@ -15,6 +15,7 @@ ENV_OPTIONS = [
     ('n_walkers', int, 2, ''),
     ('position_noise', float, 1e-3, ''),
     ('angle_noise', float, 1e-3, ''),
+    ('reward_mech', str, 'local', ''),
     ('buffer_size', int, 1, ''),
 ]
 # yapf: enable
