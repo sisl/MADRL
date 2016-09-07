@@ -249,8 +249,8 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
     hardcore = False
 
-    def __init__(self, n_walkers=2, position_noise=1e-3, angle_noise=1e-3):
-        EzPickle.__init__(self, n_walkers, position_noise, angle_noise)
+    def __init__(self, n_walkers=2, position_noise=1e-3, angle_noise=1e-3, reward_mech='local'):
+        EzPickle.__init__(self, n_walkers, position_noise, angle_noise, reward_mech)
 
         self.seed()
         self.viewer = None
@@ -275,12 +275,17 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
         self.position_noise = position_noise
         self.angle_noise = angle_noise
+        self._reward_mech = reward_mech
 
         self.reset()
 
     @property
     def agents(self):
         return self.walkers
+
+    @property
+    def reward_mech(self):
+        return self._reward_mech
 
     def seed(self, seed=None):
         self.np_random, seed_ = seeding.np_random(seed)
@@ -401,8 +406,10 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
         #if self.centralized:
         #    obs = np.concatenate(obs).flatten()
-
-        return obs, rewards, done, {}
+        
+        if self.reward_mech == 'local':
+            return obs, rewards, done, {}
+        return obs, [rewards.mean()] * self.n_walkers, done, {}
 
     def render(self, mode='human', close=False):
         if close:
@@ -622,7 +629,8 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
 if __name__ == "__main__":
     n_walkers = 10
-    env = MultiWalkerEnv(n_walkers=n_walkers)
+    reward_mech = 'local'
+    env = MultiWalkerEnv(n_walkers=n_walkers, reward_mech=reward_mech)
     env.reset()
     for i in xrange(1000):
         env.render()
