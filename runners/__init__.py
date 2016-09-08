@@ -91,6 +91,8 @@ class RunnerParser(object):
 
         parser.add_argument('--epoch_length', type=int, default=1000)
         parser.add_argument('--min_pool_size', type=int, default=10000)
+        parser.add_argument('--replay_pool_size', type=int, default=500000)
+        parser.add_argument('--eval_samples', type=int, default=50000)
         parser.add_argument('--qfunc_lr', type=float, default=1e-3)
         parser.add_argument('--policy_lr', type=float, default=1e-4)
 
