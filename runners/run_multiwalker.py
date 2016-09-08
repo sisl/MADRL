@@ -5,8 +5,7 @@
 # Created: Friday, September  2 2016 by rejuvyesh <mail@rejuvyesh.com>
 #
 from runners import RunnerParser
-from runners.rurllab import RLLabRunner
-from runners.rurltools import RLToolsRunner
+
 from madrl_environments.walker.multi_walker import MultiWalkerEnv
 from madrl_environments import StandardizedEnv, ObservationBuffer
 
@@ -38,8 +37,10 @@ def main(parser):
         env = ObservationBuffer(env, args.buffer_size)
 
     if mode == 'rllab':
+        from runners.rurllab import RLLabRunner
         run = RLLabRunner(env, args)
     elif mode == 'rltools':
+        from runners.rurltools import RLToolsRunner
         run = RLToolsRunner(env, args)
     else:
         raise NotImplementedError()
