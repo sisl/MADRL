@@ -18,7 +18,7 @@ ENV_OPTIONS = [
     ('forward_reward', float, 1.0, ''),
     ('fall_reward', float, -100.0, ''),
     ('drop_reward', float, -100.0, ''),
-    ('terminate_on_fall', int, 0, ''),
+    ('terminate_on_fall', int, 1, ''),
     ('buffer_size', int, 1, ''),
 ]
 # yapf: enable
