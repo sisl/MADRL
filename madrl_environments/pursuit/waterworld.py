@@ -9,13 +9,15 @@ from rltools.util import EzPickle
 
 class Archea(Agent):
 
-    def __init__(self, idx, radius, n_sensors, sensor_range, addid=True):
+    def __init__(self, idx, radius, n_sensors, sensor_range, addid=True, speed_features=True):
         self._idx = idx
         self._radius = radius
         self._n_sensors = n_sensors
         self._sensor_range = sensor_range
         # Number of observation coordinates from each sensor
-        self._sensor_obscoord = 7
+        self._sensor_obscoord = 4
+        if speed_features:
+            self._sensor_obscoord += 3
         self._obscoord_from_sensors = self._n_sensors * self._sensor_obscoord
         self._obs_dim = self._obscoord_from_sensors + 2  #+ 1  #2 for type, 1 for id
         if addid:
@@ -76,7 +78,7 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
                  obstacle_radius=0.2, obstacle_loc=np.array([0.5, 0.5]), ev_speed=0.01,
                  poison_speed=0.01, n_sensors=30, sensor_range=0.2, action_scale=0.01,
                  poison_reward=-1., food_reward=1., encounter_reward=.05, control_penalty=-.5,
-                 reward_mech='local', addid=True, **kwargs):
+                 reward_mech='local', addid=True, speed_features=True, **kwargs):
         EzPickle.__init__(self, n_pursuers, n_evaders, n_coop, n_poison, radius, obstacle_radius,
                           obstacle_loc, ev_speed, poison_speed, n_sensors, sensor_range,
                           action_scale, poison_reward, food_reward, encounter_reward,
@@ -101,10 +103,11 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         self.n_obstacles = 1
         self._reward_mech = reward_mech
         self._addid = addid
+        self._speed_features = speed_features
         self.seed()
         self._pursuers = [
-            Archea(npu + 1, self.radius, self.n_sensors, self.sensor_range[npu], addid=self._addid)
-            for npu in range(self.n_pursuers)
+            Archea(npu + 1, self.radius, self.n_sensors, self.sensor_range[npu], addid=self._addid,
+                   speed_features=self._speed_features) for npu in range(self.n_pursuers)
         ]
         self._evaders = [
             Archea(nev + 1, self.radius * 2, self.n_pursuers, self.sensor_range.mean() / 2)
@@ -378,10 +381,14 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
             rewards[which_pursuer_encounterd_ev] += self.encounter_reward
 
         # Add features together
-        sensorfeatures_Np_K_O = np.c_[sensed_obdistfeatures_Np_K, sensed_evdistfeatures_Np_K,
-                                      sensed_evspeedfeatures_Np_K, sensed_podistfeatures_Np_K,
-                                      sensed_pospeedfeatures_Np_K, sensed_pudistfeatures_Np_K,
-                                      sensed_puspeedfeatures_Np_K]
+        if self._speed_features:
+            sensorfeatures_Np_K_O = np.c_[sensed_obdistfeatures_Np_K, sensed_evdistfeatures_Np_K,
+                                          sensed_evspeedfeatures_Np_K, sensed_podistfeatures_Np_K,
+                                          sensed_pospeedfeatures_Np_K, sensed_pudistfeatures_Np_K,
+                                          sensed_puspeedfeatures_Np_K]
+        else:
+            sensorfeatures_Np_K_O = np.c_[sensed_obdistfeatures_Np_K, sensed_evdistfeatures_Np_K,
+                                          sensed_podistfeatures_Np_K, sensed_pudistfeatures_Np_K]
 
         for evader in self._evaders:
             # Move objects
