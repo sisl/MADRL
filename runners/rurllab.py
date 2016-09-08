@@ -212,8 +212,6 @@ class RLLabRunner(object):
                              else None, mode=args.control)
         elif args.algo == 'thddpg':
             qfunc = thContinuousMLPQFunction(env_spec=env.spec)
-            import IPython
-            IPython.embed()
             if args.exp_strategy == 'ou':
                 es = OUStrategy(env_spec=env.spec)
             elif args.exp_strategy == 'gauss':
