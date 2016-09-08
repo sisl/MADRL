@@ -24,6 +24,7 @@ ENV_OPTIONS = [
     ('encounter_reward', float, 0.01, ''),
     ('reward_mech', str, 'local', ''),
     ('noid', str, None, ''),
+    ('speed_features', int, 1, ''),
     ('buffer_size', int, 1, '')
 ]
 # yapf: enable
@@ -35,7 +36,8 @@ def main(parser):
                        radius=args.radius, n_sensors=args.n_sensors, food_reward=args.food_reward,
                        poison_reward=args.poison_reward, encounter_reward=args.encounter_reward,
                        reward_mech=args.reward_mech, sensor_range=args.sensor_range,
-                       obstacle_loc=None, addid=True if not args.noid else False)
+                       obstacle_loc=None, addid=True if not args.noid else False,
+                       speed_features=bool(args.speed_features))
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
