@@ -5,10 +5,10 @@
 # Created: Wednesday, August 31 2016 by rejuvyesh <mail@rejuvyesh.com>
 #
 from runners import RunnerParser
-from runners.rurllab import RLLabRunner
-from runners.rurltools import RLToolsRunner
+
 from madrl_environments.pursuit import MAWaterWorld
 from madrl_environments import StandardizedEnv, ObservationBuffer
+
 
 # yapf: disable
 ENV_OPTIONS = [
@@ -41,8 +41,10 @@ def main(parser):
         env = ObservationBuffer(env, args.buffer_size)
 
     if mode == 'rllab':
+        from runners.rurllab import RLLabRunner
         run = RLLabRunner(env, args)
     elif mode == 'rltools':
+        from runners.rurltools import RLToolsRunner
         run = RLToolsRunner(env, args)
     else:
         raise NotImplementedError()
