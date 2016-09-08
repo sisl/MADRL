@@ -101,6 +101,7 @@ class RunnerParser(object):
         parser.add_argument('--feature_hidden', type=comma_sep_ints, default='128,64,32')
         parser.add_argument('--policy_hidden', type=comma_sep_ints, default='32')
         parser.add_argument('--min_std', type=float, default=1e-6)
+        parser.add_argument('--exp_strategy', type=str, default='ou')
 
         parser.add_argument('--step_size', type=float, default=0.01, help='max kl wall limit')
 

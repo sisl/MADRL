@@ -10,6 +10,7 @@ from rllab.sampler import parallel_sampler
 
 from rllab.algos.ddpg import DDPG as thDDPG
 from rllab.exploration_strategies.ou_strategy import OUStrategy
+from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.policies.deterministic_mlp_policy import DeterministicMLPPolicy as thDeterministicMLPPolicy
 from rllab.q_functions.continuous_mlp_q_function import ContinuousMLPQFunction as thContinuousMLPQFunction
 
@@ -211,7 +212,15 @@ class RLLabRunner(object):
                              else None, mode=args.control)
         elif args.algo == 'thddpg':
             qfunc = thContinuousMLPQFunction(env_spec=env.spec)
-            es = OUStrategy(env_spec=env.spec)
+            import IPython
+            IPython.embed()
+            if args.exp_strategy == 'ou':
+                es = OUStrategy(env_spec=env.spec)
+            elif args.exp_strategy == 'gauss':
+                es = GaussianStrategy(env_spec=env.spec)
+            else:
+                raise NotImplementedError()
+
             self.algo = thDDPG(env=env, policy=policy, qf=qfunc, es=es, batch_size=args.batch_size,
                                max_path_length=args.max_path_length, epoch_length=args.epoch_length,
                                min_pool_size=args.min_pool_size, replay_pool_size=args.replay_pool_size, 
