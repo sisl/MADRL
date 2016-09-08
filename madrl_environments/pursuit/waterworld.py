@@ -82,7 +82,7 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         EzPickle.__init__(self, n_pursuers, n_evaders, n_coop, n_poison, radius, obstacle_radius,
                           obstacle_loc, ev_speed, poison_speed, n_sensors, sensor_range,
                           action_scale, poison_reward, food_reward, encounter_reward,
-                          control_penalty, reward_mech, addid, **kwargs)
+                          control_penalty, reward_mech, addid, speed_features, **kwargs)
         self.n_pursuers = n_pursuers
         self.n_evaders = n_evaders
         self.n_coop = n_coop
