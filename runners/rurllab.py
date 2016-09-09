@@ -63,14 +63,15 @@ def rllab_envpolicy_parser(env, args):
             else:
                 feature_network = None
             if args.recurrent == 'gru':
-                if isinstance(env.spec.observation_space, Box):
+                if isinstance(env.spec.action_space, Box):
                     policy = GaussianGRUPolicy(env_spec=env.spec, feature_network=feature_network,
                                                hidden_dim=int(args.policy_hidden[0]), name='policy')
-                elif isinstance(env.spec.observation_space, Discrete):
+                elif isinstance(env.spec.action_space, Discrete):
                     policy = CategoricalGRUPolicy(env_spec=env.spec,
                                                   feature_network=feature_network,
                                                   hidden_dim=int(args.policy_hidden[0]),
-                                                  name='policy')
+                                                  name='policy',
+                                                  state_include_action=True)
                 else:
                     raise NotImplementedError(env.spec.observation_space)
 
@@ -96,7 +97,7 @@ def rllab_envpolicy_parser(env, args):
             elif isinstance(env.spec.action_space, Discrete):
                 policy = CategoricalMLPPolicy(env_spec=env.spec,
                                               hidden_sizes=tuple(args.policy_hidden),
-                                              min_std=args.min_std, name='policy')
+                                              name='policy')
             else:
                 raise NotImplementedError(env.spec.action_space)
     elif args.algo[:2] == 'th':
