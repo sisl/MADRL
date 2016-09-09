@@ -8,12 +8,12 @@ import os
 import shutil
 import sys
 import yaml
-import pandas as pd
+
 import numpy as np
 
 import rltools.util
 
-from pipelines.pipeline import run_jobs, eval_snapshot, eval_heuristic_for_snapshot
+from pipelines.pipeline import run_jobs, eval_snapshot, eval_heuristic_for_snapshot, run_slurm
 # Fix python 2.x
 try:
     input = raw_input
@@ -56,8 +56,9 @@ def phase1_train(spec, spec_file, git_hash, n_workers=2):
     rltools.util.ok('{} jobs to run...'.format(len(cmd_templates)))
     rltools.util.warn('Continue? y/n')
     if input() == 'y':
-        run_jobs(cmd_templates, output_filenames, argdicts, storagedir,
-                 jobname=os.path.split(spec_file)[-1], n_workers=n_workers)
+        run_slurm(cmd_templates, output_filenames, argdicts, storagedir,
+                  jobname=os.path.split(spec_file)[-1], n_workers=n_workers,
+                  slurm_script_copy=os.path.split(spec_file)[-1] + '.sh')
     else:
         rltools.util.failure('Canceled')
         sys.exit(1)
@@ -69,6 +70,7 @@ def phase1_train(spec, spec_file, git_hash, n_workers=2):
 
 def phase2_eval(spec, spec_file):
     rltools.util.header('==== Phase 2: evaluating trained models ====')
+    import pandas as pd
     envname = spec['task']['env']
     storagedir = spec['options']['storagedir']
     checkptdir = os.path.join(storagedir, spec['options']['checkpt_subdir'])
