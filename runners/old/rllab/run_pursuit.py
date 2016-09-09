@@ -14,6 +14,8 @@ import dateutil.tz
 import os.path as osp
 import ast
 
+import joblib
+
 import gym
 import numpy as np
 import tensorflow as tf
@@ -88,6 +90,8 @@ def main():
 
     parser.add_argument('--max_kl', type=float, default=0.01)
 
+    parser.add_argument('--checkpoint', type=str, default=None)
+
     parser.add_argument('--log_dir', type=str, required=False)
     parser.add_argument('--tabular_log_file', type=str, default='progress.csv',
                         help='Name of the tabular log file (in csv).')
@@ -118,77 +122,84 @@ def main():
 
     args.hidden_sizes = tuple(map(int, args.policy_hidden_sizes.split(',')))
 
-    if args.sample_maps:
-        map_pool = np.load(args.map_file)
-    else:
-        if args.map_type == 'rectangle':
-            env_map = TwoDMaps.rectangle_map(*map(int, args.rectangle.split(',')))
-        elif args.map_type == 'complex':
-            env_map = TwoDMaps.complex_map(*map(int, args.rectangle.split(',')))
+
+    if args.checkpoint:
+       with tf.Session() as sess:
+        data = joblib.load(args.checkpoint)
+        policy = data['policy']
+        env = data['env']
+    else: 
+        if args.sample_maps:
+            map_pool = np.load(args.map_file)
         else:
-            raise NotImplementedError()
-        map_pool = [env_map]
+            if args.map_type == 'rectangle':
+                env_map = TwoDMaps.rectangle_map(*map(int, args.rectangle.split(',')))
+            elif args.map_type == 'complex':
+                env_map = TwoDMaps.complex_map(*map(int, args.rectangle.split(',')))
+            else:
+                raise NotImplementedError()
+            map_pool = [env_map]
 
-    env = PursuitEvade(map_pool, n_evaders=args.n_evaders, n_pursuers=args.n_pursuers,
-                       obs_range=args.obs_range, n_catch=args.n_catch,
-                       train_pursuit=args.train_pursuit, urgency_reward=args.urgency,
-                       surround=args.surround, sample_maps=args.sample_maps,
-                       constraint_window=args.constraint_window,
-                       flatten=args.flatten,
-                       reward_mech=args.reward_mech,
-                       catchr=args.catchr,
-                       term_pursuit=args.term_pursuit)
+        env = PursuitEvade(map_pool, n_evaders=args.n_evaders, n_pursuers=args.n_pursuers,
+                           obs_range=args.obs_range, n_catch=args.n_catch,
+                           train_pursuit=args.train_pursuit, urgency_reward=args.urgency,
+                           surround=args.surround, sample_maps=args.sample_maps,
+                           constraint_window=args.constraint_window,
+                           flatten=args.flatten,
+                           reward_mech=args.reward_mech,
+                           catchr=args.catchr,
+                           term_pursuit=args.term_pursuit)
 
-    env = TfEnv(
-        RLLabEnv(
-            StandardizedEnv(env, scale_reward=args.reward_scale, enable_obsnorm=False),
-            mode=args.control))
+        env = TfEnv(
+            RLLabEnv(
+                StandardizedEnv(env, scale_reward=args.reward_scale, enable_obsnorm=False),
+                mode=args.control))
 
-    if args.recurrent:
-        if args.conv:
+        if args.recurrent:
+            if args.conv:
+                feature_network = ConvNetwork(
+                    name='feature_net',
+                    input_shape=emv.spec.observation_space.shape,
+                    output_dim=5, 
+                    conv_filters=(16,32,32),
+                    conv_filter_sizes=(3,3,3),
+                    conv_strides=(1,1,1),
+                    conv_pads=('VALID','VALID','VALID'),
+                    hidden_sizes=(64,), 
+                    hidden_nonlinearity=tf.nn.relu,
+                    output_nonlinearity=tf.nn.softmax)
+            else:
+                feature_network = MLP(
+                    name='feature_net',
+                    input_shape=(env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
+                    output_dim=5, hidden_sizes=(256,128,64), hidden_nonlinearity=tf.nn.tanh,
+                    output_nonlinearity=None)
+            if args.recurrent == 'gru':
+                policy = CategoricalGRUPolicy(env_spec=env.spec, feature_network=feature_network,
+                                           hidden_dim=int(args.policy_hidden_sizes), name='policy')
+            elif args.recurrent == 'lstm':
+                policy = CategoricalLSTMPolicy(env_spec=env.spec, feature_network=feature_network,
+                                            hidden_dim=int(args.policy_hidden_sizes), name='policy')
+        elif args.conv:
             feature_network = ConvNetwork(
                 name='feature_net',
-                input_shape=emv.spec.observation_space.shape,
+                input_shape=env.spec.observation_space.shape,
                 output_dim=5, 
-                conv_filters=(16,32,32),
-                conv_filter_sizes=(3,3,3),
-                conv_strides=(1,1,1),
-                conv_pads=('VALID','VALID','VALID'),
-                hidden_sizes=(64,), 
+                conv_filters=(16,16),
+                conv_filter_sizes=(3,)*2,
+                conv_strides=(1,)*2,
+                conv_pads=('VALID',)*2,
+                hidden_sizes=(32,), 
                 hidden_nonlinearity=tf.nn.relu,
                 output_nonlinearity=tf.nn.softmax)
+            policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, prob_network=feature_network)
         else:
-            feature_network = MLP(
-                name='feature_net',
-                input_shape=(env.spec.observation_space.flat_dim + env.spec.action_space.flat_dim,),
-                output_dim=5, hidden_sizes=(256,128,64), hidden_nonlinearity=tf.nn.tanh,
-                output_nonlinearity=None)
-        if args.recurrent == 'gru':
-            policy = CategoricalGRUPolicy(env_spec=env.spec, feature_network=feature_network,
-                                       hidden_dim=int(args.policy_hidden_sizes), name='policy')
-        elif args.recurrent == 'lstm':
-            policy = CategoricalLSTMPolicy(env_spec=env.spec, feature_network=feature_network,
-                                        hidden_dim=int(args.policy_hidden_sizes), name='policy')
-    elif args.conv:
-        feature_network = ConvNetwork(
-            name='feature_net',
-            input_shape=env.spec.observation_space.shape,
-            output_dim=5, 
-            conv_filters=(16,16),
-            conv_filter_sizes=(4,4),
-            conv_strides=(1,1),
-            conv_pads=('VALID','VALID'),
-            hidden_sizes=(32,), 
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.softmax)
-        policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, prob_network=feature_network)
-    else:
-        policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, hidden_sizes=args.hidden_sizes)
+            policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, hidden_sizes=args.hidden_sizes)
 
     if args.baseline_type == 'linear':
         baseline = LinearFeatureBaseline(env_spec=env.spec)
     else:
-        baseline = ZeroBaseline(obsfeat_space)
+        baseline = ZeroBaseline(env_spec=env.spec)
 
     # logger
     default_log_dir = config.LOG_DIR
