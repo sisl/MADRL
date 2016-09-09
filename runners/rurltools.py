@@ -11,7 +11,7 @@ from rltools.algos.policyopt import TRPO, SamplingPolicyOptimizer, ConcurrentPol
 from rltools.baselines.linear import LinearFeatureBaseline
 from rltools.baselines.mlp import MLPBaseline
 from rltools.baselines.zero import ZeroBaseline
-from rltools.policy.categorical import CategoricalMLPPolicy
+from rltools.policy.categorical import CategoricalMLPPolicy, CategoricalGRUPolicy
 from rltools.policy.gaussian import GaussianGRUPolicy, GaussianMLPPolicy
 from rltools.samplers.parallel import ParallelSampler
 from rltools.samplers.serial import DecSampler, SimpleSampler, ConcSampler
@@ -55,6 +55,15 @@ def rltools_envpolicy_parser(env, args):
                                            min_stdev=args.min_std, init_logstdev=0.,
                                            enable_obsnorm=args.enable_obsnorm,
                                            state_include_action=False, varscope_name='policy')
+            if isinstance(action_space, spaces.Discrete):
+                if args.control == 'concurrent':
+                    policies = [CategoricalGRUPolicy(env.agents[agid].observation_space,
+                                                  env.agents[agid].action_space,
+                                                  hidden_spec=args.policy_hidden_spec,
+                                                  enable_obsnorm=args.enable_obsnorm,
+                                                  state_include_action=False,
+                                                  varscope_name='policy_{}'.format(agid))
+                                for agid in range(len(env.agents))]
 
             elif isinstance(action_space, spaces.Discrete):
                 raise NotImplementedError(args.recurrent)
