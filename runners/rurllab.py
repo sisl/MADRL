@@ -10,6 +10,7 @@ from rllab.sampler import parallel_sampler
 
 from rllab.algos.ddpg import DDPG as thDDPG
 from rllab.exploration_strategies.ou_strategy import OUStrategy
+from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.policies.deterministic_mlp_policy import DeterministicMLPPolicy as thDeterministicMLPPolicy
 from rllab.q_functions.continuous_mlp_q_function import ContinuousMLPQFunction as thContinuousMLPQFunction
 
@@ -142,8 +143,6 @@ def rllab_envpolicy_parser(env, args):
                 assert isinstance(env.spec.action_space, thBox)
                 policy = thDeterministicMLPPolicy(env_spec=env.spec,
                                                   hidden_sizes=tuple(args.policy_hidden),)
-                qfunc = thContinuousMLPQFunction(env_spec=env.spec)
-                es = OUStrategy(env_spec=env.spec)
             else:
                 if isinstance(env.spec.action_space, thBox):
                     policy = thGaussianMLPPolicy(env_spec=env.spec,
@@ -212,11 +211,21 @@ class RLLabRunner(object):
                                  hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if args.recurrent
                              else None, mode=args.control)
         elif args.algo == 'thddpg':
+            qfunc = thContinuousMLPQFunction(env_spec=env.spec)
+            if args.exp_strategy == 'ou':
+                es = OUStrategy(env_spec=env.spec)
+            elif args.exp_strategy == 'gauss':
+                es = GaussianStrategy(env_spec=env.spec)
+            else:
+                raise NotImplementedError()
+
             self.algo = thDDPG(env=env, policy=policy, qf=qfunc, es=es, batch_size=args.batch_size,
                                max_path_length=args.max_path_length, epoch_length=args.epoch_length,
-                               min_pool_size=args.min_pool_size, n_epochs=args.n_iter,
-                               discount=args.discount, scale_reward=0.01,
-                               qf_learning_rate=args.qfunc_lr, policy_learning_rate=args.policy_lr)
+                               min_pool_size=args.min_pool_size, replay_pool_size=args.replay_pool_size, 
+                               n_epochs=args.n_iter, discount=args.discount, scale_reward=0.01,
+                               qf_learning_rate=args.qfunc_lr, policy_learning_rate=args.policy_lr,
+                               eval_samples=args.eval_samples,
+                               mode=args.control)
 
     def __call__(self):
         self.algo.train()

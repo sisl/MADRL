@@ -42,7 +42,7 @@ def rltools_envpolicy_parser(env, args):
             if isinstance(action_space, spaces.Box):
                 if args.control == 'concurrent':
                     policies = [GaussianGRUPolicy(env.agents[agid].observation_space,
-                                                  env.agents[agid], action_space,
+                                                  env.agents[agid].action_space,
                                                   hidden_spec=args.policy_hidden_spec,
                                                   min_stdev=args.min_std, init_logstdev=0.,
                                                   enable_obsnorm=args.enable_obsnorm,

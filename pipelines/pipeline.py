@@ -10,9 +10,7 @@ import multiprocessing as mp
 import os
 import shutil
 import subprocess
-
-import yaml
-
+import sys
 import rltools.util
 
 
@@ -70,3 +68,11 @@ def run_jobs(cmd_templates, output_filenames, argdicts, storage_dir, outputfile_
     for i in range(n_workers):
         worker.append(Worker(work_queue, res_queue))
         worker[i].start()
+
+
+def eval_snapshot():
+    pass
+
+
+def eval_heuristic_for_snapshot():
+    pass

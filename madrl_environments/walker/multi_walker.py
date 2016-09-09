@@ -52,18 +52,16 @@ class ContactDetector(contactListener):
         self.env = env
 
     def BeginContact(self, contact):
-        for walker in self.env.walkers:
-            #if walker.hull==contact.fixtureA.body or walker.hull==contact.fixtureB.body:
+        # if walkers fall on ground
+        for i, walker in enumerate(self.env.walkers):
             if walker.hull == contact.fixtureA.body:
                 if self.env.package != contact.fixtureB.body:
-                    self.env.game_over = True
-                    break
+                    self.env.fallen_walkers[i] = True
             if walker.hull == contact.fixtureB.body:
                 if self.env.package != contact.fixtureA.body:
-                    self.env.game_over = True
-                    break
+                    self.env.fallen_walkers[i] = True
 
-        #if self.env.package == contact.fixtureA.body or self.env.package == contact.fixtureB.body:
+        # if package is on the ground
         if self.env.package == contact.fixtureA.body:
             if contact.fixtureB.body not in [w.hull for w in self.env.walkers]:
                 self.env.game_over = True
@@ -249,8 +247,12 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
     hardcore = False
 
-    def __init__(self, n_walkers=2, position_noise=1e-3, angle_noise=1e-3):
-        EzPickle.__init__(self, n_walkers, position_noise, angle_noise)
+    def __init__(self, n_walkers=2, position_noise=1e-3, angle_noise=1e-3, 
+                       reward_mech='local', forward_reward=1.0, fall_reward=-100.0, drop_reward=-100.0,
+                       terminate_on_fall=True):
+        EzPickle.__init__(self, n_walkers, position_noise, angle_noise, 
+                                reward_mech, forward_reward, fall_reward, drop_reward,
+                                terminate_on_fall)
 
         self.seed()
         self.viewer = None
@@ -275,12 +277,25 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
         self.position_noise = position_noise
         self.angle_noise = angle_noise
+        self._reward_mech = reward_mech
+
+        self.terrain_length = int(TERRAIN_LENGTH * n_walkers * 1/8.)
+
+        self.forward_reward = forward_reward
+        self.fall_reward = fall_reward
+        self.drop_reward = drop_reward
+
+        self.terminate_on_fall = terminate_on_fall
 
         self.reset()
 
     @property
     def agents(self):
         return self.walkers
+
+    @property
+    def reward_mech(self):
+        return self._reward_mech
 
     def seed(self, seed=None):
         self.np_random, seed_ = seeding.np_random(seed)
@@ -304,6 +319,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.world.contactListener_bug_workaround = ContactDetector(self)
         self.world.contactListener = self.world.contactListener_bug_workaround
         self.game_over = False
+        self.fallen_walkers = np.zeros(self.n_walkers, dtype=np.bool)
         self.prev_shaping = np.zeros(self.n_walkers)
         self.prev_package_shaping = 0.0
         self.scroll = 0.0
@@ -349,18 +365,9 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
             wobs = self.walkers[i].get_observation()
             nobs = []
-            """
-            for j in xrange(self.n_walkers):
-                if i != j:
-                    xm = (self.walkers[j].hull.position.x - x) / self.package_length
-                    ym = (self.walkers[j].hull.position.y - y) / self.package_length
-                    nobs.append(np.random.normal(xm, self.position_noise))
-                    nobs.append(np.random.normal(ym, self.position_noise))
-            """
             for j in [i - 1, i + 1]:
+                # if no neighbor (for edge walkers)
                 if j < 0 or j == self.n_walkers:
-                    #nobs.append(np.random.normal(0.0, self.position_noise))
-                    #nobs.append(np.random.normal(0.0, self.position_noise))
                     nobs.append(0.0)
                     nobs.append(0.0)
                 else:
@@ -382,10 +389,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
             rewards[i] = shaping - self.prev_shaping[i]
             self.prev_shaping[i] = shaping
 
-        #import IPython
-        #IPython.embed()
-
-        package_shaping = 130 * self.package.position.x / SCALE
+        package_shaping = self.forward_reward * 130 * self.package.position.x / SCALE
         rewards += (package_shaping - self.prev_package_shaping)
         self.prev_package_shaping = package_shaping
 
@@ -394,15 +398,17 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
         done = False
         if self.game_over or pos[0] < 0:
-            rewards -= 100
+            rewards += self.drop_reward
             done = True
-        if pos[0] > (TERRAIN_LENGTH - TERRAIN_GRASS) * TERRAIN_STEP:
+        if pos[0] > (self.terrain_length - TERRAIN_GRASS) * TERRAIN_STEP:
+            done = True
+        rewards += self.fall_reward * self.fallen_walkers
+        if self.terminate_on_fall and np.sum(self.fallen_walkers) > 0:
             done = True
 
-        #if self.centralized:
-        #    obs = np.concatenate(obs).flatten()
-
-        return obs, rewards, done, {}
+        if self.reward_mech == 'local':
+            return obs, rewards, done, {}
+        return obs, [rewards.mean()] * self.n_walkers, done, {}
 
     def render(self, mode='human', close=False):
         if close:
@@ -499,7 +505,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.terrain = []
         self.terrain_x = []
         self.terrain_y = []
-        for i in range(TERRAIN_LENGTH):
+        for i in range(self.terrain_length):
             x = i * TERRAIN_STEP
             self.terrain_x.append(x)
 
@@ -587,7 +593,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
                     oneshot = True
 
         self.terrain_poly = []
-        for i in range(TERRAIN_LENGTH - 1):
+        for i in range(self.terrain_length - 1):
             poly = [
                 (self.terrain_x[i], self.terrain_y[i]),
                 (self.terrain_x[i + 1], self.terrain_y[i + 1])
@@ -607,8 +613,8 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
     def _generate_clouds(self):
         # Sorry for the clouds, couldn't resist
         self.cloud_poly = []
-        for i in range(TERRAIN_LENGTH // 20):
-            x = self.np_random.uniform(0, TERRAIN_LENGTH) * TERRAIN_STEP
+        for i in range(self.terrain_length // 20):
+            x = self.np_random.uniform(0, self.terrain_length) * TERRAIN_STEP
             y = VIEWPORT_H / SCALE * 3 / 4
             poly = [
                 (x + 15 * TERRAIN_STEP * math.sin(3.14 * 2 * a / 5) + self.np_random.uniform(
@@ -621,16 +627,17 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
 
 if __name__ == "__main__":
-    n_walkers = 10
-    env = MultiWalkerEnv(n_walkers=n_walkers)
+    n_walkers = 3
+    reward_mech = 'local'
+    env = MultiWalkerEnv(n_walkers=n_walkers, reward_mech=reward_mech)
     env.reset()
     for i in xrange(1000):
         env.render()
         a = np.array([env.agents[0].action_space.sample() for _ in xrange(n_walkers)])
         o, r, done, _ = env.step(a)
         print "\nStep:", i
-        print "Obs:", o
+        #print "Obs:", o
         print "Rewards:", r
-        print "Term:", done
+        #print "Term:", done
         if done:
             break

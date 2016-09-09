@@ -4,6 +4,7 @@ import argparse
 import sys
 import datetime
 import dateutil
+import dateutil.tz
 import uuid
 import ast
 
@@ -90,6 +91,8 @@ class RunnerParser(object):
 
         parser.add_argument('--epoch_length', type=int, default=1000)
         parser.add_argument('--min_pool_size', type=int, default=10000)
+        parser.add_argument('--replay_pool_size', type=int, default=500000)
+        parser.add_argument('--eval_samples', type=int, default=50000)
         parser.add_argument('--qfunc_lr', type=float, default=1e-3)
         parser.add_argument('--policy_lr', type=float, default=1e-4)
 
@@ -98,6 +101,7 @@ class RunnerParser(object):
         parser.add_argument('--feature_hidden', type=comma_sep_ints, default='128,64,32')
         parser.add_argument('--policy_hidden', type=comma_sep_ints, default='32')
         parser.add_argument('--min_std', type=float, default=1e-6)
+        parser.add_argument('--exp_strategy', type=str, default='ou')
 
         parser.add_argument('--step_size', type=float, default=0.01, help='max kl wall limit')
 

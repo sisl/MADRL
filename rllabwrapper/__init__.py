@@ -14,13 +14,13 @@ import numpy as np
 
 
 def convert_gym_space(space, n_agents=1):
-    if isinstance(space, gym.spaces.Box):
+    if isinstance(space, gym.spaces.Box) or isinstance(space, Box):
         if len(space.shape) > 1:
             assert n_agents == 1, "multi-dimensional inputs for centralized agents not supported"
             return Box(low=np.min(space.low), high=np.max(space.high), shape=space.shape)
         else:
             return Box(low=np.min(space.low), high=np.max(space.high), shape=(space.shape[0]*n_agents,))
-    elif isinstance(space, gym.spaces.Discrete):
+    elif isinstance(space, gym.spaces.Discrete) or isinstance(space, Discrete):
         return Discrete(n=space.n**n_agents)
     else:
         raise NotImplementedError

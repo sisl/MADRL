@@ -40,7 +40,6 @@ class FileHandler(object):
             with h5py.File(self.filename, 'r') as f:
                 self.train_args = json.loads(f.attrs['args'])
                 dset = f[self.file_key]
-                pprint.pprint(dict(dset.attrs))
 
         else:
             self.mode = 'rllab'
@@ -55,20 +54,22 @@ class FileHandler(object):
 
 class PolicyLoad(object):
 
-    def __init__(self, env, train_args, max_traj_len, n_trajs, deterministic, mode='rltools'):
+    def __init__(self, env, args, max_traj_len, n_trajs, deterministic, mode='rltools'):
 
         self.mode = mode
+        if self.mode == 'heuristic':
+            self.env = env
         if self.mode == 'rltools':
-            self.env, self.policies, self.policy = rltools_envpolicy_parser(env, train_args)
+            self.env, self.policies, self.policy = rltools_envpolicy_parser(env, args)
         elif self.mode == 'rllab':
-            self.env, _ = rllab_envpolicy_parser(env, train_args)
+            self.env, _ = rllab_envpolicy_parser(env, args)
             self.policy = None
 
         self.deterministic = deterministic
         self.max_traj_len = max_traj_len
         self.n_trajs = n_trajs
-        self.disc = train_args['discount']
-        self.control = train_args['control']
+        self.disc = args['discount']
+        self.control = args['control']
 
 
 class Evaluator(PolicyLoad):
@@ -98,6 +99,13 @@ class Evaluator(PolicyLoad):
                                                     disc=self.disc, mode=self.control,
                                                     max_traj_len=self.max_traj_len,
                                                     n_trajs=self.n_trajs)
+        if self.mode == 'heuristic':
+            hpolicy = kwargs.pop('hpolicy', None)
+            assert hpolicy
+            return rltools.util.evaluate_policy(self.env, hpolicy, deterministic=self.deterministic,
+                                                disc=self.disc, mode=self.control,
+                                                max_traj_len=self.max_traj_len,
+                                                n_trajs=self.n_trajs)
 
 
 class Visualizer(PolicyLoad):
@@ -140,3 +148,11 @@ class Visualizer(PolicyLoad):
                     rew = [path['rewards'].mean() for path in paths]
                     info = {key: value.sum() for key, value in paths[0]['env_infos'].items()}
                 return rew, info
+
+        if self.mode == 'heuristic':
+            hpolicy = kwargs.pop('hpolicy', None)
+            assert hpolicy is not None
+            rew, trajinfo = self.env.animate(
+                act_fn=lambda o: hpolicy.sample_actions(o[None, ...])[0], nsteps=self.max_traj_len)
+            info = {key: np.sum(value) for key, value in trajinfo.items()}
+            return (rew, info)
