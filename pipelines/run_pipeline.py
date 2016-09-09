@@ -21,7 +21,7 @@ except NameError:
     pass
 
 
-def phase1_train(spec, spec_file, git_hash, n_workers=2):
+def phase1_train(spec, spec_file, git_hash, n_workers=1):
     rltools.util.header('==== Phase 1: training {} ===='.format(spec_file))
 
     # all outputs go here
