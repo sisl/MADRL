@@ -89,6 +89,8 @@ def rllab_envpolicy_parser(env, args):
 
             else:
                 raise NotImplementedError(args.recurrent)
+        elif args.conv:
+            raise NotImplementedError()
         else:
             if isinstance(env.spec.action_space, Box):
                 policy = GaussianMLPPolicy(env_spec=env.spec,
