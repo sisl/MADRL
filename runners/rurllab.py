@@ -28,7 +28,7 @@ from rllab.q_functions.continuous_mlp_q_function import ContinuousMLPQFunction a
 
 from rllabwrapper import RLLabEnv
 from sandbox.rocky.tf.algos.trpo import TRPO
-from sandbox.rocky.tf.core.network import MLP
+from sandbox.rocky.tf.core.network import MLP, ConvNetwork
 from sandbox.rocky.tf.envs.base import TfEnv
 from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (ConjugateGradientOptimizer,
                                                                       FiniteDifferenceHvp)
@@ -60,6 +60,25 @@ def rllab_envpolicy_parser(env, args):
                                       output_dim=args.feature_output,
                                       hidden_sizes=tuple(args.feature_hidden),
                                       hidden_nonlinearity=tf.nn.tanh, output_nonlinearity=None)
+            elif args.conv:
+                strides = tuple(args.conv_strides)
+                chans = tuple(args.conv_channels)
+                filts = tuple(args.conv_filters)
+
+                assert len(strides) == len(chans) == len(filts), "strides, chans and filts not equal"
+                # only discrete actions supported, should be straightforward to extend to continuous    
+                assert isinstance(env.spec.action_space, Discrete), "Only discrete action spaces support conv"
+                feature_network = ConvNetwork(
+                    name='feature_net',
+                    input_shape=env.spec.observation_space.shape,
+                    output_dim=args.feature_output,
+                    conv_filters=chans,
+                    conv_filter_sizes=filts,
+                    conv_strides=strides,
+                    conv_pads=('VALID',)*len(chans),
+                    hidden_sizes=tuple(args.feature_hidden),
+                    hidden_nonlinearity=tf.nn.relu,
+                    output_nonlinearity=None)
             else:
                 feature_network = None
             if args.recurrent == 'gru':
@@ -71,7 +90,7 @@ def rllab_envpolicy_parser(env, args):
                                                   feature_network=feature_network,
                                                   hidden_dim=int(args.policy_hidden[0]),
                                                   name='policy',
-                                                  state_include_action=True)
+                                                  state_include_action=False if args.conv else True)
                 else:
                     raise NotImplementedError(env.spec.observation_space)
 
@@ -90,7 +109,25 @@ def rllab_envpolicy_parser(env, args):
             else:
                 raise NotImplementedError(args.recurrent)
         elif args.conv:
-            raise NotImplementedError()
+            strides = tuple(args.conv_strides)
+            chans = tuple(args.conv_channels)
+            filts = tuple(args.conv_filters)
+
+            assert len(strides) == len(chans) == len(filts), "strides, chans and filts not equal"
+            # only discrete actions supported, should be straightforward to extend to continuous    
+            assert isinstance(env.spec.action_space, Discrete), "Only discrete action spaces support conv"
+            feature_network = ConvNetwork(
+                name='feature_net',
+                input_shape=env.spec.observation_space.shape,
+                output_dim=env.spec.action_space.n,
+                conv_filters=chans,
+                conv_filter_sizes=filts,
+                conv_strides=strides,
+                conv_pads=('VALID',)*len(chans),
+                hidden_sizes=tuple(args.policy_hidden),
+                hidden_nonlinearity=tf.nn.relu,
+                output_nonlinearity=tf.nn.softmax)
+            policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, prob_network=feature_network)
         else:
             if isinstance(env.spec.action_space, Box):
                 policy = GaussianMLPPolicy(env_spec=env.spec,
