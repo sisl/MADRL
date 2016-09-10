@@ -224,11 +224,11 @@ class RLLabRunner(object):
 
             self.algo = thDDPG(env=env, policy=policy, qf=qfunc, es=es, batch_size=args.batch_size,
                                max_path_length=args.max_path_length, epoch_length=args.epoch_length,
-                               min_pool_size=args.min_pool_size, replay_pool_size=args.replay_pool_size, 
-                               n_epochs=args.n_iter, discount=args.discount, scale_reward=0.01,
+                               min_pool_size=args.min_pool_size,
+                               replay_pool_size=args.replay_pool_size, n_epochs=args.n_iter,
+                               discount=args.discount, scale_reward=0.01,
                                qf_learning_rate=args.qfunc_lr, policy_learning_rate=args.policy_lr,
-                               eval_samples=args.eval_samples,
-                               mode=args.control)
+                               eval_samples=args.eval_samples, mode=args.control)
 
     def __call__(self):
         self.algo.train()

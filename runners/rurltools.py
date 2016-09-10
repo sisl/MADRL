@@ -55,15 +55,20 @@ def rltools_envpolicy_parser(env, args):
                                            min_stdev=args.min_std, init_logstdev=0.,
                                            enable_obsnorm=args.enable_obsnorm,
                                            state_include_action=False, varscope_name='policy')
-            if isinstance(action_space, spaces.Discrete):
-                if args.control == 'concurrent':
+            elif isinstance(action_space, spaces.Discrete):
+                if args.control == 'concurent':
                     policies = [CategoricalGRUPolicy(env.agents[agid].observation_space,
-                                                  env.agents[agid].action_space,
-                                                  hidden_spec=args.policy_hidden_spec,
-                                                  enable_obsnorm=args.enable_obsnorm,
-                                                  state_include_action=False,
-                                                  varscope_name='policy_{}'.format(agid))
+                                                     env.agents[agid].action_space,
+                                                     hidden_spec=args.policy_hidden_spec,
+                                                     enable_obsnorm=args.enable_obsnorm,
+                                                     state_include_action=False,
+                                                     varscope_name='policy_{}'.format(agid))
                                 for agid in range(len(env.agents))]
+
+                policy = CategoricalGRUPolicy(obs_space, action_space,
+                                              hidden_spec=args.policy_hidden_spec,
+                                              enable_obsnorm=args.enable_obsnorm,
+                                              state_include_action=False, varscope_name='policy')
 
             elif isinstance(action_space, spaces.Discrete):
                 raise NotImplementedError(args.recurrent)
