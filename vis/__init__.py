@@ -10,9 +10,6 @@ from gym import spaces
 
 import rltools.util
 
-from runners.rurllab import rllab_envpolicy_parser
-from runners.rurltools import rltools_envpolicy_parser
-
 
 class FileHandler(object):
 
@@ -60,8 +57,10 @@ class PolicyLoad(object):
         if self.mode == 'heuristic':
             self.env = env
         if self.mode == 'rltools':
+            from runners.rurltools import rltools_envpolicy_parser
             self.env, self.policies, self.policy = rltools_envpolicy_parser(env, args)
         elif self.mode == 'rllab':
+            from runners.rurllab import rllab_envpolicy_parser
             self.env, _ = rllab_envpolicy_parser(env, args)
             self.policy = None
 
