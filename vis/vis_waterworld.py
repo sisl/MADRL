@@ -57,6 +57,7 @@ def main():
     if fh.train_args['buffer_size'] > 1:
         env = ObservationBuffer(env, fh.train_args['buffer_size'])
 
+    hpolicy = None
     if args.heuristic:
         from heuristic.waterworld import WaterworldHeuristicPolicy
         hpolicy = WaterworldHeuristicPolicy(env.agents[0].observation_space,
