@@ -38,23 +38,23 @@ def main():
     parser.add_argument('--deterministic', action='store_true', default=False)
     parser.add_argument('--heuristic', action='store_true', default=False)
     parser.add_argument('--evaluate', action='store_true', default=False)
-    parser.add_argument('--n_trajs', type=int, default=10)
+    parser.add_argument('--n_trajs', type=int, default=20)
     parser.add_argument('--n_steps', type=int, default=500)
     parser.add_argument('--same_con_pol', action='store_true')
     args = parser.parse_args()
 
     fh = FileHandler(args.filename)
 
-    env = MultiWalkerEnv(fh.train_args['n_walkers'],
-                         fh.train_args['position_noise'],
-                         fh.train_args['angle_noise'],)  #fh.train_args['reward_mech'])
+    env = MultiWalkerEnv(fh.train_args['n_walkers'], fh.train_args['position_noise'],
+                         fh.train_args['angle_noise'],
+                         reward_mech='global')  #fh.train_args['reward_mech'])
 
     if fh.train_args['buffer_size'] > 1:
         env = ObservationBuffer(env, fh.train_args['buffer_size'])
 
     hpolicy = None
     if args.heuristic:
-        from heuristic.multiwalker import MultiwalkerHeuristicPolicy
+        from heuristics.multiwalker import MultiwalkerHeuristicPolicy
         hpolicy = MultiwalkerHeuristicPolicy(env.agents[0].observation_space,
                                              env.agents[0].action_space)
 

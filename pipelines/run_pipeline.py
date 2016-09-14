@@ -93,7 +93,7 @@ def phase2_eval(spec, spec_file):
             for run in range(spec['training']['runs']):
                 # Make sure checkpoint file exists
                 strid = 'alg={},{}run={}'.format(alg['name'], agent_id, run)
-                checkptfile = os.path.join(checkptdir, strid, '.h5')
+                checkptfile = os.path.join(checkptdir, strid + '.h5')
                 if not os.path.exists(checkptfile):
                     nonexistent_checkptfile.append(checkptfile)
 
@@ -110,8 +110,8 @@ def phase2_eval(spec, spec_file):
         agent_id = ''
         for k, v in agent_args.items():
             agent_id += '{}={},'.format(k, v)
-            rltools.util.header('Evaluating run {}/{} : alg={},{}run={}'.format(i_eval + 1, len(
-                evals_to_do), alg['name'], agent_id, run))
+        rltools.util.header('Evaluating run {}/{} : alg={},{}run={}'.format(i_eval + 1, len(
+            evals_to_do), alg['name'], agent_id, run))
 
         # Check if dir or file
         if os.path.isdir(checkptfile):
@@ -140,6 +140,7 @@ def phase2_eval(spec, spec_file):
             except Exception as e:
                 ret = {'error': str(e)}
                 idx = None
+                log_df = None
         else:
             try:
                 # RLTOOLS
@@ -165,7 +166,7 @@ def phase2_eval(spec, spec_file):
             except Exception as e:
                 ret = {'error': str(e)}
                 idx = None
-
+                log_df = None
         collected_results.append(
             dict(alg=alg['name'], env=envname, run=run, idx=idx, log=log_df, **ret))
 

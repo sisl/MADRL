@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #
-# File: vis_waterworld.py
+# File: vis_pursuit.py
 #
-# Created: Thursday, July 14 2016 by rejuvyesh <mail@rejuvyesh.com>
+# Created: Wednesday, September 14 2016 by rejuvyesh <mail@rejuvyesh.com>
 #
 from __future__ import absolute_import, print_function
 
@@ -11,22 +11,11 @@ import json
 import pprint
 import os
 import os.path
-
-from gym import spaces
-import h5py
 import numpy as np
-import tensorflow as tf
 
-import rltools.algos
-import rltools.log
-import rltools.util
-import rltools.samplers
-from madrl_environments import ObservationBuffer
-from madrl_environments.pursuit import MAWaterWorld
-from rltools.baselines.linear import LinearFeatureBaseline
-from rltools.baselines.mlp import MLPBaseline
-from rltools.baselines.zero import ZeroBaseline
-from rltools.policy.gaussian import GaussianMLPPolicy
+from madrl_environments.pursuit import PursuitEvade
+from madrl_environments.pursuit.utils import TwoDMaps
+from madrl_environments import StandardizedEnv, ObservationBuffer
 
 from vis import Evaluator, Visualizer, FileHandler
 
@@ -38,32 +27,32 @@ def main():
     parser.add_argument('--deterministic', action='store_true', default=False)
     parser.add_argument('--heuristic', action='store_true', default=False)
     parser.add_argument('--evaluate', action='store_true', default=False)
-    parser.add_argument('--n_trajs', type=int, default=10)
+    parser.add_argument('--n_trajs', type=int, default=20)
     parser.add_argument('--n_steps', type=int, default=500)
     parser.add_argument('--same_con_pol', action='store_true')
     args = parser.parse_args()
 
     fh = FileHandler(args.filename)
 
-    env = MAWaterWorld(fh.train_args['n_pursuers'],
-                       fh.train_args['n_evaders'],
-                       fh.train_args['n_coop'],
-                       fh.train_args['n_poison'],
-                       n_sensors=fh.train_args['n_sensors'],
-                       food_reward=fh.train_args['food_reward'],
-                       poison_reward=fh.train_args['poison_reward'],
-                       reward_mech='global',
-                       encounter_reward=0,  #fh.train_args['encounter_reward'],
-                       addid=True,)
+    map_pool = np.load(
+        os.path.join('/scratch/megorov/deeprl/MADRL/runners/maps/', os.path.basename(fh.train_args[
+            'map_file'])))
+    env = PursuitEvade(map_pool, n_evaders=fh.train_args['n_evaders'],
+                       n_pursuers=fh.train_args['n_pursuers'], obs_range=fh.train_args['obs_range'],
+                       n_catch=fh.train_args['n_catch'], urgency_reward=fh.train_args['urgency'],
+                       surround=bool(fh.train_args['surround']),
+                       sample_maps=bool(fh.train_args['sample_maps']), flatten=bool(fh.train_args),
+                       reward_mech='global', catchr=fh.train_args['catchr'],
+                       term_pursuit=fh.train_args['term_pursuit'])
 
     if fh.train_args['buffer_size'] > 1:
         env = ObservationBuffer(env, fh.train_args['buffer_size'])
 
     hpolicy = None
     if args.heuristic:
-        from heuristics.waterworld import WaterworldHeuristicPolicy
-        hpolicy = WaterworldHeuristicPolicy(env.agents[0].observation_space,
-                                            env.agents[0].action_space)
+        from heuristics.pursuit import PursuitHeuristicPolicy
+        hpolicy = PursuitHeuristicPolicy(env.agents[0].observation_space,
+                                         env.agents[0].action_space)
 
     if args.evaluate:
         minion = Evaluator(env, fh.train_args, args.n_steps, args.n_trajs, args.deterministic,
@@ -74,8 +63,8 @@ def main():
         print(tabulate(evr, headers='keys'))
     else:
         minion = Visualizer(env, fh.train_args, args.n_steps, args.n_trajs, args.deterministic,
-                            'heuristic' if args.heuristic else fh.mode)
-        rew, info = minion(fh.filename, file_key=fh.file_key, vid=args.vid, hpolicy=hpolicy)
+                            fh.mode)
+        rew, info = minion(fh.filename, file_key=fh.file_key, vid=args.vid)
         pprint.pprint(rew)
         pprint.pprint(info)
 

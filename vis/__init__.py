@@ -83,7 +83,7 @@ class Evaluator(PolicyLoad):
             assert file_key
             with tf.Session() as sess:
                 sess.run(tf.initialize_all_variables())
-                self.policy.load_h5(sess, filename, file_key)
+
                 if self.control == 'concurrent':
                     if same_con_pol:
                         rpolicy = [self.policy] * len(self.env.agents)
@@ -92,6 +92,7 @@ class Evaluator(PolicyLoad):
                             pol.load_h5(sess, filename, file_key)
                         rpolicy = self.policies
                 else:
+                    self.policy.load_h5(sess, filename, file_key)
                     rpolicy = self.policy
                 return rltools.util.evaluate_policy(self.env, rpolicy,
                                                     deterministic=self.deterministic,
@@ -127,14 +128,28 @@ class Visualizer(PolicyLoad):
     def __call__(self, filename, **kwargs):
         if self.mode == 'rltools':
             file_key = kwargs.pop('file_key', None)
+            same_con_pol = kwargs.pop('same_con_pol', None)
             assert file_key
             vid = kwargs.pop('vid', None)
             with tf.Session() as sess:
                 sess.run(tf.initialize_all_variables())
-                self.policy.load_h5(sess, filename, file_key)
-                rew, trajinfo = self.env.animate(
-                    act_fn=lambda o: self.policy.sample_actions(o[None, ...], deterministic=self.deterministic)[0],
-                    nsteps=self.max_traj_len)
+                if self.control == 'concurrent':
+                    if same_con_pol:
+                        rpolicy = [self.policy] * len(self.env.agents)
+                    else:
+                        for pol in self.policies:
+                            pol.load_h5(sess, filename, file_key)
+                        rpolicy = self.policies
+                        act_fns = [
+                            lambda o: pol.sample_actions(o[None, ...], deterministic=self.deterministic)[0]
+                            for pol in rpolicy
+                        ]
+                else:
+                    rpolicy = self.policy.load_h5(sess, filename, file_key)
+                    act_fns = [
+                        lambda o: self.policy.sample_actions(o[None, ...], deterministic=self.deterministic)[0]
+                    ] * len(self.env.agents)
+                rew, trajinfo = self.env.animate(act_fn=act_fns, nsteps=self.max_traj_len)
                 info = {key: np.sum(value) for key, value in trajinfo.items()}
                 return (rew, info)
 
