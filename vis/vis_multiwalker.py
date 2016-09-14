@@ -52,10 +52,11 @@ def main():
     if fh.train_args['buffer_size'] > 1:
         env = ObservationBuffer(env, fh.train_args['buffer_size'])
 
+    hpolicy = None
     if args.heuristic:
         from heuristic.multiwalker import MultiwalkerHeuristicPolicy
-        hpolicy = MultwalkerHeuristicPolicy(env.agents[0].observation_space,
-                                            env.agents[0].action_space)
+        hpolicy = MultiwalkerHeuristicPolicy(env.agents[0].observation_space,
+                                             env.agents[0].action_space)
 
     if args.evaluate:
         minion = Evaluator(env, fh.train_args, args.n_steps, args.n_trajs, args.deterministic,

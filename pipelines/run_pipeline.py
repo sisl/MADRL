@@ -74,7 +74,7 @@ def phase2_eval(spec, spec_file):
     envname = spec['task']['env']
     storagedir = spec['options']['storagedir']
     checkptdir = os.path.join(storagedir, spec['options']['checkpt_subdir'])
-    print('Evluating results in {}'.format(checkptdir))
+    print('Evaluating results in {}'.format(checkptdir))
 
     results_full_path = os.path.join(storagedir, spec['options']['results_filename'])
     print('Results will be stored in {}'.format(results_full_path))
@@ -113,37 +113,61 @@ def phase2_eval(spec, spec_file):
             rltools.util.header('Evaluating run {}/{} : alg={},{}run={}'.format(i_eval + 1, len(
                 evals_to_do), alg['name'], agent_id, run))
 
-        # Load checkpoint file
-        with pd.HDFStore(checkptfile, 'r') as f:
-            log_df = f['log']
-            log_f.set_index('iter', inplace=True)
+        # Check if dir or file
+        if os.path.isdir(checkptfile):
+            try:
+                # RLLAB
+                log_df = pd.read_csv(os.path.join(checkptfile, 'progress.csv'))
+                if 'Iteration' in log_df.keys():
+                    log_df.set_index('Iteration', inplace=True)
+                elif 'Epoch' in log_df.keys():
+                    log_df.set_index('Epoch', inplace=True)
+                else:
+                    raise NotImplementedError()
 
-            # Evaluate return
-            snapshot_names = f.root.snapshots._v_children.keys()
-            assert all(name.startswith('iter') for name in snapshot_names)
-            snapshot_inds = sorted([int(name[len('iter'):]) for name in snapshot_names])
+                snapshot_names = [f for f in os.listdir(checkptfile) if f.endswith('.pkl')]
+                assert all(name.startswith('itr_') for name in snapshot_names)
+                snapshot_inds = sorted([int(name[len('itr_'):-4]) for name in snapshot_names])
+                if 'eval_up_to_iter' in alg:
+                    snapshot_inds = [sidx for sidx in snapshot_inds
+                                     if sidx <= alg['eval_up_to_iter']]
+                    print('Restricting snapshots for {} up to iter {}'.format(checkptfile, alg[
+                        'eval_up_to_iter']))
 
-            if 'eval_up_to_iter' in alg:
-                snapshot_inds = [sidx for sidx in snapshot_inds if sidx <= alg['eval_up_to_iter']]
-                print('Restricting snapshots for {} up to iter {}'.format(checkptfile, alg[
-                    'eval_up_to_iter']))
+                last_snapshot_idx = snapshot_inds[-1]
+                ret, idx = eval_snapshot(envname, checkptfile, last_snapshot_idx,
+                                         spec['options']['eval_num_trajs'], mode='rllab')
+            except Exception as e:
+                ret = {'error': str(e)}
+                idx = None
+        else:
+            try:
+                # RLTOOLS
+                # Load checkpoint file
+                with pd.HDFStore(checkptfile, 'r') as f:
+                    log_df = f['log']
+                    log_df.set_index('iter', inplace=True)
 
-            last_snapshot_idx = snapshot_inds[-1]
-            ret, info = eval_snapshot(envname, checkptfile, last_snapshot_idx,
-                                      spec['options']['eval_num_trajs'])
+                    # Evaluate return
+                    snapshot_names = f.root.snapshots._v_children.keys()
+                    assert all(name.startswith('iter') for name in snapshot_names)
+                    snapshot_inds = sorted([int(name[len('iter'):]) for name in snapshot_names])
 
-            hret, hinfo = eval_heuristic_for_snapshot(envname, checkptfile, last_snapshot_idx,
-                                                      spec['options']['eval_num_trajs'])
+                    if 'eval_up_to_iter' in alg:
+                        snapshot_inds = [sidx for sidx in snapshot_inds
+                                         if sidx <= alg['eval_up_to_iter']]
+                        print('Restricting snapshots for {} up to iter {}'.format(checkptfile, alg[
+                            'eval_up_to_iter']))
 
-            collected_results.append({
-                'alg': alg['name'],
-                'env': envname,
-                'run': run,
-                'ret': ret,
-                'info': info,
-                'hret': hret,
-                'hinfo': hinfo,
-            })
+                    last_snapshot_idx = snapshot_inds[-1]
+                    ret, idx = eval_snapshot(envname, checkptfile, last_snapshot_idx,
+                                             spec['options']['eval_num_trajs'], mode='rltools')
+            except Exception as e:
+                ret = {'error': str(e)}
+                idx = None
+
+        collected_results.append(
+            dict(alg=alg['name'], env=envname, run=run, idx=idx, log=log_df, **ret))
 
     collected_results = pd.DataFrame(collected_results)
     with pd.HDFStore(results_full_path, 'w') as outf:

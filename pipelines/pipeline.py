@@ -7,6 +7,8 @@
 import argparse
 import datetime
 import multiprocessing as mp
+import numpy as np
+
 import os
 import shutil
 import subprocess
@@ -156,9 +158,79 @@ def run_slurm(cmd_templates, output_filenames, argdicts, storage_dir, outputfile
             raise RuntimeError('Canceled.')
 
 
-def eval_snapshot():
-    pass
+from vis import Evaluator
+import json
 
 
-def eval_heuristic_for_snapshot():
-    pass
+def envname2env(envname, args):
+    from madrl_environments.pursuit import PursuitEvade
+    from madrl_environments.pursuit import MAWaterWorld
+    from madrl_environments.walker.multi_walker import MultiWalkerEnv
+
+    # XXX
+    # Will generalize later
+    if envname == 'multiwalker':
+        env = MultiWalkerEnv(args['n_walkers'],
+                             args['position_noise'],
+                             args['angle_noise'],
+                             reward_mech='global',)
+
+    elif envname == 'waterworld':
+        env = MAWaterWorld(args['n_pursuers'],
+                           args['n_evaders'],
+                           args['n_coop'],
+                           args['n_poison'],
+                           n_sensors=args['n_sensors'],
+                           food_reward=args['food_reward'],
+                           poison_reward=args['poison_reward'],
+                           encounter_reward=args['encounter_reward'],
+                           reward_mech='global',)
+
+    elif envname == 'pursuit':
+        env = PursuitEvade()
+    else:
+        raise NotImplementedError()
+
+    return env
+
+
+def eval_snapshot(envname, checkptfile, last_snapshot_idx, n_trajs, mode):
+    import tensorflow as tf
+    if mode == 'rltools':
+        import h5py
+        with h5py.File(checkptfile, 'r') as f:
+            args = json.loads(f.attrs['args'])
+    elif mode == 'rllab':
+        params_file = os.path.join(checkptfile, 'params.json')
+        with open(params_file, 'r') as df:
+            args = json.load(df)
+
+    env = envname2env(envname, args)
+    bestidx = 0
+    bestret = -np.inf
+    bestevr = {}
+    for idx in range((last_snapshot_idx - 10), (last_snapshot_idx + 1)):
+        tf.reset_default_graph()
+        minion = Evaluator(env, args, args['max_traj_len'] if mode == 'rltools' else
+                           args['max_path_length'], n_trajs, False, mode)
+        if mode == 'rltools':
+            evr = minion(checkptfile, file_key='snapshots/iter%07d' % idx)
+        elif mode == 'rllab':
+            evr = minion(os.path.join(checkptfile, 'itr_{}.pkl'.format(idx)))
+
+        if np.mean(evr['ret']) > bestret:
+            bestret = np.mean(evr['ret'])
+            bestevr = evr
+            bestidx = idx
+    return bestevr, bestidx
+
+
+def eval_heuristic_for_snapshot(envname, checkptfile, last_snapshot_idx, n_trajs):
+    import h5py
+    with h5py.File(checkptfile, 'r') as f:
+        args = json.loads(f.attrs['args'])
+
+    env = envname2env(envname, args)
+    minion = Evaluator(env, args, args['max_traj_len'], n_trajs, False, 'heuristic')
+    evr = minion(checkptfile, file_key='iter%07d' % last_snapshot_idx)
+    return evr
