@@ -286,8 +286,8 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
                 ax.add_patch(
                     Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range, alpha=0.5,
                               facecolor="#009ACD"))
-        plt.pause(plt_delay)
-        plt.clf()
+        #plt.pause(plt_delay)
+        #plt.clf()
 
     def animate(self, act_fn, nsteps, file_name, rate=1.5, verbose=False):
         """
@@ -498,6 +498,10 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
                     removed_evade.append(ai - rems)
                     self.evaders_gone[i] = True
                     rems += 1
+                    for j in xrange(self.n_pursuers):
+                        xpp, ypp = self.pursuer_layer.get_position(j)
+                        if xpp == x and ypp == y:
+                            purs_sur[j] = True
                 ai += 1
 
         ai = 0
