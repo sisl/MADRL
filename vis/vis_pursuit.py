@@ -41,9 +41,9 @@ def main():
                        n_pursuers=fh.train_args['n_pursuers'], obs_range=fh.train_args['obs_range'],
                        n_catch=fh.train_args['n_catch'], urgency_reward=fh.train_args['urgency'],
                        surround=bool(fh.train_args['surround']),
-                       sample_maps=bool(fh.train_args['sample_maps']), flatten=bool(fh.train_args),
-                       reward_mech='global', catchr=fh.train_args['catchr'],
-                       term_pursuit=fh.train_args['term_pursuit'])
+                       sample_maps=bool(fh.train_args['sample_maps']),
+                       flatten=bool(fh.train_args['flatten']), reward_mech='global',
+                       catchr=fh.train_args['catchr'], term_pursuit=fh.train_args['term_pursuit'])
 
     if fh.train_args['buffer_size'] > 1:
         env = ObservationBuffer(env, fh.train_args['buffer_size'])
