@@ -56,7 +56,7 @@ def rltools_envpolicy_parser(env, args):
                                            enable_obsnorm=args.enable_obsnorm,
                                            state_include_action=False, varscope_name='policy')
             elif isinstance(action_space, spaces.Discrete):
-                if args.control == 'concurent':
+                if args.control == 'concurrent':
                     policies = [CategoricalGRUPolicy(env.agents[agid].observation_space,
                                                      env.agents[agid].action_space,
                                                      hidden_spec=args.policy_hidden_spec,
