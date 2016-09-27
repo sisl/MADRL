@@ -60,6 +60,7 @@ def main():
         evr = minion(fh.filename, file_key=fh.file_key, same_con_pol=args.same_con_pol,
                      hpolicy=hpolicy)
         from tabulate import tabulate
+        print(evr)
         print(tabulate(evr, headers='keys'))
     else:
         minion = Visualizer(env, fh.train_args, args.n_steps, args.n_trajs, args.deterministic,

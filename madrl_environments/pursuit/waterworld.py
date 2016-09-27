@@ -424,7 +424,7 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         info = dict(evcatches=len(ev_caught), pocatches=len(po_caught))
         return obslist, rewards, done, info
 
-    def render(self, screen_size=800, rate=10):
+    def render(self, screen_size=800, rate=10, mode='human'):
         import cv2
         img = np.empty((screen_size, screen_size, 3), dtype=np.uint8)
         img[...] = 255
@@ -460,13 +460,14 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         cv2.addWeighted(bg, opacity, img, 1 - opacity, 0, img)
         cv2.imshow('Waterworld', img)
         cv2.waitKey(rate)
+        return np.asarray(img)[..., ::-1]
 
 
 if __name__ == '__main__':
-    env = MAWaterWorld(3, 5)
+    env = MAWaterWorld(5, 10, obs_loc=None)
     obs = env.reset()
     while True:
-        obs, rew, _, _ = env.step(env.np_random.randn(6) * .5)
+        obs, rew, _, _ = env.step(env.np_random.randn(10) * .5)
         if rew.sum() > 0:
             print(rew)
         env.render()

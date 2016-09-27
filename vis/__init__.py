@@ -149,7 +149,11 @@ class Visualizer(PolicyLoad):
                     act_fns = [
                         lambda o: self.policy.sample_actions(o[None, ...], deterministic=self.deterministic)[0]
                     ] * len(self.env.agents)
-                rew, trajinfo = self.env.animate(act_fn=act_fns, nsteps=self.max_traj_len)
+                if vid:
+                    rew, trajinfo = self.env.animate(act_fn=act_fns, nsteps=self.max_traj_len,
+                                                     vid=vid, mode='rgb_array')
+                else:
+                    rew, trajinfo = self.env.animate(act_fn=act_fns, nsteps=self.max_traj_len)
                 info = {key: np.sum(value) for key, value in trajinfo.items()}
                 return (rew, info)
 

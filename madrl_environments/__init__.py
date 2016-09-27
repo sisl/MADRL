@@ -1,5 +1,6 @@
 from rltools.util import EzPickle, stack_dict_list
-from gym import spaces
+from gym import spaces, error
+from gym.monitoring.video_recorder import ImageEncoder
 import numpy as np
 
 
@@ -63,8 +64,18 @@ class AbstractMAEnv(object):
         if not isinstance(act_fn, list):
             act_fn = [act_fn for _ in range(len(self.agents))]
         assert len(act_fn) == len(self.agents)
+        encoder = None
+        vid_loc = kwargs.pop('vid', None)
         obs = self.reset()
-        self.render(**kwargs)
+        frame = self.render(**kwargs)
+        if vid_loc:
+            fps = kwargs.pop('fps', 30)
+            encoder = ImageEncoder(vid_loc, frame.shape, fps)
+            try:
+                encoder.capture_frame(frame)
+            except error.InvalidFrame as e:
+                print('Invalid video frame, {}'.format(e))
+
         rew = np.zeros((len(self.agents)))
         traj_info_list = []
         for step in range(nsteps):
@@ -74,7 +85,13 @@ class AbstractMAEnv(object):
             if info:
                 traj_info_list.append(info)
 
-            self.render(**kwargs)
+            frame = self.render(**kwargs)
+            if vid_loc:
+                try:
+                    encoder.capture_frame(frame)
+                except error.InvalidFrame as e:
+                    print('Invalid video frame, {}'.format(e))
+
             if done:
                 break
 

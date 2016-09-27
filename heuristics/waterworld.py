@@ -51,8 +51,15 @@ class WaterworldHeuristicPolicy(Policy):
         else:
             actions_B_2 = np.zeros((B, 2))
 
+        # actions_B_2 = np.random.randn(B, 2)
         fake_actiondist = np.concatenate([np.zeros((B, 2)), np.ones((B, 2))])
         return actions_B_2, fake_actiondist
+
+    def get_state(self):
+        return []
+
+    def set_state(self, *args):
+        pass
 
 
 if __name__ == '__main__':
