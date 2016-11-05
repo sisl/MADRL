@@ -133,7 +133,7 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         return [seed_]
 
     def _respawn(self, objx_2, radius):
-        while ssd.cdist(objx_2[None, :], self.obstaclesx_No_2) <= radius + self.obstacle_radius:
+        while ssd.cdist(objx_2[None, :], self.obstaclesx_No_2) <= radius*2 + self.obstacle_radius:
             objx_2 = self.np_random.rand(2)
         return objx_2
 
