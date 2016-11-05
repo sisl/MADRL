@@ -19,7 +19,8 @@ def convert_gym_space(space, n_agents=1):
             assert n_agents == 1, "multi-dimensional inputs for centralized agents not supported"
             return Box(low=np.min(space.low), high=np.max(space.high), shape=space.shape)
         else:
-            return Box(low=np.min(space.low), high=np.max(space.high), shape=(space.shape[0]*n_agents,))
+            return Box(low=np.min(space.low), high=np.max(space.high),
+                       shape=(space.shape[0] * n_agents,))
     elif isinstance(space, gym.spaces.Discrete) or isinstance(space, Discrete):
         return Discrete(n=space.n**n_agents)
     else:
@@ -28,7 +29,7 @@ def convert_gym_space(space, n_agents=1):
 
 class RLLabEnv(Env, Serializable):
 
-    def __init__(self, env, mode):
+    def __init__(self, env, ma_mode):
         Serializable.quick_init(self, locals())
 
         self.env = env
@@ -37,12 +38,14 @@ class RLLabEnv(Env, Serializable):
         else:
             self.env_id = 'MA-Wrapper-v0'
 
-        if mode == 'centralized':
-            obsfeat_space = convert_gym_space(env.agents[0].observation_space, n_agents=len(env.agents))
+        if ma_mode == 'centralized':
+            obsfeat_space = convert_gym_space(env.agents[0].observation_space,
+                                              n_agents=len(env.agents))
             action_space = convert_gym_space(env.agents[0].action_space, n_agents=len(env.agents))
-        elif mode == 'decentralized':
+        elif ma_mode in ['decentralized', 'concurrent']:
             obsfeat_space = convert_gym_space(env.agents[0].observation_space, n_agents=1)
             action_space = convert_gym_space(env.agents[0].action_space, n_agents=1)
+
         else:
             raise NotImplementedError
 

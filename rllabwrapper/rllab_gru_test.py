@@ -2,27 +2,29 @@ from madrl_environments import StandardizedEnv
 from madrl_environments.pursuit import MAWaterWorld
 from rllabwrapper import RLLabEnv
 
-from rllab.algos.trpo import TRPO
+from sandbox.rocky.tf.algos.ma_trpo import MATRPO
+from sandbox.rocky.tf.envs.base import MATfEnv
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-from rllab.envs.normalized_env import normalize
-from rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
-from rllab.policies.gaussian_gru_policy import GaussianGRUPolicy
+
+from sandbox.rocky.tf.policies.gaussian_gru_policy import GaussianGRUPolicy
+from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
 
 env = StandardizedEnv(MAWaterWorld(3, 10, 2, 5))
-env = RLLabEnv(env)
+env = MATfEnv(RLLabEnv(env, ma_mode='concurrent'))
 
-policy = GaussianGRUPolicy(env_spec=env.spec, hidden_sizes=(32,))
+policy = GaussianGRUPolicy(env_spec=env.spec, name='policy')
 
 baseline = LinearFeatureBaseline(env_spec=env.spec)
 
-algo = TRPO(env=env,
-            policy=policy,
-            baseline=baseline,
-            batch_size=8000,
-            max_path_length=200,
-            n_itr=500,
-            discount=0.99,
-            step_size=0.01,
-            mode='decentralized',)
+algo = MATRPO(env=env, policy_or_policies=policy, baseline_or_baselines=baseline, batch_size=8000,
+              max_path_length=200, n_itr=500, discount=0.99, step_size=0.01,
+              optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)),
+              ma_mode='concurrent')
+# policies = [GaussianGRUPolicy(env_spec=env.spec, name='policy_{}'.format(i)) for i in range(3)]
+# baselines = [LinearFeatureBaseline(env_spec=env.spec) for _ in range(3)]
+# algo = MATRPO(env=env, policy_or_policies=policies, baseline_or_baselines=baselines,
+#               batch_size=8000, max_path_length=200, n_itr=500, discount=0.99, step_size=0.01,
+#               optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)),
+#               ma_mode='concurrent')
 
 algo.train()
