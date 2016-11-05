@@ -41,14 +41,16 @@ def rltools_envpolicy_parser(env, args):
         if args.recurrent == 'gru':
             if isinstance(action_space, spaces.Box):
                 if args.control == 'concurrent':
-                    policies = [GaussianGRUPolicy(env.agents[agid].observation_space,
-                                                  env.agents[agid].action_space,
-                                                  hidden_spec=args.policy_hidden_spec,
-                                                  min_stdev=args.min_std, init_logstdev=0.,
-                                                  enable_obsnorm=args.enable_obsnorm,
-                                                  state_include_action=False,
-                                                  varscope_name='policy_{}'.format(agid))
-                                for agid in range(len(env.agents))]
+                    policies = [
+                        GaussianGRUPolicy(env.agents[agid].observation_space,
+                                          env.agents[agid].action_space,
+                                          hidden_spec=args.policy_hidden_spec,
+                                          min_stdev=args.min_std, init_logstdev=0.,
+                                          enable_obsnorm=args.enable_obsnorm,
+                                          state_include_action=False,
+                                          varscope_name='policy_{}'.format(agid))
+                        for agid in range(len(env.agents))
+                    ]
 
                 policy = GaussianGRUPolicy(obs_space, action_space,
                                            hidden_spec=args.policy_hidden_spec,
@@ -57,13 +59,15 @@ def rltools_envpolicy_parser(env, args):
                                            state_include_action=False, varscope_name='policy')
             elif isinstance(action_space, spaces.Discrete):
                 if args.control == 'concurrent':
-                    policies = [CategoricalGRUPolicy(env.agents[agid].observation_space,
-                                                     env.agents[agid].action_space,
-                                                     hidden_spec=args.policy_hidden_spec,
-                                                     enable_obsnorm=args.enable_obsnorm,
-                                                     state_include_action=False,
-                                                     varscope_name='policy_{}'.format(agid))
-                                for agid in range(len(env.agents))]
+                    policies = [
+                        CategoricalGRUPolicy(env.agents[agid].observation_space,
+                                             env.agents[agid].action_space,
+                                             hidden_spec=args.policy_hidden_spec,
+                                             enable_obsnorm=args.enable_obsnorm,
+                                             state_include_action=False,
+                                             varscope_name='policy_{}'.format(agid))
+                        for agid in range(len(env.agents))
+                    ]
 
                 policy = CategoricalGRUPolicy(obs_space, action_space,
                                               hidden_spec=args.policy_hidden_spec,
@@ -77,13 +81,14 @@ def rltools_envpolicy_parser(env, args):
     else:
         if isinstance(action_space, spaces.Box):
             if args.control == 'concurrent':
-                policies = [GaussianMLPPolicy(env.agents[agid].observation_space,
-                                              env.agents[agid].action_space,
-                                              hidden_spec=args.policy_hidden_spec,
-                                              min_stdev=args.min_std, init_logstdev=0.,
-                                              enable_obsnorm=args.enable_obsnorm,
-                                              varscope_name='{}_policy'.format(agid))
-                            for agid in range(len(env.agents))]
+                policies = [
+                    GaussianMLPPolicy(env.agents[agid].observation_space,
+                                      env.agents[agid].action_space,
+                                      hidden_spec=args.policy_hidden_spec, min_stdev=args.min_std,
+                                      init_logstdev=0., enable_obsnorm=args.enable_obsnorm,
+                                      varscope_name='{}_policy'.format(agid))
+                    for agid in range(len(env.agents))
+                ]
 
             policy = GaussianMLPPolicy(obs_space, action_space, hidden_spec=args.policy_hidden_spec,
                                        min_stdev=args.min_std, init_logstdev=0.,
@@ -91,12 +96,14 @@ def rltools_envpolicy_parser(env, args):
 
         elif isinstance(action_space, spaces.Discrete):
             if args.control == 'concurrent':
-                policies = [CategoricalMLPPolicy(env.agents[agid].observation_space,
-                                                 env.agents[agid].action_space,
-                                                 hidden_spec=args.policy_hidden_spec,
-                                                 enable_obsnorm=args.enable_obsnorm,
-                                                 varscope_name='policy_{}'.format(agid))
-                            for agid in range(len(env.agents))]
+                policies = [
+                    CategoricalMLPPolicy(env.agents[agid].observation_space,
+                                         env.agents[agid].action_space,
+                                         hidden_spec=args.policy_hidden_spec,
+                                         enable_obsnorm=args.enable_obsnorm,
+                                         varscope_name='policy_{}'.format(agid))
+                    for agid in range(len(env.agents))
+                ]
 
             policy = CategoricalMLPPolicy(obs_space, action_space,
                                           hidden_spec=args.policy_hidden_spec,
@@ -119,10 +126,12 @@ class RLToolsRunner(object):
         env, policies, policy = rltools_envpolicy_parser(env, args)
         if args.baseline_type == 'linear':
             if args.control == 'concurrent':
-                baselines = [LinearFeatureBaseline(env.agents[agid].observation_space,
-                                                   enable_obsnorm=args.enable_obsnorm,
-                                                   varscope_name='baseline_{}'.format(agid))
-                             for agid in range(len(env.agents))]
+                baselines = [
+                    LinearFeatureBaseline(env.agents[agid].observation_space,
+                                          enable_obsnorm=args.enable_obsnorm,
+                                          varscope_name='baseline_{}'.format(agid))
+                    for agid in range(len(env.agents))
+                ]
             else:
                 baseline = LinearFeatureBaseline(policy.observation_space,
                                                  enable_obsnorm=args.enable_obsnorm,
@@ -130,14 +139,15 @@ class RLToolsRunner(object):
 
         elif args.baseline_type == 'mlp':
             if args.control == 'concurrent':
-                baselines = [MLPBaseline(env.agents[agid].observation_space,
-                                         hidden_spec=args.baseline_hidden_spec,
-                                         enable_obsnorm=args.enable_obsnorm,
-                                         enable_vnorm=args.enable_vnorm, max_kl=args.vf_max_kl,
-                                         damping=args.vf_cg_damping,
-                                         time_scale=1. / args.max_traj_len,
-                                         varscope_name='{}_baseline'.format(agid))
-                             for agid in range(len(env.agents))]
+                baselines = [
+                    MLPBaseline(env.agents[agid].observation_space,
+                                hidden_spec=args.baseline_hidden_spec,
+                                enable_obsnorm=args.enable_obsnorm, enable_vnorm=args.enable_vnorm,
+                                max_kl=args.vf_max_kl, damping=args.vf_cg_damping,
+                                time_scale=1. / args.max_traj_len,
+                                varscope_name='{}_baseline'.format(agid))
+                    for agid in range(len(env.agents))
+                ]
             else:
                 baseline = MLPBaseline(policy.observation_space,
                                        hidden_spec=args.baseline_hidden_spec,
@@ -148,8 +158,10 @@ class RLToolsRunner(object):
 
         elif args.baseline_type == 'zero':
             if args.control == 'concurrent':
-                baselines = [ZeroBaseline(env.agents[agid].observation_space)
-                             for agid in range(len(env.agents))]
+                baselines = [
+                    ZeroBaseline(env.agents[agid].observation_space)
+                    for agid in range(len(env.agents))
+                ]
             else:
                 baseline = ZeroBaseline(policy.observation_space)
         else:
