@@ -12,9 +12,9 @@ from matplotlib.patches import Rectangle
 
 from madrl_environments import AbstractMAEnv
 from six.moves import xrange
-from utils import agent_utils
-from utils.AgentLayer import AgentLayer
-from utils.Controllers import RandomPolicy
+from .utils import agent_utils
+from .utils.AgentLayer import AgentLayer
+from .utils.Controllers import RandomPolicy
 
 from rltools.util import EzPickle
 
