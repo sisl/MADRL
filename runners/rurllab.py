@@ -27,9 +27,9 @@ from rllab.policies.deterministic_mlp_policy import DeterministicMLPPolicy as th
 from rllab.q_functions.continuous_mlp_q_function import ContinuousMLPQFunction as thContinuousMLPQFunction
 
 from rllabwrapper import RLLabEnv
-from sandbox.rocky.tf.algos.trpo import TRPO
+from sandbox.rocky.tf.algos.ma_trpo import MATRPO
 from sandbox.rocky.tf.core.network import MLP, ConvNetwork
-from sandbox.rocky.tf.envs.base import TfEnv
+from sandbox.rocky.tf.envs.base import MATfEnv
 from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (ConjugateGradientOptimizer,
                                                                       FiniteDifferenceHvp)
 from sandbox.rocky.tf.policies.categorical_gru_policy import CategoricalGRUPolicy
@@ -48,9 +48,9 @@ def rllab_envpolicy_parser(env, args):
     if isinstance(args, dict):
         args = tonamedtuple(args)
 
-    env = RLLabEnv(env, mode=args.control)
+    env = RLLabEnv(env, ma_mode=args.control)
     if args.algo[:2] == 'tf':
-        env = TfEnv(env)
+        env = MATfEnv(env)
 
         # Policy
         if args.recurrent:
@@ -65,40 +65,69 @@ def rllab_envpolicy_parser(env, args):
                 chans = tuple(args.conv_channels)
                 filts = tuple(args.conv_filters)
 
-                assert len(strides) == len(chans) == len(filts), "strides, chans and filts not equal"
-                # only discrete actions supported, should be straightforward to extend to continuous    
-                assert isinstance(env.spec.action_space, Discrete), "Only discrete action spaces support conv"
-                feature_network = ConvNetwork(
-                    name='feature_net',
-                    input_shape=env.spec.observation_space.shape,
-                    output_dim=args.feature_output,
-                    conv_filters=chans,
-                    conv_filter_sizes=filts,
-                    conv_strides=strides,
-                    conv_pads=('VALID',)*len(chans),
-                    hidden_sizes=tuple(args.feature_hidden),
-                    hidden_nonlinearity=tf.nn.relu,
-                    output_nonlinearity=None)
+                assert len(strides) == len(chans) == len(
+                    filts), "strides, chans and filts not equal"
+                # only discrete actions supported, should be straightforward to extend to continuous
+                assert isinstance(env.spec.action_space,
+                                  Discrete), "Only discrete action spaces support conv"
+                feature_network = ConvNetwork(name='feature_net',
+                                              input_shape=env.spec.observation_space.shape,
+                                              output_dim=args.feature_output, conv_filters=chans,
+                                              conv_filter_sizes=filts, conv_strides=strides,
+                                              conv_pads=('VALID',) * len(chans),
+                                              hidden_sizes=tuple(args.feature_hidden),
+                                              hidden_nonlinearity=tf.nn.relu,
+                                              output_nonlinearity=None)
             else:
                 feature_network = None
             if args.recurrent == 'gru':
                 if isinstance(env.spec.action_space, Box):
+                    if args.control == 'concurrent':
+                        policies = [
+                            GaussianGRUPolicy(env_spec=env.spec, feature_network=feature_network,
+                                              hidden_dim=int(args.policy_hidden[0]),
+                                              name='policy_{}'.format(agid))
+                            for agid in range(len(env.agents))
+                        ]
                     policy = GaussianGRUPolicy(env_spec=env.spec, feature_network=feature_network,
                                                hidden_dim=int(args.policy_hidden[0]), name='policy')
                 elif isinstance(env.spec.action_space, Discrete):
+                    if args.control == 'concurrent':
+                        policies = [
+                            CategoricalGRUPolicy(env_spec=env.spec, feature_network=feature_network,
+                                                 hidden_dim=int(args.policy_hidden[0]),
+                                                 name='policy_{}'.format(agid),
+                                                 state_include_action=False if args.conv else True)
+                            for agid in range(len(env.agents))
+                        ]
                     policy = CategoricalGRUPolicy(env_spec=env.spec,
                                                   feature_network=feature_network,
                                                   hidden_dim=int(args.policy_hidden[0]),
-                                                  name='policy',
-                                                  state_include_action=False if args.conv else True)
+                                                  name='policy', state_include_action=False if
+                                                  args.conv else True)
                 else:
                     raise NotImplementedError(env.spec.observation_space)
 
             elif args.recurrent == 'lstm':
                 if isinstance(env.spec.action_space, Box):
+                    if args.control == 'concurrent':
+                        policies = [
+                            GaussianLSTMPolicy(env_spec=env.spec, feature_network=feature_network,
+                                               hidden_dim=int(args.policy_hidden),
+                                               name='policy_{}'.format(agid))
+                            for agid in range(len(env.agents))
+                        ]
                     policy = GaussianLSTMPolicy(env_spec=env.spec, feature_network=feature_network,
                                                 hidden_dim=int(args.policy_hidden), name='policy')
                 elif isinstance(env.spec.action_space, Discrete):
+                    if args.control == 'concurrent':
+                        policies = [
+                            CategoricalLSTMPolicy(env_spec=env.spec,
+                                                  feature_network=feature_network,
+                                                  hidden_dim=int(args.policy_hidden),
+                                                  name='policy_{}'.format(agid))
+                            for agid in range(len(env.agents))
+                        ]
                     policy = CategoricalLSTMPolicy(env_spec=env.spec,
                                                    feature_network=feature_network,
                                                    hidden_dim=int(args.policy_hidden),
@@ -114,29 +143,46 @@ def rllab_envpolicy_parser(env, args):
             filts = tuple(args.conv_filters)
 
             assert len(strides) == len(chans) == len(filts), "strides, chans and filts not equal"
-            # only discrete actions supported, should be straightforward to extend to continuous    
-            assert isinstance(env.spec.action_space, Discrete), "Only discrete action spaces support conv"
-            feature_network = ConvNetwork(
-                name='feature_net',
-                input_shape=env.spec.observation_space.shape,
-                output_dim=env.spec.action_space.n,
-                conv_filters=chans,
-                conv_filter_sizes=filts,
-                conv_strides=strides,
-                conv_pads=('VALID',)*len(chans),
-                hidden_sizes=tuple(args.policy_hidden),
-                hidden_nonlinearity=tf.nn.relu,
-                output_nonlinearity=tf.nn.softmax)
-            policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec, prob_network=feature_network)
+            # only discrete actions supported, should be straightforward to extend to continuous
+            assert isinstance(env.spec.action_space,
+                              Discrete), "Only discrete action spaces support conv"
+            feature_network = ConvNetwork(name='feature_net',
+                                          input_shape=env.spec.observation_space.shape,
+                                          output_dim=env.spec.action_space.n, conv_filters=chans,
+                                          conv_filter_sizes=filts, conv_strides=strides,
+                                          conv_pads=('VALID',) * len(chans),
+                                          hidden_sizes=tuple(args.policy_hidden),
+                                          hidden_nonlinearity=tf.nn.relu,
+                                          output_nonlinearity=tf.nn.softmax)
+            if args.control == 'concurrent':
+                policies = [
+                    CategoricalMLPPolicy(name='policy_{}'.format(agid), env_spec=env.spec,
+                                         prob_network=feature_network)
+                    for agid in range(len(env.agents))
+                ]
+            policy = CategoricalMLPPolicy(name='policy', env_spec=env.spec,
+                                          prob_network=feature_network)
         else:
             if isinstance(env.spec.action_space, Box):
+                if args.control == 'concurrent':
+                    policies = [
+                        GaussianMLPPolicy(env_spec=env.spec, hidden_sizes=tuple(args.policy_hidden),
+                                          min_std=args.min_std, name='policy_{}'.format(agid))
+                        for agid in range(len(env.agents))
+                    ]
                 policy = GaussianMLPPolicy(env_spec=env.spec,
                                            hidden_sizes=tuple(args.policy_hidden),
                                            min_std=args.min_std, name='policy')
             elif isinstance(env.spec.action_space, Discrete):
+                if args.control == 'concurrent':
+                    policies = [
+                        CategoricalMLPPolicy(env_spec=env.spec,
+                                             hidden_sizes=tuple(args.policy_hidden),
+                                             name='policy_{}'.format(agid))
+                        for agid in range(len(env.agents))
+                    ]
                 policy = CategoricalMLPPolicy(env_spec=env.spec,
-                                              hidden_sizes=tuple(args.policy_hidden),
-                                              name='policy')
+                                              hidden_sizes=tuple(args.policy_hidden), name='policy')
             else:
                 raise NotImplementedError(env.spec.action_space)
     elif args.algo[:2] == 'th':
@@ -152,13 +198,15 @@ def rllab_envpolicy_parser(env, args):
                 feature_network = None
             if args.recurrent == 'gru':
                 if isinstance(env.spec.observation_space, thBox):
-                    policy = thGaussianGRUPolicy(env_spec=env.spec,
-                                                 feature_network=feature_network,
-                                                 hidden_dim=int(args.policy_hidden[0]),)
+                    policy = thGaussianGRUPolicy(
+                        env_spec=env.spec,
+                        feature_network=feature_network,
+                        hidden_dim=int(args.policy_hidden[0]),)
                 elif isinstance(env.spec.observation_space, thDiscrete):
-                    policy = thCategoricalGRUPolicy(env_spec=env.spec,
-                                                    feature_network=feature_network,
-                                                    hidden_dim=int(args.policy_hidden[0]),)
+                    policy = thCategoricalGRUPolicy(
+                        env_spec=env.spec,
+                        feature_network=feature_network,
+                        hidden_dim=int(args.policy_hidden[0]),)
                 else:
                     raise NotImplementedError(env.spec.observation_space)
 
@@ -181,8 +229,9 @@ def rllab_envpolicy_parser(env, args):
         else:
             if args.algo == 'thddpg':
                 assert isinstance(env.spec.action_space, thBox)
-                policy = thDeterministicMLPPolicy(env_spec=env.spec,
-                                                  hidden_sizes=tuple(args.policy_hidden),)
+                policy = thDeterministicMLPPolicy(
+                    env_spec=env.spec,
+                    hidden_sizes=tuple(args.policy_hidden),)
             else:
                 if isinstance(env.spec.action_space, thBox):
                     policy = thGaussianMLPPolicy(env_spec=env.spec,
@@ -222,6 +271,8 @@ class RLLabRunner(object):
             else:
                 raise NotImplementedError(args.baseline_type)
 
+            if args.control == 'concurrent':
+                baseline = [baseline for _ in range(len(env.agents))]
         # Logger
         default_log_dir = config.LOG_DIR
         if args.log_dir is None:
@@ -244,12 +295,13 @@ class RLLabRunner(object):
         logger.push_prefix("[%s] " % args.exp_name)
 
         if args.algo == 'tftrpo':
-            self.algo = TRPO(env=env, policy=policy, baseline=baseline, batch_size=args.batch_size,
-                             max_path_length=args.max_path_length, n_itr=args.n_iter,
-                             discount=args.discount, gae_lambda=args.gae_lambda,
-                             step_size=args.step_size, optimizer=ConjugateGradientOptimizer(
-                                 hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if args.recurrent
-                             else None, mode=args.control)
+            self.algo = MATRPO(env=env, policy_or_policies=policy, baseline_or_baselines=baseline,
+                               batch_size=args.batch_size, max_path_length=args.max_path_length,
+                               n_itr=args.n_iter, discount=args.discount,
+                               gae_lambda=args.gae_lambda, step_size=args.step_size,
+                               optimizer=ConjugateGradientOptimizer(
+                                   hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
+                               args.recurrent else None, ma_mode=args.control)
         elif args.algo == 'thddpg':
             qfunc = thContinuousMLPQFunction(env_spec=env.spec)
             if args.exp_strategy == 'ou':
