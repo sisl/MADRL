@@ -139,16 +139,17 @@ class BipedalWalker(Agent):
             )
             leg.color1 = (0.6 - i / 10., 0.3 - i / 10., 0.5 - i / 10.)
             leg.color2 = (0.4 - i / 10., 0.2 - i / 10., 0.3 - i / 10.)
-            rjd = revoluteJointDef(bodyA=self.hull,
-                                   bodyB=leg,
-                                   localAnchorA=(0, LEG_DOWN),
-                                   localAnchorB=(0, LEG_H / 2),
-                                   enableMotor=True,
-                                   enableLimit=True,
-                                   maxMotorTorque=MOTORS_TORQUE,
-                                   motorSpeed=i,
-                                   lowerAngle=-0.8,
-                                   upperAngle=1.1,)
+            rjd = revoluteJointDef(
+                bodyA=self.hull,
+                bodyB=leg,
+                localAnchorA=(0, LEG_DOWN),
+                localAnchorB=(0, LEG_H / 2),
+                enableMotor=True,
+                enableLimit=True,
+                maxMotorTorque=MOTORS_TORQUE,
+                motorSpeed=i,
+                lowerAngle=-0.8,
+                upperAngle=1.1,)
             self.legs.append(leg)
             self.joints.append(self.world.CreateJoint(rjd))
 
@@ -159,16 +160,17 @@ class BipedalWalker(Agent):
                                     maskBits=0x001))
             lower.color1 = (0.6 - i / 10., 0.3 - i / 10., 0.5 - i / 10.)
             lower.color2 = (0.4 - i / 10., 0.2 - i / 10., 0.3 - i / 10.)
-            rjd = revoluteJointDef(bodyA=leg,
-                                   bodyB=lower,
-                                   localAnchorA=(0, -LEG_H / 2),
-                                   localAnchorB=(0, LEG_H / 2),
-                                   enableMotor=True,
-                                   enableLimit=True,
-                                   maxMotorTorque=MOTORS_TORQUE,
-                                   motorSpeed=1,
-                                   lowerAngle=-1.6,
-                                   upperAngle=-0.1,)
+            rjd = revoluteJointDef(
+                bodyA=leg,
+                bodyB=lower,
+                localAnchorA=(0, -LEG_H / 2),
+                localAnchorB=(0, LEG_H / 2),
+                enableMotor=True,
+                enableLimit=True,
+                maxMotorTorque=MOTORS_TORQUE,
+                motorSpeed=1,
+                lowerAngle=-1.6,
+                upperAngle=-0.1,)
             lower.ground_contact = False
             self.legs.append(lower)
             self.joints.append(self.world.CreateJoint(rjd))
@@ -247,45 +249,48 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
     hardcore = False
 
-    def __init__(self, n_walkers=2, position_noise=1e-3, angle_noise=1e-3, 
-                       reward_mech='local', forward_reward=1.0, fall_reward=-100.0, drop_reward=-100.0,
-                       terminate_on_fall=True):
-        EzPickle.__init__(self, n_walkers, position_noise, angle_noise, 
-                                reward_mech, forward_reward, fall_reward, drop_reward,
-                                terminate_on_fall)
+    def __init__(self, n_walkers=2, position_noise=1e-3, angle_noise=1e-3, reward_mech='local',
+                 forward_reward=1.0, fall_reward=-100.0, drop_reward=-100.0,
+                 terminate_on_fall=True):
+        EzPickle.__init__(self, n_walkers, position_noise, angle_noise, reward_mech, forward_reward,
+                          fall_reward, drop_reward, terminate_on_fall)
 
+        self.n_walkers = n_walkers
+        self.position_noise = position_noise
+        self.angle_noise = angle_noise
+        self._reward_mech = reward_mech
+        self.forward_reward = forward_reward
+        self.fall_reward = fall_reward
+        self.drop_reward = drop_reward
+        self.terminate_on_fall = terminate_on_fall
+        self.setup()
+
+    def get_param_values(self):
+        return self.__dict__
+
+    def setup(self):
         self.seed()
         self.viewer = None
 
         self.world = Box2D.b2World()
         self.terrain = None
 
-        self.n_walkers = n_walkers
         init_x = TERRAIN_STEP * TERRAIN_STARTPAD / 2
         init_y = TERRAIN_HEIGHT + 2 * LEG_H
-        self.start_x = [init_x + WALKER_SEPERATION * i * TERRAIN_STEP
-                        for i in xrange(self.n_walkers)]
+        self.start_x = [
+            init_x + WALKER_SEPERATION * i * TERRAIN_STEP for i in range(self.n_walkers)
+        ]
         self.walkers = [BipedalWalker(self.world, init_x=sx, init_y=init_y) for sx in self.start_x]
 
-        self.package_scale = n_walkers / 1.75
+        self.package_scale = self.n_walkers / 1.75
         self.package_length = PACKAGE_LENGTH / SCALE * self.package_scale
 
-        self.total_agents = n_walkers
+        self.total_agents = self.n_walkers
 
         self.prev_shaping = np.zeros(self.n_walkers)
         self.prev_package_shaping = 0.0
 
-        self.position_noise = position_noise
-        self.angle_noise = angle_noise
-        self._reward_mech = reward_mech
-
-        self.terrain_length = int(TERRAIN_LENGTH * n_walkers * 1/8.)
-
-        self.forward_reward = forward_reward
-        self.fall_reward = fall_reward
-        self.drop_reward = drop_reward
-
-        self.terminate_on_fall = terminate_on_fall
+        self.terrain_length = int(TERRAIN_LENGTH * self.n_walkers * 1 / 8.)
 
         self.reset()
 
@@ -346,7 +351,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
     def step(self, actions):
         act_vec = np.reshape(actions, (self.n_walkers, 4))
         assert len(act_vec) == self.n_walkers
-        for i in xrange(self.n_walkers):
+        for i in range(self.n_walkers):
             self.walkers[i].apply_action(act_vec[i])
 
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
@@ -358,7 +363,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         done = False
         rewards = np.zeros(self.n_walkers)
 
-        for i in xrange(self.n_walkers):
+        for i in range(self.n_walkers):
             pos = self.walkers[i].hull.position
             x, y = pos.x, pos.y
             xpos[i] = x
@@ -484,13 +489,14 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         init_y = TERRAIN_HEIGHT + 3 * LEG_H
         self.package = self.world.CreateDynamicBody(
             position=(init_x, init_y),
-            fixtures=fixtureDef(shape=polygonShape(
-                vertices=[(x * self.package_scale / SCALE, y / SCALE) for x, y in PACKAGE_POLY]),
-                                density=1.0,
-                                friction=0.5,
-                                categoryBits=0x004,
-                                #maskBits=0x001,  # collide only with ground
-                                restitution=0.0)  # 0.99 bouncy
+            fixtures=fixtureDef(
+                shape=polygonShape(vertices=[(x * self.package_scale / SCALE, y / SCALE)
+                                             for x, y in PACKAGE_POLY]),
+                density=1.0,
+                friction=0.5,
+                categoryBits=0x004,
+                #maskBits=0x001,  # collide only with ground
+                restitution=0.0)  # 0.99 bouncy
         )
         self.package.color1 = (0.5, 0.4, 0.9)
         self.package.color2 = (0.3, 0.3, 0.5)
@@ -594,13 +600,12 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
 
         self.terrain_poly = []
         for i in range(self.terrain_length - 1):
-            poly = [
-                (self.terrain_x[i], self.terrain_y[i]),
-                (self.terrain_x[i + 1], self.terrain_y[i + 1])
-            ]
-            t = self.world.CreateStaticBody(fixtures=fixtureDef(shape=edgeShape(vertices=poly),
-                                                                friction=FRICTION,
-                                                                categoryBits=0x0001,))
+            poly = [(self.terrain_x[i], self.terrain_y[i]),
+                    (self.terrain_x[i + 1], self.terrain_y[i + 1])]
+            t = self.world.CreateStaticBody(fixtures=fixtureDef(
+                shape=edgeShape(vertices=poly),
+                friction=FRICTION,
+                categoryBits=0x0001,))
             color = (0.3, 1.0 if i % 2 == 0 else 0.8, 0.3)
             t.color1 = color
             t.color2 = color
@@ -616,11 +621,9 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         for i in range(self.terrain_length // 20):
             x = self.np_random.uniform(0, self.terrain_length) * TERRAIN_STEP
             y = VIEWPORT_H / SCALE * 3 / 4
-            poly = [
-                (x + 15 * TERRAIN_STEP * math.sin(3.14 * 2 * a / 5) + self.np_random.uniform(
-                    0, 5 * TERRAIN_STEP), y + 5 * TERRAIN_STEP * math.cos(3.14 * 2 * a / 5) +
-                 self.np_random.uniform(0, 5 * TERRAIN_STEP)) for a in range(5)
-            ]
+            poly = [(x + 15 * TERRAIN_STEP * math.sin(3.14 * 2 * a / 5) + self.np_random.uniform(
+                0, 5 * TERRAIN_STEP), y + 5 * TERRAIN_STEP * math.cos(3.14 * 2 * a / 5) +
+                     self.np_random.uniform(0, 5 * TERRAIN_STEP)) for a in range(5)]
             x1 = min([p[0] for p in poly])
             x2 = max([p[0] for p in poly])
             self.cloud_poly.append((poly, x1, x2))
@@ -631,13 +634,13 @@ if __name__ == "__main__":
     reward_mech = 'local'
     env = MultiWalkerEnv(n_walkers=n_walkers, reward_mech=reward_mech)
     env.reset()
-    for i in xrange(1000):
+    for i in range(1000):
         env.render()
-        a = np.array([env.agents[0].action_space.sample() for _ in xrange(n_walkers)])
+        a = np.array([env.agents[0].action_space.sample() for _ in range(n_walkers)])
         o, r, done, _ = env.step(a)
-        print "\nStep:", i
-        #print "Obs:", o
-        print "Rewards:", r
-        #print "Term:", done
+        # print "\nStep:", i
+        # #print "Obs:", o
+        # print "Rewards:", r
+        # #print "Term:", done
         if done:
             break

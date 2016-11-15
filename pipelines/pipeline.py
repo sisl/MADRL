@@ -74,16 +74,16 @@ def run_jobs(cmd_templates, output_filenames, argdicts, storage_dir, outputfile_
 
 def create_slurm_script(commands, outputfiles, jobname=None, nodes=4, cpus=6):
     assert len(commands) == len(outputfiles)
-    template = '''#!/bin/bash 
+    template = '''#!/bin/bash
 #
-#all commands that start with SBATCH contain commands that are just used by SLURM for scheduling  
+#all commands that start with SBATCH contain commands that are just used by SLURM for scheduling
 #################
-#set a job name  
+#set a job name
 #SBATCH --job-name={jobname}
-#################  
+#################
 #time you think you need; default is one hour
 #in minutes in this case, hh:mm:ss
-#SBATCH --time=8:00:00
+#SBATCH --time=18:00:00
 #################
 #quality of service; think of it as job priority
 #SBATCH --qos=normal
@@ -96,7 +96,7 @@ def create_slurm_script(commands, outputfiles, jobname=None, nodes=4, cpus=6):
 #SBATCH --ntasks-per-node=1 --cpus-per-task={cpus}
 #################
 module load singularity
-export PYTHONPATH=/scratch/PI/mykel/src/python/rltools/:$PI_SCRATCH/src/python/rllab:$PI_SCRATCH/src/python/MADRL:$PYTHONPATH
+export PYTHONPATH=/scratch/PI/mykel/src/python/rltools/:$PI_SCRATCH/src/python/rllab3:$PI_SCRATCH/src/python/MADRL:$PYTHONPATH
 
 read -r -d '' COMMANDS << END
 {cmds_str}
@@ -138,24 +138,24 @@ def run_slurm(cmd_templates, output_filenames, argdicts, storage_dir, outputfile
     print(script)
 
     import tempfile
-    with tempfile.NamedTemporaryFile(suffix='.sh') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh') as f:
         f.write(script)
         f.flush()
 
-        cmd = 'sbatch --array %d-%d %s' % (1, len(cmds), f.name)
-        print('Running command: {}'.format(cmd))
-        print('ok ({} jobs)? y/n'.format(num_cmds))
-        if raw_input() == 'y':
-            # Write a copy of the script
-            if slurm_script_copy is not None:
-                assert not os.path.exists(slurm_script_copy)
-                with open(slurm_script_copy, 'w') as fcopy:
-                    fcopy.write(script)
-                    print('slurm script written to {}'.format(slurm_script_copy))
-            # Run slurm
-            subprocess.check_call(cmd, shell=True)
-        else:
-            raise RuntimeError('Canceled.')
+    cmd = 'sbatch --array %d-%d %s' % (1, len(cmds), f.name)
+    print('Running command: {}'.format(cmd))
+    print('ok ({} jobs)? y/n'.format(num_cmds))
+    if input() == 'y':
+        # Write a copy of the script
+        if slurm_script_copy is not None:
+            assert not os.path.exists(slurm_script_copy)
+            with open(slurm_script_copy, 'w') as fcopy:
+                fcopy.write(script)
+                print('slurm script written to {}'.format(slurm_script_copy))
+        # Run slurm
+        subprocess.check_call(cmd, shell=True)
+    else:
+        raise RuntimeError('Canceled.')
 
 
 from vis import Evaluator
@@ -170,21 +170,23 @@ def envname2env(envname, args):
     # XXX
     # Will generalize later
     if envname == 'multiwalker':
-        env = MultiWalkerEnv(args['n_walkers'],
-                             args['position_noise'],
-                             args['angle_noise'],
-                             reward_mech='global',)
+        env = MultiWalkerEnv(
+            args['n_walkers'],
+            args['position_noise'],
+            args['angle_noise'],
+            reward_mech='global',)
 
     elif envname == 'waterworld':
-        env = MAWaterWorld(args['n_pursuers'],
-                           args['n_evaders'],
-                           args['n_coop'],
-                           args['n_poison'],
-                           n_sensors=args['n_sensors'],
-                           food_reward=args['food_reward'],
-                           poison_reward=args['poison_reward'],
-                           encounter_reward=args['encounter_reward'],
-                           reward_mech='global',)
+        env = MAWaterWorld(
+            args['n_pursuers'],
+            args['n_evaders'],
+            args['n_coop'],
+            args['n_poison'],
+            n_sensors=args['n_sensors'],
+            food_reward=args['food_reward'],
+            poison_reward=args['poison_reward'],
+            encounter_reward=args['encounter_reward'],
+            reward_mech='global',)
 
     elif envname == 'pursuit':
         env = PursuitEvade()

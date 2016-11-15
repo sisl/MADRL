@@ -30,6 +30,9 @@ class AbstractMAEnv(object):
         env._unwrapped = None
         return env
 
+    def setup(self):
+        pass
+
     def seed(self, seed=None):
         return []
 
@@ -55,6 +58,11 @@ class AbstractMAEnv(object):
     @property
     def is_terminal(self):
         raise NotImplementedError()
+
+    def set_param_values(self, lut):
+        for k, v in lut.items():
+            setattr(self, k, v)
+        self.setup()
 
     def render(self, *args, **kwargs):
         raise NotImplementedError()
@@ -97,10 +105,6 @@ class AbstractMAEnv(object):
 
         traj_info = stack_dict_list(traj_info_list)
         return rew, traj_info
-
-    def update_curriculum(self, itr):
-        """Updates curriculum learning parameters"""
-        return
 
     @property
     def unwrapped(self):
@@ -149,7 +153,7 @@ class ObservationBuffer(AbstractMAEnv):
         aglist = []
         for agid, agent in enumerate(self._unwrapped.agents):
             if isinstance(agent.observation_space, spaces.Box):
-                newobservation_space = spaces.Box(low=agent.observation_space.low[0],
+                newobservation_space = spaces.Box(low=ent.observation_space.low[0],
                                                   high=agent.observation_space.high[0],
                                                   shape=self._buffer[agid].shape)
             # elif isinstance(agent.observation_sapce, spaces.Discrete):
@@ -259,8 +263,10 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
     def standardize_rew(self, reward):
         assert isinstance(reward, (list, np.ndarray))
         self.update_rew_estimate(reward)
-        return [rew / (np.sqrt(rewvar) + self._eps)
-                for (rew, rewmean, rewvar) in zip(reward, self._rew_mean, self._rew_var)]
+        return [
+            rew / (np.sqrt(rewvar) + self._eps)
+            for (rew, rewmean, rewvar) in zip(reward, self._rew_mean, self._rew_var)
+        ]
 
     def seed(self, seed=None):
         return self._unwrapped.seed(seed)

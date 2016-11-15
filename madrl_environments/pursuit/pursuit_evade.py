@@ -66,8 +66,10 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
 
         self.flatten = kwargs.pop('flatten', True)
 
-        self.pursuers = agent_utils.create_agents(self.n_pursuers, map_matrix, self.obs_range, flatten=self.flatten)
-        self.evaders = agent_utils.create_agents(self.n_evaders, map_matrix, self.obs_range, flatten=self.flatten)
+        self.pursuers = agent_utils.create_agents(self.n_pursuers, map_matrix, self.obs_range,
+                                                  flatten=self.flatten)
+        self.evaders = agent_utils.create_agents(self.n_evaders, map_matrix, self.obs_range,
+                                                 flatten=self.flatten)
 
         self.pursuer_layer = kwargs.pop('ally_layer', AgentLayer(xs, ys, self.pursuers))
         self.evader_layer = kwargs.pop('opponent_layer', AgentLayer(xs, ys, self.evaders))
@@ -103,35 +105,37 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         self.train_pursuit = kwargs.pop('train_pursuit', True)
 
         if self.train_pursuit:
-            self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2)])
-            self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2)])
+            self.low = np.array([0.0 for i in range(3 * self.obs_range**2)])
+            self.high = np.array([1.0 for i in range(3 * self.obs_range**2)])
             if self.include_id:
                 self.low = np.append(self.low, 0.0)
                 self.high = np.append(self.high, 1.0)
             self.action_space = spaces.Discrete(n_act_purs)
-            if self.flatten: 
+            if self.flatten:
                 self.observation_space = spaces.Box(self.low, self.high)
             else:
-                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(4, self.obs_range, self.obs_range))
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
+                                                    shape=(4, self.obs_range, self.obs_range))
             self.local_obs = np.zeros(
                 (self.n_pursuers, 4, self.obs_range, self.obs_range))  # Nagents X 3 X xsize X ysize
-            self.act_dims = [n_act_purs for i in xrange(self.n_pursuers)]
+            self.act_dims = [n_act_purs for i in range(self.n_pursuers)]
         else:
-            self.low = np.array([0.0 for i in xrange(3 * self.obs_range**2)])
-            self.high = np.array([1.0 for i in xrange(3 * self.obs_range**2)])
+            self.low = np.array([0.0 for i in range(3 * self.obs_range**2)])
+            self.high = np.array([1.0 for i in range(3 * self.obs_range**2)])
             if self.include_id:
                 np.append(self.low, 0.0)
                 np.append(self.high, 1.0)
             self.action_space = spaces.Discrete(n_act_ev)
-            if self.flatten: 
+            if self.flatten:
                 self.observation_space = spaces.Box(self.low, self.high)
             else:
-                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(4, self.obs_range, self.obs_range))
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
+                                                    shape=(4, self.obs_range, self.obs_range))
             self.local_obs = np.zeros(
                 (self.n_evaders, 4, self.obs_range, self.obs_range))  # Nagents X 3 X xsize X ysize
-            self.act_dims = [n_act_purs for i in xrange(self.n_evaders)]
-        self.pursuers_gone = np.array([False for i in xrange(self.n_pursuers)])
-        self.evaders_gone = np.array([False for i in xrange(self.n_evaders)])
+            self.act_dims = [n_act_purs for i in range(self.n_evaders)]
+        self.pursuers_gone = np.array([False for i in range(self.n_pursuers)])
+        self.evaders_gone = np.array([False for i in range(self.n_evaders)])
 
         self.initial_config = kwargs.pop('initial_config', {})
 
@@ -147,9 +151,8 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
 
         self.model_state = np.zeros((4,) + map_matrix.shape, dtype=np.float32)
 
-
     #################################################################
-    # The functions below are the interface with MultiAgentSiulator # 
+    # The functions below are the interface with MultiAgentSiulator #
     #################################################################
 
     @property
@@ -176,21 +179,20 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         if self.sample_maps:
             self.map_matrix = self.map_pool[np.random.randint(len(self.map_pool))]
 
-        x_window_start = np.random.uniform(0.0, 1.0-self.constraint_window)
-        y_window_start = np.random.uniform(0.0, 1.0-self.constraint_window)
-        xlb, xub = int(self.xs * x_window_start), int(self.xs * (x_window_start + self.constraint_window))
-        ylb, yub = int(self.ys * y_window_start), int(self.ys * (y_window_start + self.constraint_window))
+        x_window_start = np.random.uniform(0.0, 1.0 - self.constraint_window)
+        y_window_start = np.random.uniform(0.0, 1.0 - self.constraint_window)
+        xlb, xub = int(self.xs * x_window_start), int(self.xs *
+                                                      (x_window_start + self.constraint_window))
+        ylb, yub = int(self.ys * y_window_start), int(self.ys *
+                                                      (y_window_start + self.constraint_window))
         constraints = [[xlb, xub], [ylb, yub]]
 
-
-        self.pursuers = agent_utils.create_agents(self.n_pursuers, self.map_matrix,
-                                                 self.obs_range, randinit=True,
-                                                 constraints=constraints) 
+        self.pursuers = agent_utils.create_agents(self.n_pursuers, self.map_matrix, self.obs_range,
+                                                  randinit=True, constraints=constraints)
         self.pursuer_layer = AgentLayer(self.xs, self.ys, self.pursuers)
 
-        self.evaders = agent_utils.create_agents(self.n_evaders, self.map_matrix,
-                                                 self.obs_range, randinit=True,
-                                                 constraints=constraints)
+        self.evaders = agent_utils.create_agents(self.n_evaders, self.map_matrix, self.obs_range,
+                                                 randinit=True, constraints=constraints)
         self.evader_layer = AgentLayer(self.xs, self.ys, self.evaders)
 
         self.model_state[0] = self.map_matrix
@@ -230,7 +232,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
                 agent_layer.move_agent(i, a)
 
         # move opponents
-        for i in xrange(opponent_layer.n_agents()):
+        for i in range(opponent_layer.n_agents()):
             # controller input should be an observation, but doesn't matter right now
             action = opponent_controller.act(self.model_state)
             opponent_layer.move_agent(i, action)
@@ -257,7 +259,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         return obslist, rewards, done, {'removed': ev_remove}
 
     def update_curriculum(self, itr):
-        self.constraint_window += self.curriculum_constrain_rate # 0 to 1 in 500 iterations
+        self.constraint_window += self.curriculum_constrain_rate  # 0 to 1 in 500 iterations
         self.constraint_window = np.clip(self.constraint_window, 0.0, 1.0)
         # remove agents every 10 iter?
         if itr != 0 and itr % self.curriculum_remove_every == 0 and self.n_pursuers > 4:
@@ -268,7 +270,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
 
     def render(self, plt_delay=1.0):
         plt.matshow(self.model_state[0].T, cmap=plt.get_cmap('Greys'), fignum=1)
-        for i in xrange(self.pursuer_layer.n_agents()):
+        for i in range(self.pursuer_layer.n_agents()):
             x, y = self.pursuer_layer.get_position(i)
             plt.plot(x, y, "r*", markersize=12)
             if self.train_pursuit:
@@ -277,7 +279,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
                 ax.add_patch(
                     Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range, alpha=0.5,
                               facecolor="#FF9848"))
-        for i in xrange(self.evader_layer.n_agents()):
+        for i in range(self.evader_layer.n_agents()):
             x, y = self.evader_layer.get_position(i)
             plt.plot(x, y, "b*", markersize=12)
             if not self.train_pursuit:
@@ -301,17 +303,18 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         # generate .pngs
         self.save_image(temp_name)
         removed = 0
-        for i in xrange(nsteps):
+        for i in range(nsteps):
             a = act_fn(o)
             o, r, done, info = self.step(a)
             temp_name = join(file_path, "temp_" + str(i + 1) + ".png")
             self.save_image(temp_name)
             removed += info['removed']
             if verbose:
-                print r, info
+                print(r, info)
             if done:
                 break
-        if verbose: print "Total removed:", removed
+        if verbose:
+            print("Total removed:", removed)
         # use ffmpeg to create .pngs to .mp4 movie
         ffmpeg_cmd = "ffmpeg -framerate " + str(rate) + " -i " + join(
             file_path, "temp_%d.png") + " -c:v libx264 -pix_fmt yuv420p " + file_name
@@ -324,7 +327,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         plt.matshow(self.model_state[0].T, cmap=plt.get_cmap('Greys'), fignum=0)
         x, y = self.pursuer_layer.get_position(0)
         plt.plot(x, y, "r*", markersize=12)
-        for i in xrange(self.pursuer_layer.n_agents()):
+        for i in range(self.pursuer_layer.n_agents()):
             x, y = self.pursuer_layer.get_position(i)
             plt.plot(x, y, "r*", markersize=12)
             if self.train_pursuit:
@@ -333,7 +336,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
                 ax.add_patch(
                     Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range, alpha=0.5,
                               facecolor="#FF9848"))
-        for i in xrange(self.evader_layer.n_agents()):
+        for i in range(self.evader_layer.n_agents()):
             x, y = self.evader_layer.get_position(i)
             plt.plot(x, y, "b*", markersize=12)
             if not self.train_pursuit:
@@ -349,7 +352,6 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         plt.ylim([yl, yh])
         plt.axis('off')
         plt.savefig(file_name, dpi=200)
-
 
     def reward(self):
         """
@@ -367,14 +369,11 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         #]
         # proximity reward
         rewards = [
-                self.catchr *
-                np.sum(
-                    es[np.clip(self.pursuer_layer.get_position(i)[0] +
-                        self.surround_mask[:,0], 0, self.xs-1),
-                       np.clip(self.pursuer_layer.get_position(i)[1] +
-                        self.surround_mask[:,1], 0, self.ys-1)]
-                       ) 
-                for i in xrange(self.n_pursuers)
+            self.catchr * np.sum(es[np.clip(
+                self.pursuer_layer.get_position(i)[0] + self.surround_mask[:, 0], 0, self.xs - 1
+            ), np.clip(
+                self.pursuer_layer.get_position(i)[1] + self.surround_mask[:, 1], 0, self.ys - 1)])
+            for i in range(self.n_pursuers)
         ]
         return np.array(rewards)
 
@@ -416,7 +415,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
     def collect_obs(self, agent_layer, gone_flags):
         obs = []
         nage = 0
-        for i in xrange(self.n_agents()):
+        for i in range(self.n_agents()):
             if gone_flags[i]:
                 obs.append(None)
             else:
@@ -428,16 +427,17 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
     def collect_obs_by_idx(self, agent_layer, agent_idx):
         # returns a flattened array of all the observations
         n = agent_layer.n_agents()
-        self.local_obs[agent_idx][0].fill(1.0/self.layer_norm)  # border walls set to -0.1?
+        self.local_obs[agent_idx][0].fill(1.0 / self.layer_norm)  # border walls set to -0.1?
         xp, yp = agent_layer.get_position(agent_idx)
 
         xlo, xhi, ylo, yhi, xolo, xohi, yolo, yohi = self.obs_clip(xp, yp)
 
-        self.local_obs[agent_idx, 0:3, xolo:xohi, yolo:yohi] = np.abs(
-                                                    self.model_state[0:3, xlo:xhi, ylo:yhi]) / self.layer_norm
-        self.local_obs[agent_idx, 3, self.obs_range/2, self.obs_range/2] = float(agent_idx) / self.n_agents()
+        self.local_obs[agent_idx, 0:3, xolo:xohi, yolo:yohi] = np.abs(self.model_state[
+            0:3, xlo:xhi, ylo:yhi]) / self.layer_norm
+        self.local_obs[agent_idx, 3, self.obs_range / 2, self.obs_range / 2] = float(
+            agent_idx) / self.n_agents()
         if self.flatten:
-            o = self.local_obs[agent_idx][0:3].flatten() 
+            o = self.local_obs[agent_idx][0:3].flatten()
             if self.include_id:
                 o = np.append(o, float(agent_idx) / self.n_agents())
             return o
@@ -457,7 +457,6 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         xohi, yohi = xolo + (xhi - xlo), yolo + (yhi - ylo)
         return xlo, xhi + 1, ylo, yhi + 1, xolo, xohi + 1, yolo, yohi + 1
 
-
     def remove_agents(self):
         """
         Remove agents that are caught. Return tuple (n_evader_removed, n_pursuer_removed, purs_sur)
@@ -472,7 +471,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         rems = 0
         xpur, ypur = np.nonzero(self.model_state[1])
         purs_sur = np.zeros(self.n_pursuers, dtype=np.bool)
-        for i in xrange(self.n_evaders):
+        for i in range(self.n_evaders):
             if self.evaders_gone[i]:
                 continue
             x, y = self.evader_layer.get_position(ai)
@@ -485,7 +484,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
                     self.evaders_gone[i] = True
                     rems += 1
                     tt = truths.any(axis=1)
-                    for j in xrange(self.n_pursuers):
+                    for j in range(self.n_pursuers):
                         xpp, ypp = self.pursuer_layer.get_position(j)
                         tes = np.concatenate((xpur[tt], ypur[tt])).reshape(2, len(xpur[tt]))
                         tem = tes.T == np.array([xpp, ypp])
@@ -498,14 +497,14 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
                     removed_evade.append(ai - rems)
                     self.evaders_gone[i] = True
                     rems += 1
-                    for j in xrange(self.n_pursuers):
+                    for j in range(self.n_pursuers):
                         xpp, ypp = self.pursuer_layer.get_position(j)
                         if xpp == x and ypp == y:
                             purs_sur[j] = True
                 ai += 1
 
         ai = 0
-        for i in xrange(self.pursuer_layer.n_agents()):
+        for i in range(self.pursuer_layer.n_agents()):
             if self.pursuers_gone[i]:
                 continue
             x, y = self.pursuer_layer.get_position(i)
@@ -520,7 +519,7 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
 
     def need_to_surround(self, x, y):
         """
-            Compute the number of surrounding grid cells in x,y position that are open 
+            Compute the number of surrounding grid cells in x,y position that are open
             (no wall or obstacle)
         """
         tosur = 4
@@ -536,5 +535,3 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
             if self.model_state[0][xn, yn] == -1:
                 tosur -= 1
         return tosur
-
-

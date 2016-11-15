@@ -8,7 +8,7 @@ import dateutil.tz
 import uuid
 import ast
 
-import archs
+from . import archs
 
 
 def tonamedtuple(dictionary):

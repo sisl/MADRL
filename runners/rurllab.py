@@ -253,6 +253,7 @@ def rllab_envpolicy_parser(env, args):
 class RLLabRunner(object):
 
     def __init__(self, env, args):
+        self.env = env
         self.args = args
         # Parallel setup
         parallel_sampler.initialize(n_parallel=args.n_parallel)
@@ -260,64 +261,131 @@ class RLLabRunner(object):
             set_seed(args.seed)
             parallel_sampler.set_seed(args.seed)
 
-        env, policy = rllab_envpolicy_parser(env, args)
+    def setup(self, env, policy, start_itr):
 
-        if not args.algo == 'thddpg':
+        if not self.args.algo == 'thddpg':
             # Baseline
-            if args.baseline_type == 'linear':
+            if self.args.baseline_type == 'linear':
                 baseline = LinearFeatureBaseline(env_spec=env.spec)
-            elif args.baseline_type == 'zero':
+            elif self.args.baseline_type == 'zero':
                 baseline = ZeroBaseline(env_spec=env.spec)
             else:
-                raise NotImplementedError(args.baseline_type)
+                raise NotImplementedError(self.args.baseline_type)
 
-            if args.control == 'concurrent':
+            if self.args.control == 'concurrent':
                 baseline = [baseline for _ in range(len(env.agents))]
         # Logger
         default_log_dir = config.LOG_DIR
-        if args.log_dir is None:
-            log_dir = osp.join(default_log_dir, args.exp_name)
+        if self.args.log_dir is None:
+            log_dir = osp.join(default_log_dir, self.args.exp_name)
         else:
-            log_dir = args.log_dir
+            log_dir = self.args.log_dir
 
-        tabular_log_file = osp.join(log_dir, args.tabular_log_file)
-        text_log_file = osp.join(log_dir, args.text_log_file)
-        params_log_file = osp.join(log_dir, args.params_log_file)
+        tabular_log_file = osp.join(log_dir, self.args.tabular_log_file)
+        text_log_file = osp.join(log_dir, self.args.text_log_file)
+        params_log_file = osp.join(log_dir, self.args.params_log_file)
 
-        logger.log_parameters_lite(params_log_file, args)
+        logger.log_parameters_lite(params_log_file, self.args)
         logger.add_text_output(text_log_file)
         logger.add_tabular_output(tabular_log_file)
         prev_snapshot_dir = logger.get_snapshot_dir()
         prev_mode = logger.get_snapshot_mode()
         logger.set_snapshot_dir(log_dir)
-        logger.set_snapshot_mode(args.snapshot_mode)
-        logger.set_log_tabular_only(args.log_tabular_only)
-        logger.push_prefix("[%s] " % args.exp_name)
+        logger.set_snapshot_mode(self.args.snapshot_mode)
+        logger.set_log_tabular_only(self.args.log_tabular_only)
+        logger.push_prefix("[%s] " % self.args.exp_name)
 
-        if args.algo == 'tftrpo':
-            self.algo = MATRPO(env=env, policy_or_policies=policy, baseline_or_baselines=baseline,
-                               batch_size=args.batch_size, max_path_length=args.max_path_length,
-                               n_itr=args.n_iter, discount=args.discount,
-                               gae_lambda=args.gae_lambda, step_size=args.step_size,
-                               optimizer=ConjugateGradientOptimizer(
-                                   hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
-                               args.recurrent else None, ma_mode=args.control)
-        elif args.algo == 'thddpg':
+        if self.args.algo == 'tftrpo':
+            algo = MATRPO(env=env, policy_or_policies=policy, baseline_or_baselines=baseline,
+                          batch_size=self.args.batch_size, start_itr=start_itr,
+                          max_path_length=self.args.max_path_length, n_itr=self.args.n_iter,
+                          discount=self.args.discount, gae_lambda=self.args.gae_lambda,
+                          step_size=self.args.step_size, optimizer=ConjugateGradientOptimizer(
+                              hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)) if
+                          self.args.recurrent else None, ma_mode=self.args.control)
+        elif self.args.algo == 'thddpg':
             qfunc = thContinuousMLPQFunction(env_spec=env.spec)
-            if args.exp_strategy == 'ou':
+            if self.args.exp_strategy == 'ou':
                 es = OUStrategy(env_spec=env.spec)
-            elif args.exp_strategy == 'gauss':
+            elif self.args.exp_strategy == 'gauss':
                 es = GaussianStrategy(env_spec=env.spec)
             else:
                 raise NotImplementedError()
 
-            self.algo = thDDPG(env=env, policy=policy, qf=qfunc, es=es, batch_size=args.batch_size,
-                               max_path_length=args.max_path_length, epoch_length=args.epoch_length,
-                               min_pool_size=args.min_pool_size,
-                               replay_pool_size=args.replay_pool_size, n_epochs=args.n_iter,
-                               discount=args.discount, scale_reward=0.01,
-                               qf_learning_rate=args.qfunc_lr, policy_learning_rate=args.policy_lr,
-                               eval_samples=args.eval_samples, mode=args.control)
+            algo = thDDPG(env=env, policy=policy, qf=qfunc, es=es, batch_size=self.args.batch_size,
+                          max_path_length=self.args.max_path_length,
+                          epoch_length=self.args.epoch_length,
+                          min_pool_size=self.args.min_pool_size,
+                          replay_pool_size=self.args.replay_pool_size, n_epochs=self.args.n_iter,
+                          discount=self.args.discount, scale_reward=0.01,
+                          qf_learning_rate=self.args.qfunc_lr,
+                          policy_learning_rate=self.args.policy_lr,
+                          eval_samples=self.args.eval_samples, mode=self.args.control)
+        return algo
 
-    def __call__(self):
-        self.algo.train()
+    def __call__(self, curriculum=None):
+        # TODO Handle curriculum
+        # Use curriculum config to come up with indexed set of environemnts
+        # These envs will be of increasing difficulty
+        # or rather define a distribution?
+        # Initially the probability mass is on the simpler task
+        # But as the agent gets better, the probability mass shifts to the more difficult task
+        # Basically a dirichlet distribution?
+        #
+        # After some k training steps
+        #   evaluate the current learned policy. on all the environments
+        #   if the current policy performs "well" on an environment,
+        #   decrease the probability of that environment (By shifting the dirichlet alpha values)
+        #   and recalculate their probability
+        #   otherwise retrain with the current
+        # But when do we say, that we fail?
+        env, policy = rllab_envpolicy_parser(self.env, self.args)
+        if curriculum:
+            import numpy as np
+            from collections import defaultdict
+            from rllab.misc.evaluate import evaluate
+            task_dist = np.ones(len(curriculum.tasks))
+            task_dist[0] = len(curriculum.tasks)
+            min_reward = np.inf
+            task_eval_reward = defaultdict(float)
+            task_counts = defaultdict(int)
+            idx = 0
+            algo = self.setup(env, policy, start_itr=idx)
+            while True:
+                for i in range(curriculum.n_trials):
+                    logger.log("Running Curriculum trial: {}".format(i))
+                    task_prob = np.random.dirichlet(task_dist)
+                    task = np.random.choice(curriculum.tasks, p=task_prob)
+                    env.set_param_values(task.prop)
+                    setattr(algo, 'env', env)
+                    setattr(algo, 'start_itr', idx)
+                    setattr(algo, 'n_itr', idx + self.args.n_iter)
+                    algo.train()
+                    logger.log("Evaluating...")
+                    with tf.Session() as sess:
+                        sess.run(tf.initialize_all_variables())
+                        ev = evaluate(env, policy, max_path_length=algo.max_path_length, n_paths=3,
+                                      ma_mode=algo.ma_mode, disc=algo.discount)
+                    task_eval_reward[task] += np.mean(ev['ret'])  # TODO
+                    task_counts[task] += 1
+                    idx += self.args.n_iter
+
+                scores = []
+                for i, task in enumerate(curriculum.tasks):
+                    if task_counts[task] > 0:
+                        score = 1.0 * task_eval_reward[task] / task_counts[task]
+                        logger.log("task:{} {}".format(i, score))
+                        scores.append(score)
+                min_reward = min(min_reward, min(scores))
+                rel_reward = scores[np.argmax(task_dist)]
+                if rel_reward > curriculum.lesson_threshold:
+                    logger.log("task: {} breached, reward: {}!".format(
+                        np.argmax(task_dist), rel_reward))
+                    task_dist = np.roll(task_dist, 1)
+                if min_reward > curriculum.stop_threshold:
+                    # Special SAVE?
+                    break
+
+        else:
+            algo = self.setup(env, policy, start_itr=0)
+            algo.train()

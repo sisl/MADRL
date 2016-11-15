@@ -83,3 +83,9 @@ class RLLabEnv(Env, Serializable):
 
     def render(self):
         self.env.render()
+
+    def set_param_values(self, *args, **kwargs):
+        self.env.set_param_values(*args, **kwargs)
+
+    def get_param_values(self, *args, **kwargs):
+        self.env.get_param_values(*args, **kwargs)
