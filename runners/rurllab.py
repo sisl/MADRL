@@ -364,8 +364,9 @@ class RLLabRunner(object):
                     logger.log("Evaluating...")
                     with tf.Session() as sess:
                         sess.run(tf.initialize_all_variables())
-                        ev = evaluate(env, policy, max_path_length=algo.max_path_length, n_paths=3,
-                                      ma_mode=algo.ma_mode, disc=algo.discount)
+                        ev = evaluate(env, policy, max_path_length=algo.max_path_length,
+                                      n_paths=curriculum.n_trials, ma_mode=algo.ma_mode,
+                                      disc=algo.discount)
                     task_eval_reward[task] += np.mean(ev['ret'])  # TODO
                     task_counts[task] += 1
                     idx += self.args.n_iter
@@ -376,6 +377,8 @@ class RLLabRunner(object):
                         score = 1.0 * task_eval_reward[task] / task_counts[task]
                         logger.log("task:{} {}".format(i, score))
                         scores.append(score)
+                    else:
+                        score.append(-np.inf)
                 min_reward = min(min_reward, min(scores))
                 rel_reward = scores[np.argmax(task_dist)]
                 if rel_reward > curriculum.lesson_threshold:
