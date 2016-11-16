@@ -339,16 +339,6 @@ class RLLabRunner(object):
         #   and recalculate their probability
         #   otherwise retrain with the current
         # But when do we say, that we fail?
-        env, policy = rllab_envpolicy_parser(self.env, self.args)
-        if curriculum:
-            import numpy as np
-            from collections import defaultdict
-            from rllab.misc.evaluate import evaluate
-            task_dist = np.ones(len(curriculum.tasks))
-            task_dist[0] = len(curriculum.tasks)
-            min_reward = np.inf
-            task_eval_reward = defaultdict(float)
-            task_counts = defaultdict(int)
         if self.args.resume_from is not None:
             import joblib
             with tf.Session() as sess:
@@ -364,45 +354,9 @@ class RLLabRunner(object):
         else:
             env, policy = rllab_envpolicy_parser(self.env, self.args)
             idx = 0
-            algo = self.setup(env, policy, start_itr=idx)
-            while True:
-                for i in range(curriculum.n_trials):
-                    logger.log("Running Curriculum trial: {}".format(i))
-                    task_prob = np.random.dirichlet(task_dist)
-                    task = np.random.choice(curriculum.tasks, p=task_prob)
-                    env.set_param_values(task.prop)
-                    setattr(algo, 'env', env)
-                    setattr(algo, 'start_itr', idx)
-                    setattr(algo, 'n_itr', idx + self.args.n_iter)
-                    algo.train()
-                    logger.log("Evaluating...")
-                    with tf.Session() as sess:
-                        sess.run(tf.initialize_all_variables())
-                        ev = evaluate(env, policy, max_path_length=algo.max_path_length,
-                                      n_paths=curriculum.n_trials, ma_mode=algo.ma_mode,
-                                      disc=algo.discount)
-                    task_eval_reward[task] += np.mean(ev['ret'])  # TODO
-                    task_counts[task] += 1
-                    idx += self.args.n_iter
+        algo = self.setup(env, policy, start_itr=idx)
 
-                scores = []
-                for i, task in enumerate(curriculum.tasks):
-                    if task_counts[task] > 0:
-                        score = 1.0 * task_eval_reward[task] / task_counts[task]
-                        logger.log("task:{} {}".format(i, score))
-                        scores.append(score)
-                    else:
-                        score.append(-np.inf)
-                min_reward = min(min_reward, min(scores))
-                rel_reward = scores[np.argmax(task_dist)]
-                if rel_reward > curriculum.lesson_threshold:
-                    logger.log("task: {} breached, reward: {}!".format(
-                        np.argmax(task_dist), rel_reward))
-                    task_dist = np.roll(task_dist, 1)
-                if min_reward > curriculum.stop_threshold:
-                    # Special SAVE?
-                    break
-
+        if curriculum:
+            algo.curriculum_train(curriculum)
         else:
-            algo = self.setup(env, policy, start_itr=0)
             algo.train()
