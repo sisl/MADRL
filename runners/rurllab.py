@@ -349,6 +349,20 @@ class RLLabRunner(object):
             min_reward = np.inf
             task_eval_reward = defaultdict(float)
             task_counts = defaultdict(int)
+        if self.args.resume_from is not None:
+            import joblib
+            with tf.Session() as sess:
+                data = joblib.load(self.args.resume_from)
+                if 'algo' in data.keys():
+                    algo = data['algo']
+                    env = algo.env
+                    policy = algo.policy_or_policies
+                elif 'policy' in data.keys():
+                    policy = data['policy']
+                    env = data['env']
+                    idx = data['itr']
+        else:
+            env, policy = rllab_envpolicy_parser(self.env, self.args)
             idx = 0
             algo = self.setup(env, policy, start_itr=idx)
             while True:

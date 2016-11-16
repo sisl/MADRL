@@ -88,6 +88,8 @@ class RunnerParser(object):
         parser.add_argument('--max_path_length', type=int, default=500)
         parser.add_argument('--batch_size', type=int, default=12000)
         parser.add_argument('--n_parallel', type=int, default=1)
+        parser.add_argument('--resume_from', type=str, default=None,
+                            help='Name of the pickle file to resume experiment from.')
 
         parser.add_argument('--epoch_length', type=int, default=1000)
         parser.add_argument('--min_pool_size', type=int, default=10000)
