@@ -28,8 +28,10 @@ ENV_OPTIONS = [
     ('catchr', float, 0.1, ''),
     ('term_pursuit', float, 5.0, ''),
     ('buffer_size', int, 1, ''),
+    ('noid', str, None, ''),
 ]
 # yapf: enable
+
 
 def main(parser):
     mode = parser._mode
@@ -46,15 +48,11 @@ def main(parser):
             raise NotImplementedError()
         map_pool = [env_map]
 
-
     env = PursuitEvade(map_pool, n_evaders=args.n_evaders, n_pursuers=args.n_pursuers,
-                       obs_range=args.obs_range, n_catch=args.n_catch,
-                       urgency_reward=args.urgency,
+                       obs_range=args.obs_range, n_catch=args.n_catch, urgency_reward=args.urgency,
                        surround=bool(args.surround), sample_maps=bool(args.sample_maps),
-                       flatten=bool(args.flatten),
-                       reward_mech=args.reward_mech,
-                       catchr=args.catchr,
-                       term_pursuit=args.term_pursuit)
+                       flatten=bool(args.flatten), reward_mech=args.reward_mech, catchr=args.catchr,
+                       term_pursuit=args.term_pursuit, include_id=not bool(args.noid))
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)

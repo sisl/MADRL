@@ -83,7 +83,7 @@ def create_slurm_script(commands, outputfiles, jobname=None, nodes=4, cpus=6):
 #################
 #time you think you need; default is one hour
 #in minutes in this case, hh:mm:ss
-#SBATCH --time=18:00:00
+#SBATCH --time=24:00:00
 #################
 #quality of service; think of it as job priority
 #SBATCH --qos=normal
