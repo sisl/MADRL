@@ -87,7 +87,7 @@ class AbstractMAEnv(object):
         rew = np.zeros((len(self.agents)))
         traj_info_list = []
         for step in range(nsteps):
-            a = map(lambda afn, o: afn(o), act_fn, obs)
+            a = list(map(lambda afn, o: afn(o), act_fn, obs))
             obs, r, done, info = self.step(a)
             rew += r
             if info:

@@ -126,11 +126,11 @@ class Visualizer(PolicyLoad):
         super(Visualizer, self).__init__(*args, **kwargs)
 
     def __call__(self, filename, **kwargs):
+        vid = kwargs.pop('vid', None)
         if self.mode == 'rltools':
             file_key = kwargs.pop('file_key', None)
             same_con_pol = kwargs.pop('same_con_pol', None)
             assert file_key
-            vid = kwargs.pop('vid', None)
             with tf.Session() as sess:
                 sess.run(tf.initialize_all_variables())
                 if self.control == 'concurrent':
@@ -173,10 +173,15 @@ class Visualizer(PolicyLoad):
                     rew = path['rewards'].mean()
                     info = path['env_infos'].mean()
                 elif self.control == 'decentralized':
-                    paths = dec_rollout(self.env, policy, max_path_length=self.max_traj_len,
-                                        animated=True)
-                    rew = [path['rewards'].mean() for path in paths]
-                    info = {key: value.sum() for key, value in paths[0]['env_infos'].items()}
+                    act_fns = [lambda o: policy.get_action(o)[0]] * len(self.env.agents)
+                    if vid:
+                        rew, trajinfo = self.env.wrapped_env.env.animate(act_fn=act_fns,
+                                                                         nsteps=self.max_traj_len,
+                                                                         vid=vid, mode='rgb_array')
+                    else:
+                        rew, trajinfo = self.env.wrapped_env.env.animate(act_fn=act_fns,
+                                                                         nsteps=self.max_traj_len)
+                    info = {key: np.sum(value) for key, value in trajinfo.items()}
                 return rew, info
 
         if self.mode == 'heuristic':
