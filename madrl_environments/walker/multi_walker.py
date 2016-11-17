@@ -14,6 +14,8 @@ from madrl_environments import AbstractMAEnv, Agent
 
 from rltools.util import EzPickle
 
+MAX_AGENTS = 40
+
 FPS = 50
 SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as well
 
@@ -85,9 +87,10 @@ class ContactDetector(contactListener):
 class BipedalWalker(Agent):
 
     def __init__(self, world, init_x=TERRAIN_STEP * TERRAIN_STARTPAD / 2,
-                 init_y=TERRAIN_HEIGHT + 2 * LEG_H, n_walkers=2):
+                 init_y=TERRAIN_HEIGHT + 2 * LEG_H, n_walkers=2, one_hot=False):
         self.world = world
         self._n_walkers = n_walkers
+        self.one_hot = one_hot
         self.hull = None
         self.init_x = init_x
         self.init_y = init_y
@@ -236,7 +239,8 @@ class BipedalWalker(Agent):
     @property
     def observation_space(self):
         # 24 original obs (joints, etc), 2 displacement obs for each neighboring walker, 3 for package, 1 ID
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(24 + 4 + 3 + 1,))
+        idx = MAX_AGENTS if self.one_hot else 1  # TODO
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(24 + 4 + 3 + idx,))
 
     @property
     def action_space(self):
@@ -250,10 +254,10 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
     hardcore = False
 
     def __init__(self, n_walkers=2, position_noise=1e-3, angle_noise=1e-3, reward_mech='local',
-                 forward_reward=1.0, fall_reward=-100.0, drop_reward=-100.0,
-                 terminate_on_fall=True):
+                 forward_reward=1.0, fall_reward=-100.0, drop_reward=-100.0, terminate_on_fall=True,
+                 one_hot=False):
         EzPickle.__init__(self, n_walkers, position_noise, angle_noise, reward_mech, forward_reward,
-                          fall_reward, drop_reward, terminate_on_fall)
+                          fall_reward, drop_reward, terminate_on_fall, one_hot)
 
         self.n_walkers = n_walkers
         self.position_noise = position_noise
@@ -263,6 +267,7 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.fall_reward = fall_reward
         self.drop_reward = drop_reward
         self.terminate_on_fall = terminate_on_fall
+        self.one_hot = one_hot
         self.setup()
 
     def get_param_values(self):
@@ -280,7 +285,10 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         self.start_x = [
             init_x + WALKER_SEPERATION * i * TERRAIN_STEP for i in range(self.n_walkers)
         ]
-        self.walkers = [BipedalWalker(self.world, init_x=sx, init_y=init_y) for sx in self.start_x]
+        self.walkers = [
+            BipedalWalker(self.world, init_x=sx, init_y=init_y, one_hot=self.one_hot)
+            for sx in self.start_x
+        ]
 
         self.package_scale = self.n_walkers / 1.75
         self.package_length = PACKAGE_LENGTH / SCALE * self.package_scale
@@ -385,7 +393,11 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
             nobs.append(np.random.normal(xd, self.position_noise))
             nobs.append(np.random.normal(yd, self.position_noise))
             nobs.append(np.random.normal(self.package.angle, self.angle_noise))
-            nobs.append(float(i) / self.n_walkers)
+            # ID
+            if self.one_hot:
+                nobs.extend(np.eye(MAX_AGENTS)[i])
+            else:
+                nobs.append(float(i) / self.n_walkers)
             obs.append(np.array(wobs + nobs))
 
             #shaping = 130 * pos[0] / SCALE
