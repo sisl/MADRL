@@ -64,6 +64,7 @@ class Curriculum(object):
         self._stop_threshold = self.config['thresholds']['stop']
         self._n_trials = self.config['n_trials']
         self._metric = self.config['metric']
+        self._eval_trials = self.config['eval_trials']
 
     @property
     def tasks(self):
@@ -84,3 +85,7 @@ class Curriculum(object):
     @property
     def metric(self):
         return self._metric
+
+    @property
+    def eval_trials(self):
+        return self._eval_trials

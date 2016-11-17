@@ -12,7 +12,7 @@ from . import archs
 
 
 def tonamedtuple(dictionary):
-    for key, value in dictionary.iteritems():
+    for key, value in dictionary.items():
         if isinstance(value, dict):
             dictionary[key] = tonamedtuple(value)
     return namedtuple('GenericDict', dictionary.keys())(**dictionary)
