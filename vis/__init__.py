@@ -19,8 +19,8 @@ class FileHandler(object):
         if ':' in filename:
             tmpfilename = str(uuid.uuid4())
             if 'h5' in filename.split('.')[-1]:
-                os.system('rsync -avrz {}.h5 /tmp/{}.h5'.format(filename.split('.')[0],
-                                                                tmpfilename))
+                os.system('rsync -avrz {}.h5 /tmp/{}.h5'.format(
+                    filename.split('.')[0], tmpfilename))
                 newfilename = '/tmp/{}.{}'.format(tmpfilename, filename.split('.')[-1])
                 self.filename = newfilename
             else:
@@ -101,16 +101,16 @@ class Evaluator(PolicyLoad):
                                                     n_trajs=self.n_trajs)
         elif self.mode == 'rllab':
             import joblib
-            import rllab.sampler.utils
+            import rllab.sampler.evaluate
             # XXX
             tf.reset_default_graph()
             with tf.Session() as sess:
                 data = joblib.load(filename)
                 policy = data['policy']
-                return rllab.sampler.utils.evaluate_policy(self.env, policy, disc=self.disc,
-                                                           mode=self.control,
-                                                           max_path_length=self.max_traj_len,
-                                                           n_paths=self.n_trajs)
+                return rllab.sampler.evaluate.evaluate(self.env, policy, disc=self.disc,
+                                                       ma_mode=self.control,
+                                                       max_path_length=self.max_traj_len,
+                                                       n_paths=self.n_trajs)
         elif self.mode == 'heuristic':
             hpolicy = kwargs.pop('hpolicy', None)
             assert hpolicy
@@ -159,7 +159,7 @@ class Visualizer(PolicyLoad):
 
         if self.mode == 'rllab':
             import joblib
-            from rllab.sampler.utils import rollout, decrollout
+            from rllab.sampler.ma_sampler import cent_rollout, dec_rollout
 
             # XXX
             tf.reset_default_graph()
@@ -168,13 +168,13 @@ class Visualizer(PolicyLoad):
                 data = joblib.load(filename)
                 policy = data['policy']
                 if self.control == 'centralized':
-                    path = rollout(self.env, policy, max_path_length=self.max_traj_len,
-                                   animated=True)
+                    path = cent_rollout(self.env, policy, max_path_length=self.max_traj_len,
+                                        animated=True)
                     rew = path['rewards'].mean()
                     info = path['env_infos'].mean()
                 elif self.control == 'decentralized':
-                    paths = decrollout(self.env, policy, max_path_length=self.max_traj_len,
-                                       animated=True)
+                    paths = dec_rollout(self.env, policy, max_path_length=self.max_traj_len,
+                                        animated=True)
                     rew = [path['rewards'].mean() for path in paths]
                     info = {key: value.sum() for key, value in paths[0]['env_infos'].items()}
                 return rew, info
