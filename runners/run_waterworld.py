@@ -5,10 +5,10 @@
 # Created: Wednesday, August 31 2016 by rejuvyesh <mail@rejuvyesh.com>
 #
 from runners import RunnerParser
+from runners.curriculum import Curriculum
 
 from madrl_environments.pursuit import MAWaterWorld
 from madrl_environments import StandardizedEnv, ObservationBuffer
-
 
 # yapf: disable
 ENV_OPTIONS = [
@@ -25,9 +25,11 @@ ENV_OPTIONS = [
     ('reward_mech', str, 'local', ''),
     ('noid', str, None, ''),
     ('speed_features', int, 1, ''),
-    ('buffer_size', int, 1, '')
+    ('buffer_size', int, 1, ''),
+    ('curriculum', str, None, ''),
 ]
 # yapf: enable
+
 
 def main(parser):
     mode = parser._mode
@@ -51,7 +53,11 @@ def main(parser):
     else:
         raise NotImplementedError()
 
-    run()
+    if args.curriculum:
+        curr = Curriculum(args.curriculum)
+        run(curr)
+    else:
+        run()
 
 
 if __name__ == '__main__':
