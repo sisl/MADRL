@@ -113,8 +113,9 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
             Archea(nev + 1, self.radius * 2, self.n_pursuers, self.sensor_range.mean() / 2)
             for nev in range(self.n_evaders)
         ]
-        self._poisons = [Archea(npo + 1, self.radius * 3 / 4, self.n_poison, 0)
-                         for npo in range(self.n_poison)]
+        self._poisons = [
+            Archea(npo + 1, self.radius * 3 / 4, self.n_poison, 0) for npo in range(self.n_poison)
+        ]
 
     @property
     def reward_mech(self):
@@ -128,12 +129,15 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
     def agents(self):
         return self._pursuers
 
+    def get_param_values(self):
+        return self.__dict__
+
     def seed(self, seed=None):
         self.np_random, seed_ = seeding.np_random(seed)
         return [seed_]
 
     def _respawn(self, objx_2, radius):
-        while ssd.cdist(objx_2[None, :], self.obstaclesx_No_2) <= radius*2 + self.obstacle_radius:
+        while ssd.cdist(objx_2[None, :], self.obstaclesx_No_2) <= radius * 2 + self.obstacle_radius:
             objx_2 = self.np_random.rand(2)
         return objx_2
 
@@ -272,20 +276,20 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
 
         # Evaders
         evdists_Np_Ne = ssd.cdist(pursuersx_Np_2, evadersx_Ne_2)
-        is_colliding_ev_Np_Ne = evdists_Np_Ne <= np.asarray([pursuer._radius + evader._radius
-                                                             for pursuer in self._pursuers
-                                                             for evader in self._evaders]).reshape(
-                                                                 self.n_pursuers, self.n_evaders)
+        is_colliding_ev_Np_Ne = evdists_Np_Ne <= np.asarray([
+            pursuer._radius + evader._radius for pursuer in self._pursuers
+            for evader in self._evaders
+        ]).reshape(self.n_pursuers, self.n_evaders)
 
         # num_collisions depends on how many needed to catch an evader
         ev_caught, which_pursuer_caught_ev = self._caught(is_colliding_ev_Np_Ne, self.n_coop)
 
         # Poisons
         podists_Np_Npo = ssd.cdist(pursuersx_Np_2, poisonx_Npo_2)
-        is_colliding_po_Np_Npo = podists_Np_Npo <= np.asarray(
-            [pursuer._radius + poison._radius
-             for pursuer in self._pursuers
-             for poison in self._poisons]).reshape(self.n_pursuers, self.n_poison)
+        is_colliding_po_Np_Npo = podists_Np_Npo <= np.asarray([
+            pursuer._radius + poison._radius for pursuer in self._pursuers
+            for poison in self._poisons
+        ]).reshape(self.n_pursuers, self.n_poison)
         po_caught, which_pursuer_caught_po = self._caught(is_colliding_po_Np_Npo, 1)
 
         # Find sensed objects
@@ -408,17 +412,24 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         for inp in range(self.n_pursuers):
             if self._addid:
                 obslist.append(
-                    np.concatenate([sensorfeatures_Np_K_O[inp, ...].ravel(), [float((
-                        is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((is_colliding_po_Np_Npo[
-                            inp, :]).sum() > 0)], [inp + 1]]))
+                    np.concatenate([
+                        sensorfeatures_Np_K_O[inp, ...].ravel(), [
+                            float((is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((
+                                is_colliding_po_Np_Npo[inp, :]).sum() > 0)
+                        ], [inp + 1]
+                    ]))
             else:
                 obslist.append(
-                    np.concatenate([sensorfeatures_Np_K_O[inp, ...].ravel(), [float((
-                        is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((is_colliding_po_Np_Npo[
-                            inp, :]).sum() > 0)]]))
+                    np.concatenate([
+                        sensorfeatures_Np_K_O[inp, ...].ravel(), [
+                            float((is_colliding_ev_Np_Ne[inp, :]).sum() > 0), float((
+                                is_colliding_po_Np_Npo[inp, :]).sum() > 0)
+                        ]
+                    ]))
 
-        assert all([obs.shape == agent.observation_space.shape
-                    for obs, agent in zip(obslist, self.agents)])
+        assert all([
+            obs.shape == agent.observation_space.shape for obs, agent in zip(obslist, self.agents)
+        ])
         self._timesteps += 1
         done = self.is_terminal
         info = dict(evcatches=len(ev_caught), pocatches=len(po_caught))
@@ -432,27 +443,32 @@ class MAWaterWorld(AbstractMAEnv, EzPickle):
         for iobs, obstaclex_2 in enumerate(self.obstaclesx_No_2):
             assert obstaclex_2.shape == (2,)
             color = (128, 128, 0)
-            cv2.circle(img, tuple((obstaclex_2 * screen_size).astype(int)),
+            cv2.circle(img,
+                       tuple((obstaclex_2 * screen_size).astype(int)),
                        int(self.obstacle_radius * screen_size), color, -1, lineType=cv2.CV_AA)
         # Pursuers
         for pursuer in self._pursuers:
             for k in range(pursuer._n_sensors):
                 color = (0, 0, 0)
-                cv2.line(img, tuple((pursuer.position * screen_size).astype(int)),
+                cv2.line(img,
+                         tuple((pursuer.position * screen_size).astype(int)),
                          tuple(((pursuer.position + pursuer._sensor_range * pursuer.sensors[k]) *
                                 screen_size).astype(int)), color, 1, lineType=cv2.CV_AA)
-                cv2.circle(img, tuple((pursuer.position * screen_size).astype(int)),
+                cv2.circle(img,
+                           tuple((pursuer.position * screen_size).astype(int)),
                            int(pursuer._radius * screen_size), (255, 0, 0), -1, lineType=cv2.CV_AA)
         # Evaders
         for evader in self._evaders:
             color = (0, 255, 0)
-            cv2.circle(img, tuple((evader.position * screen_size).astype(int)),
+            cv2.circle(img,
+                       tuple((evader.position * screen_size).astype(int)),
                        int(evader._radius * screen_size), color, -1, lineType=cv2.CV_AA)
 
         # Poison
         for poison in self._poisons:
             color = (0, 0, 255)
-            cv2.circle(img, tuple((poison.position * screen_size).astype(int)),
+            cv2.circle(img,
+                       tuple((poison.position * screen_size).astype(int)),
                        int(poison._radius * screen_size), color, -1, lineType=cv2.CV_AA)
 
         opacity = 0.4
