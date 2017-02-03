@@ -1,0 +1,4 @@
+[submodule "rllab"]
+	path = rllab
+	url = git@github.com:rejuvyesh/rllab.git
+	branch = multiagent
