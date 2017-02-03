@@ -24,7 +24,15 @@ Install the required dependencies. Good idea is to look into `rllab/environment.
 Example run with curriculum:
 
 ```bash
-python3 runners/run_multiwalker.py rllab \
-    --control decentralized --policy_hidden 100,50,25 \
-    --n_iter 200 --n_walkers 2 --batch_size 24000 --curriculum lessons/multiwalker/env.yaml
+python3 runners/run_multiwalker.py rllab \ # Use rllab for training
+    --control decentralized \ # Decentralized training protocol
+    --policy_hidden 100,50,25 \ # Set MLP policy hidden layer sizes
+    --n_iter 200 \ # Number of iterations
+    --n_walkers 2 \ # Starting number of walkers
+    --batch_size 24000 \ # Number of rollout waypoints
+    --curriculum lessons/multiwalker/env.yaml
 ```
+
+## Details
+
+Policy definitions exist in `rllab/sandbox/rocky/tf/policies`.
