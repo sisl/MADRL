@@ -2,3 +2,6 @@
 	path = rllab
 	url = git@github.com:rejuvyesh/rllab.git
 	branch = multiagent
+[submodule "rltools"]
+	path = rltools
+	url = git@github.com:sisl/rltools.git
