@@ -2,6 +2,7 @@ from rltools.util import EzPickle, stack_dict_list
 from gym import spaces, error
 from gym.monitoring.video_recorder import ImageEncoder
 import numpy as np
+import time
 
 
 class Agent(object):
@@ -259,8 +260,10 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
     def standardize_rew(self, reward):
         assert isinstance(reward, (list, np.ndarray))
         self.update_rew_estimate(reward)
-        return [rew / (np.sqrt(rewvar) + self._eps)
-                for (rew, rewmean, rewvar) in zip(reward, self._rew_mean, self._rew_var)]
+        return [
+            rew / (np.sqrt(rewvar) + self._eps)
+            for (rew, rewmean, rewvar) in zip(reward, self._rew_mean, self._rew_var)
+        ]
 
     def seed(self, seed=None):
         return self._unwrapped.seed(seed)
@@ -301,3 +304,73 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
 
     def animate(self, *args, **kwargs):
         return self._unwrapped.animate(*args, **kwargs)
+
+
+class DiagnosticsWrapper(AbstractMAEnv, EzPickle):
+
+    def __init__(self, env, log_interval=501):
+        self._unwrapped = env
+
+        self._episode_time = time.time()
+        self._last_time = time.time()
+        self._local_t = 0
+        self._log_interval = log_interval
+        self._episode_reward = np.zeros((len(env.agents)))
+        self._episode_length = 0
+        self._all_rewards = []
+
+    def reset(self):
+        obs = self._unwrapped.reset()
+        self._episode_length = 0
+        self._episode_reward = np.zeros((len(self._unwrapped.agents)))
+        self._all_rewards = []
+        return obs
+
+    def step(self, *args):
+        obslist, rewardlist, done, info = self._unwrapped.step(*args)
+        to_log = {}
+        if self._episode_length == 0:
+            self._episode_time = time.time()
+
+        self._local_t += 1
+        if self._local_t % self._log_interval == 0:
+            cur_time = time.time()
+            elapsed = cur_time - self._last_time
+            fps = self._log_interval / elapsed
+            to_log['diagnostics/fps'] = fps
+            self._last_time = cur_time
+
+        if rewardlist is not None:
+            self._episode_reward += np.asarray(rewardlist)
+            self._episode_length += 1
+            self._all_rewards.append(rewardlist)
+
+        if done:
+            total_time = time.time() - self._episode_time
+            for agid, epr in enumerate(self._episode_reward):
+                to_log['global/episode_reward_agent{}'.format(agid)] = epr
+
+            to_log['global/episode_length'] = self._episode_length
+            to_log['global/episode_time'] = total_time
+            self._episode_length = 0
+            self._episode_reward = np.zeros_like(self._episode_reward)
+            self._all_rewards = []
+
+        return obslist, rewardlist, done, to_log
+
+    def seed(self, seed=None):
+        return self._unwrapped.seed(seed)
+
+    def render(self, *args, **kwargs):
+        return self._unwrapped.render(*args, **kwargs)
+
+    def animate(self, *args, **kwargs):
+        return self._unwrapped.animate(*args, **kwargs)
+
+    @property
+    def reward_mech(self):
+        return self._unwrapped.reward_mech
+
+    @property
+    def agents(self):
+        return self._unwrapped.agents
