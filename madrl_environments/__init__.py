@@ -350,6 +350,8 @@ class DiagnosticsWrapper(AbstractMAEnv, EzPickle):
             for agid, epr in enumerate(self._episode_reward):
                 to_log['global/episode_reward_agent{}'.format(agid)] = epr
 
+            to_log['global/episode_avg_reward'] = np.mean(self._episode_reward)
+
             to_log['global/episode_length'] = self._episode_length
             to_log['global/episode_time'] = total_time
             self._episode_length = 0
