@@ -6,7 +6,7 @@ import gym
 import numpy as np
 from gym import spaces
 from gym.utils import colorize, seeding
-
+from six.moves import xrange
 import Box2D
 from Box2D.b2 import (circleShape, contactListener, edgeShape, fixtureDef, polygonShape,
                       revoluteJointDef)
@@ -468,8 +468,8 @@ class MultiWalkerEnv(AbstractMAEnv, EzPickle):
         i = self.lidar_render
         for walker in self.walkers:
             if i < 2 * len(walker.lidar):
-                l = walker.lidar[i] if i < len(walker.lidar) else walker.lidar[len(walker.lidar) - i
-                                                                               - 1]
+                l = walker.lidar[i] if i < len(walker.lidar) else walker.lidar[len(walker.lidar)
+                                                                               - i - 1]
                 self.viewer.draw_polyline([l.p1, l.p2], color=(1, 0, 0), linewidth=1)
 
         for obj in self.drawlist:
@@ -650,9 +650,9 @@ if __name__ == "__main__":
         env.render()
         a = np.array([env.agents[0].action_space.sample() for _ in range(n_walkers)])
         o, r, done, _ = env.step(a)
-        # print "\nStep:", i
-        # #print "Obs:", o
-        # print "Rewards:", r
-        # #print "Term:", done
+        print("\nStep:", i)
+        #print "Obs:", o
+        print("Rewards:", r)
+        #print "Term:", done
         if done:
             break

@@ -59,7 +59,10 @@ map_mat = multi_scale_map(32, 32, scales=[(4, [0.2,0.3]), (10, [0.1,0.2])])
 map_pool = [map_mat]
 map_pool = np.load('../../runners/maps/map_pool16.npy')
 
-#env = PursuitEvade(map_pool, n_evaders=10, n_pursuers=10, obs_range=5, n_catch=2, surround=True, reward_mech='local',
-#        sample_maps=True, constraint_window=1.0)
+env = PursuitEvade(map_pool, n_evaders=10, n_pursuers=10, obs_range=5, n_catch=2, surround=True, reward_mech='local',
+        sample_maps=True, constraint_window=1.0)
 #env.reset()
 #env.render()
+
+env = PursuitEvade(map_pool, n_evaders=10, n_pursuers=3, obs_range=9, n_catch=2, surround=False,
+                reward_mech='local')

@@ -288,8 +288,8 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
                 ax.add_patch(
                     Rectangle((x - ofst, y - ofst), self.obs_range, self.obs_range, alpha=0.5,
                               facecolor="#009ACD"))
-        #plt.pause(plt_delay)
-        #plt.clf()
+        plt.pause(plt_delay)
+        plt.clf()
 
     def animate(self, act_fn, nsteps, file_name, rate=1.5, verbose=False):
         """
