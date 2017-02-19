@@ -68,7 +68,6 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
                  ):
         EzPickle.__init__(self, n_legs, ts, integrator, leg_length,
                                 ankle_range, out_file)
-        assert n_legs % 2 == 0, "n_legs has to be even, passed in : %r" % n_legs
         self.n_legs = n_legs
         self.ts = ts
         self.integrator = integrator
@@ -114,7 +113,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         reward = forward_reward - ctrl_cost - contact_cost + survive_reward
         state = self.state_vector()
         notdone = np.isfinite(state).all() \
-            and state[2] >= 0.2 and state[2] <= 1.0
+            and state[2] >= 0.26 and state[2] <= 1.0
         done = not notdone
         ob = self._get_obs()
         return ob, reward, done, dict(
@@ -253,7 +252,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
 
 
 if __name__ == '__main__':
-    env = MultiAnt(10)
+    env = MultiAnt(8)
     env.reset()
     for i in xrange(250):
         env.render()
