@@ -62,17 +62,15 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
                  ts=0.02,
                  integrator='RK4',
                  leg_length=0.282,
-                 ankle_range=40.0, # degrees
                  out_file="multi_ant.xml",
                  reward_mech='local'
                  ):
         EzPickle.__init__(self, n_legs, ts, integrator, leg_length,
-                                ankle_range, out_file)
+                                out_file)
         self.n_legs = n_legs
         self.ts = ts
         self.integrator = integrator
         self.leg_length = leg_length
-        self.ankle_range = ankle_range * np.pi/180.0
         self.out_file = out_file
         self._reward_mech = reward_mech
 
