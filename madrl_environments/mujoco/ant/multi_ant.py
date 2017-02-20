@@ -78,9 +78,8 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
 
         self.legs = None
         file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), out_file)
-        #file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ant_og.xml')
         mujoco_env.MujocoEnv.__init__(self, file_path, 5)
-        self.legs = [AntLeg(self.model, i, n_legs) for i in xrange(self.n_legs)]
+        self.legs = [AntLeg(self.model, i, n_legs) for i in range(self.n_legs)]
 
 
     @property
@@ -153,7 +152,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         for c in torso.getchildren():
             if c.tag == 'body':
                 torso.remove(c)
-        for i in xrange(self.n_legs):
+        for i in range(self.n_legs):
             # 1st half leg
             leg = etree.SubElement(torso, "body",
                                    name="leg_"+str(i),
@@ -197,7 +196,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         # add new motors
         actuators = og.find('actuator')
         actuators.clear()
-        for i in xrange(self.n_legs):
+        for i in range(self.n_legs):
             etree.SubElement(actuators, "motor",
                                         joint="hip_"+str(i),
                                         ctrlrange="-150.0 150.0",
@@ -220,7 +219,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         self.leg_geom_string_2x = []
         self.leg_axis = []
         self.angle_range = []
-        for i in xrange(self.n_legs):
+        for i in range(self.n_legs):
             x, y = np.round(self.get_point_on_circle(self.leg_length, i, self.n_legs), decimals=5)
             self.leg_geom[i,:] = np.array([x,y,0.0])
             self.leg_geom_string.append(str(x) + " " + str(y) + " " + "0.0")
@@ -252,11 +251,11 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
 if __name__ == '__main__':
     env = MultiAnt(8)
     env.reset()
-    for i in xrange(250):
+    for i in range(250):
         env.render()
         a = np.array([l.action_space.sample() for l in env.agents])
         o, r, done, _ = env.step(a)
-        print "\nStep:", i
-        print "Rewards:", r
+        print("\nStep:", i)
+        print("Rewards:", r)
         if done:
             break
