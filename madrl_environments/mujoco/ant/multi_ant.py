@@ -251,6 +251,14 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         return x, y
 
 
+    def set_param_values(self, lut):
+        for k, v in lut.items():
+            setattr(self, k, v)
+        self.setup()
+
+    def get_param_values(self):
+        return self.__dict__
+
 
 if __name__ == '__main__':
     env = MultiAnt(8)
