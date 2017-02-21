@@ -25,7 +25,7 @@ def get_arch(name):
 
 def comma_sep_ints(s):
     if s:
-        return map(int, s.split(","))
+        return list(map(int, s.split(",")))
     else:
         return []
 

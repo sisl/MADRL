@@ -67,7 +67,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
                  reward_mech='local'
                  ):
         EzPickle.__init__(self, n_legs, ts, integrator, leg_length,
-                                out_file)
+                                out_file, base_file, reward_mech)
         self.n_legs = n_legs
         self.ts = ts
         self.integrator = integrator
