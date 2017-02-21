@@ -117,7 +117,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
             and state[2] >= 0.26 and state[2] <= 1.0
         done = not notdone
         ob = self._get_obs()
-        return ob, reward, done, dict(
+        return ob, [reward]*self.n_legs, done, dict(
             reward_forward=forward_reward,
             reward_ctrl=-ctrl_cost,
             reward_contact=-contact_cost,
