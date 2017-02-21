@@ -39,7 +39,7 @@ class RunnerParser(object):
     ]
 
     DEFAULT_POLICY_OPTS = [
-        ('control', str, None, ''),
+        ('control', str, 'decentralized', ''),
         ('recurrent', str, None, ''),
         ('baseline_type', str, 'linear', ''),
     ]

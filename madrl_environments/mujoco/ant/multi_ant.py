@@ -63,6 +63,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
                  integrator='RK4',
                  leg_length=0.282,
                  out_file="multi_ant.xml",
+                 base_file="ant_og.xml",
                  reward_mech='local'
                  ):
         EzPickle.__init__(self, n_legs, ts, integrator, leg_length,
@@ -72,13 +73,18 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         self.integrator = integrator
         self.leg_length = leg_length
         self.out_file = out_file
+        self.base_file = base_file
         self._reward_mech = reward_mech
-
-        self.gen_xml(out_file=out_file)
-
+        
         self.legs = None
-        file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), out_file)
-        mujoco_env.MujocoEnv.__init__(self, file_path, 5)
+        out_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), out_file)
+        base_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), base_file)
+
+        import IPython
+        IPython.embed()
+        self.gen_xml(out_file=out_file_path, og_file=base_file_path)
+
+        mujoco_env.MujocoEnv.__init__(self, out_file_path, 5)
         self.legs = [AntLeg(self.model, i, n_legs) for i in range(self.n_legs)]
 
 
