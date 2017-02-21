@@ -80,8 +80,6 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         out_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), out_file)
         base_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), base_file)
 
-        import IPython
-        IPython.embed()
         self.gen_xml(out_file=out_file_path, og_file=base_file_path)
 
         mujoco_env.MujocoEnv.__init__(self, out_file_path, 5)
