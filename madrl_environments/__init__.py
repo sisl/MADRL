@@ -3,6 +3,7 @@ from gym import spaces, error
 from gym.monitoring.video_recorder import ImageEncoder
 import numpy as np
 import time
+import scipy
 
 
 class Agent(object):
@@ -312,9 +313,9 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
 
 class DiagnosticsWrapper(AbstractMAEnv, EzPickle):
 
-    def __init__(self, env, log_interval=501):
+    def __init__(self, env, discount=0.99, log_interval=501):
         self._unwrapped = env
-
+        self._discount = discount
         self._episode_time = time.time()
         self._last_time = time.time()
         self._local_t = 0
@@ -355,6 +356,8 @@ class DiagnosticsWrapper(AbstractMAEnv, EzPickle):
                 to_log['global/episode_reward_agent{}'.format(agid)] = epr
 
             to_log['global/episode_avg_reward'] = np.mean(self._episode_reward)
+            arr = np.asarray(self._all_rewards).mean(axis=1)
+            to_log['global/episode_disc_return'] = _discount_sum(arr, self._discount)
 
             to_log['global/episode_length'] = self._episode_length
             to_log['global/episode_time'] = total_time
@@ -380,3 +383,7 @@ class DiagnosticsWrapper(AbstractMAEnv, EzPickle):
     @property
     def agents(self):
         return self._unwrapped.agents
+
+
+def _discount_sum(x, discount):
+    return np.sum(x * (discount**np.arange(len(x))))
