@@ -6,6 +6,7 @@
 #
 from runners import RunnerParser
 
+from madrl_environments.walker.multi_walker import MultiWalkerEnv
 from madrl_environments.mujoco.ant.multi_ant import MultiAnt
 from madrl_environments import StandardizedEnv, ObservationBuffer
 
@@ -16,7 +17,9 @@ ENV_OPTIONS = [
     ('integrator', str, 'RK4', ''),
     ('leg_length', float, 0.282, ''),
     ('out_file', str, 'multi_ant.xml', ''),
+    ('base_file', str, 'ant_og.xml', ''),
     ('reward_mech', str, 'local', ''),
+    ('buffer_size', int, 1, ''),
 ]
 # yapf: enable
 
@@ -26,7 +29,7 @@ def main(parser):
 
     env = MultiAnt(n_legs=args.n_legs, ts=args.ts, integrator=args.integrator,
                    leg_length=args.leg_length, out_file=args.out_file,
-                   reward_mech=args.reward_mech)
+                   base_file=args.base_file, reward_mech=args.reward_mech)
 
     if args.buffer_size > 1:
         env = ObservationBuffer(env, args.buffer_size)
