@@ -313,9 +313,10 @@ class StandardizedEnv(AbstractMAEnv, EzPickle):
 
 class DiagnosticsWrapper(AbstractMAEnv, EzPickle):
 
-    def __init__(self, env, discount=0.99, log_interval=501):
+    def __init__(self, env, discount=0.99, max_traj_len=500, log_interval=501):
         self._unwrapped = env
         self._discount = discount
+        self._max_traj_len = max_traj_len
         self._episode_time = time.time()
         self._last_time = time.time()
         self._local_t = 0
@@ -350,7 +351,7 @@ class DiagnosticsWrapper(AbstractMAEnv, EzPickle):
             self._episode_length += 1
             self._all_rewards.append(rewardlist)
 
-        if done:
+        if done or self._episode_length >= self._max_traj_len:
             total_time = time.time() - self._episode_time
             for agid, epr in enumerate(self._episode_reward):
                 to_log['global/episode_reward_agent{}'.format(agid)] = epr
