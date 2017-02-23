@@ -9,6 +9,7 @@ import gym
 import numpy as np
 from gym import spaces
 from gym import utils
+from gym.utils import seeding
 from gym.envs.mujoco import mujoco_env
 
 from madrl_environments import AbstractMAEnv, Agent
