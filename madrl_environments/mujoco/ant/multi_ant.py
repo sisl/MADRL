@@ -120,7 +120,8 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         self.gen_xml(out_file=self.out_file_path, og_file=self.base_file_path)
 
         mujoco_env.MujocoEnv.__init__(self, self.out_file_path, 5)
-        self.legs = [AntLeg(self.model, i, n_legs, pos_noise=pos_noise, vel_noise=vel_noise, force_noise=force_noise) for i in range(self.n_legs)]
+        self.legs = [AntLeg(self.model, i, self.n_legs, pos_noise=self.pos_noise, vel_noise=self.vel_noise,
+            force_noise=self.force_noise) for i in range(self.n_legs)]
 
 
     def _step(self, a):
