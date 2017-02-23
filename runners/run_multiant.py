@@ -43,8 +43,11 @@ def main(parser):
     else:
         raise NotImplementedError()
 
-    run()
-
+    if args.curriculum:
+        curr = Curriculum(args.curriculum)
+        run(curr)
+    else:
+        run()
 
 if __name__ == '__main__':
     main(RunnerParser(ENV_OPTIONS))
