@@ -78,7 +78,8 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
                  force_noise=1e-3
                  ):
         EzPickle.__init__(self, n_legs, ts, integrator, leg_length,
-                                out_file)
+                                out_file, base_file, reward_mech,
+                                pos_noise, vel_noise, force_noise)
         self.n_legs = n_legs
         self.ts = ts
         self.integrator = integrator
@@ -88,10 +89,10 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         self._reward_mech = reward_mech
         
         self.legs = None
-        out_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), out_file)
-        base_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), base_file)
+        self.out_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.out_file)
+        self.base_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.base_file)
 
-        self.gen_xml(out_file=out_file_path, og_file=base_file_path)
+        self.gen_xml(out_file=self.out_file_path, og_file=self.base_file_path)
 
         mujoco_env.MujocoEnv.__init__(self, out_file_path, 5)
         self.legs = [AntLeg(self.model, i, n_legs, pos_noise=pos_noise, vel_noise=vel_noise, force_noise=force_noise) for i in range(self.n_legs)]
@@ -111,6 +112,14 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         self.np_random, seed_ = seeding.np_random(seed)
         return [seed_]
 
+
+    def setup(self):
+        self.seed()
+
+        self.gen_xml(out_file=self.out_file_path, og_file=self.base_file_path)
+
+        mujoco_env.MujocoEnv.__init__(self, out_file_path, 5)
+        self.legs = [AntLeg(self.model, i, n_legs, pos_noise=pos_noise, vel_noise=vel_noise, force_noise=force_noise) for i in range(self.n_legs)]
 
 
     def _step(self, a):
