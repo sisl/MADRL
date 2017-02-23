@@ -89,6 +89,10 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         self.base_file = base_file
         self._reward_mech = reward_mech
         
+        self.pos_noise = pos_noise
+        self.vel_noise = vel_noise
+        self.force_noise = force_noise
+
         self.legs = None
         self.out_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.out_file)
         self.base_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.base_file)
