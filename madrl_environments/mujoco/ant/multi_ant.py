@@ -42,24 +42,23 @@ class AntLeg(Agent):
 
     @property
     def observation_space(self):
-        # 18 force observations for each leg + 6 pos + vel per leg (2 neighboring legs)
-        # DA24 original obs (joints, etc), 2 displacement obs for each neighboring walker, 3 for package, 1 ID
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(18 + 6 + 6 + 6,))
+        # 18 force observations for each leg + 4 pos + vel per leg (2 neighboring legs) + 11 world coords
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(18 + 4 + 4 + 4 + 11,))
 
     
     def get_observation(self):
         idx = self._idx
         n1_idx = idx-1 if idx > 0 else self.n_legs-1
         n2_idx = idx+1 if idx < (self.n_legs - 1) else 0
-        import IPython
-        IPython.embed()
         return np.concatenate([
-            np.random.normal(self.model.data.qpos.flat[1+3*idx:3*idx+4], self.pos_noise),
-            np.random.normal(self.model.data.qvel.flat[3*idx:3*idx+3], self.vel_noise),
-            np.random.normal(self.model.data.qpos.flat[1+3*n1_idx:3*n1_idx+4], self.pos_noise),
-            np.random.normal(self.model.data.qvel.flat[3*n1_idx:3*n1_idx+3], self.vel_noise),
-            np.random.normal(self.model.data.qpos.flat[1+3*n2_idx:3*n2_idx+4], self.pos_noise),
-            np.random.normal(self.model.data.qvel.flat[3*n2_idx:3*n2_idx+3], self.vel_noise),
+            np.random.normal(self.model.data.qpos.flat[2:7], self.pos_noise), # body pos
+            np.random.normal(self.model.data.qvel.flat[:6], self.vel_noise), # body vel
+            np.random.normal(self.model.data.qpos.flat[7+2*idx:9+2*idx], self.pos_noise),
+            np.random.normal(self.model.data.qvel.flat[6+2*idx:8+2*idx], self.vel_noise),
+            np.random.normal(self.model.data.qpos.flat[7+2*n1_idx:9+2*n1_idx], self.pos_noise),
+            np.random.normal(self.model.data.qvel.flat[6+2*n1_idx:8+2*n1_idx], self.vel_noise),
+            np.random.normal(self.model.data.qpos.flat[7+2*n2_idx:7+2*n2_idx], self.pos_noise),
+            np.random.normal(self.model.data.qvel.flat[6+2*n2_idx:8+2*n2_idx], self.vel_noise),
             np.random.normal(np.clip(self.model.data.cfrc_ext[3*idx+2:3*idx+5], -1, 1).flat, self.force_noise)
         ])
 
@@ -273,15 +272,13 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
 
 
 if __name__ == '__main__':
-    env = MultiAnt(8)
+    env = MultiAnt(2)
     env.reset()
     for i in range(250):
-        #env.render()
+        env.render()
         a = np.array([l.action_space.sample() for l in env.agents])
         o, r, done, _ = env.step(a)
         print("\nStep:", i)
         print("Rewards:", r)
-        import IPython
-        IPython.embed()
         if done:
             break
