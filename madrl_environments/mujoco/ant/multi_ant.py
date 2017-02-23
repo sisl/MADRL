@@ -18,10 +18,17 @@ from rltools.util import EzPickle
 
 class AntLeg(Agent):
 
-    def __init__(self, model, idx, n_legs):
+    def __init__(self, model, idx, n_legs,
+                 pos_noise=1e-3,
+                 vel_noise=1e-3,
+                 force_noise=1e-3):
         self._idx = idx
         self.n_legs = n_legs
         self.model = model
+
+        self.pos_noise = pos_noise
+        self.vel_noise = vel_noise
+        self.force_noise = force_noise
 
 
     def _seed(self, seed=None):
@@ -44,14 +51,16 @@ class AntLeg(Agent):
         idx = self._idx
         n1_idx = idx-1 if idx > 0 else self.n_legs-1
         n2_idx = idx+1 if idx < (self.n_legs - 1) else 0
+        import IPython
+        IPython.embed()
         return np.concatenate([
-            self.model.data.qpos.flat[1+3*idx:3*idx+4],
-            self.model.data.qvel.flat[3*idx:3*idx+3],
-            self.model.data.qpos.flat[1+3*n1_idx:3*n1_idx+4],
-            self.model.data.qvel.flat[3*n1_idx:3*n1_idx+3],
-            self.model.data.qpos.flat[1+3*n2_idx:3*n2_idx+4],
-            self.model.data.qvel.flat[3*n2_idx:3*n2_idx+3],
-            np.clip(self.model.data.cfrc_ext[3*idx+2:3*idx+5], -1, 1).flat,
+            np.random.normal(self.model.data.qpos.flat[1+3*idx:3*idx+4], self.pos_noise),
+            np.random.normal(self.model.data.qvel.flat[3*idx:3*idx+3], self.vel_noise),
+            np.random.normal(self.model.data.qpos.flat[1+3*n1_idx:3*n1_idx+4], self.pos_noise),
+            np.random.normal(self.model.data.qvel.flat[3*n1_idx:3*n1_idx+3], self.vel_noise),
+            np.random.normal(self.model.data.qpos.flat[1+3*n2_idx:3*n2_idx+4], self.pos_noise),
+            np.random.normal(self.model.data.qvel.flat[3*n2_idx:3*n2_idx+3], self.vel_noise),
+            np.random.normal(np.clip(self.model.data.cfrc_ext[3*idx+2:3*idx+5], -1, 1).flat, self.force_noise)
         ])
 
 
@@ -64,7 +73,10 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
                  leg_length=0.282,
                  out_file="multi_ant.xml",
                  base_file="ant_og.xml",
-                 reward_mech='local'
+                 reward_mech='local',
+                 pos_noise=1e-3,
+                 vel_noise=1e-3,
+                 force_noise=1e-3
                  ):
         EzPickle.__init__(self, n_legs, ts, integrator, leg_length,
                                 out_file)
@@ -83,7 +95,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         self.gen_xml(out_file=out_file_path, og_file=base_file_path)
 
         mujoco_env.MujocoEnv.__init__(self, out_file_path, 5)
-        self.legs = [AntLeg(self.model, i, n_legs) for i in range(self.n_legs)]
+        self.legs = [AntLeg(self.model, i, n_legs, pos_noise=pos_noise, vel_noise=vel_noise, force_noise=force_noise) for i in range(self.n_legs)]
 
 
     @property
@@ -264,10 +276,12 @@ if __name__ == '__main__':
     env = MultiAnt(8)
     env.reset()
     for i in range(250):
-        env.render()
+        #env.render()
         a = np.array([l.action_space.sample() for l in env.agents])
         o, r, done, _ = env.step(a)
         print("\nStep:", i)
         print("Rewards:", r)
+        import IPython
+        IPython.embed()
         if done:
             break
