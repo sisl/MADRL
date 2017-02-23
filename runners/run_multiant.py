@@ -5,6 +5,7 @@
 # Created: Friday, September  2 2016 by rejuvyesh <mail@rejuvyesh.com>
 #
 from runners import RunnerParser
+from runners.curriculum import Curriculum
 
 from madrl_environments.walker.multi_walker import MultiWalkerEnv
 from madrl_environments.mujoco.ant.multi_ant import MultiAnt
@@ -20,6 +21,7 @@ ENV_OPTIONS = [
     ('base_file', str, 'ant_og.xml', ''),
     ('reward_mech', str, 'local', ''),
     ('buffer_size', int, 1, ''),
+    ('curriculum', str, None, ''),
 ]
 # yapf: enable
 
