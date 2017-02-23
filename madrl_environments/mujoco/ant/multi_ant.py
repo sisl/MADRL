@@ -57,7 +57,7 @@ class AntLeg(Agent):
             np.random.normal(self.model.data.qvel.flat[6+2*idx:8+2*idx], self.vel_noise),
             np.random.normal(self.model.data.qpos.flat[7+2*n1_idx:9+2*n1_idx], self.pos_noise),
             np.random.normal(self.model.data.qvel.flat[6+2*n1_idx:8+2*n1_idx], self.vel_noise),
-            np.random.normal(self.model.data.qpos.flat[7+2*n2_idx:7+2*n2_idx], self.pos_noise),
+            np.random.normal(self.model.data.qpos.flat[7+2*n2_idx:9+2*n2_idx], self.pos_noise),
             np.random.normal(self.model.data.qvel.flat[6+2*n2_idx:8+2*n2_idx], self.vel_noise),
             np.random.normal(np.clip(self.model.data.cfrc_ext[3*idx+2:3*idx+5], -1, 1).flat, self.force_noise)
         ])
@@ -272,7 +272,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
 
 
 if __name__ == '__main__':
-    env = MultiAnt(2)
+    env = MultiAnt(4)
     env.reset()
     for i in range(250):
         env.render()
