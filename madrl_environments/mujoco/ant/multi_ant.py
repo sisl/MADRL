@@ -9,6 +9,7 @@ import gym
 import numpy as np
 from gym import spaces
 from gym import utils
+from gym.utils import seeding
 from gym.envs.mujoco import mujoco_env
 
 from madrl_environments import AbstractMAEnv, Agent
@@ -18,10 +19,17 @@ from rltools.util import EzPickle
 
 class AntLeg(Agent):
 
-    def __init__(self, model, idx, n_legs):
+    def __init__(self, model, idx, n_legs,
+                 pos_noise=1e-3,
+                 vel_noise=1e-3,
+                 force_noise=1e-3):
         self._idx = idx
         self.n_legs = n_legs
         self.model = model
+
+        self.pos_noise = pos_noise
+        self.vel_noise = vel_noise
+        self.force_noise = force_noise
 
 
     def _seed(self, seed=None):
@@ -35,9 +43,8 @@ class AntLeg(Agent):
 
     @property
     def observation_space(self):
-        # 18 force observations for each leg + 6 pos + vel per leg (2 neighboring legs)
-        # DA24 original obs (joints, etc), 2 displacement obs for each neighboring walker, 3 for package, 1 ID
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(18 + 6 + 6 + 6,))
+        # 18 force observations for each leg + 4 pos + vel per leg (2 neighboring legs) + 11 world coords
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(18 + 4 + 4 + 4 + 11,))
 
     
     def get_observation(self):
@@ -45,13 +52,15 @@ class AntLeg(Agent):
         n1_idx = idx-1 if idx > 0 else self.n_legs-1
         n2_idx = idx+1 if idx < (self.n_legs - 1) else 0
         return np.concatenate([
-            self.model.data.qpos.flat[1+3*idx:3*idx+4],
-            self.model.data.qvel.flat[3*idx:3*idx+3],
-            self.model.data.qpos.flat[1+3*n1_idx:3*n1_idx+4],
-            self.model.data.qvel.flat[3*n1_idx:3*n1_idx+3],
-            self.model.data.qpos.flat[1+3*n2_idx:3*n2_idx+4],
-            self.model.data.qvel.flat[3*n2_idx:3*n2_idx+3],
-            np.clip(self.model.data.cfrc_ext[3*idx+2:3*idx+5], -1, 1).flat,
+            np.random.normal(self.model.data.qpos.flat[2:7], self.pos_noise), # body pos
+            np.random.normal(self.model.data.qvel.flat[:6], self.vel_noise), # body vel
+            np.random.normal(self.model.data.qpos.flat[7+2*idx:9+2*idx], self.pos_noise),
+            np.random.normal(self.model.data.qvel.flat[6+2*idx:8+2*idx], self.vel_noise),
+            np.random.normal(self.model.data.qpos.flat[7+2*n1_idx:9+2*n1_idx], self.pos_noise),
+            np.random.normal(self.model.data.qvel.flat[6+2*n1_idx:8+2*n1_idx], self.vel_noise),
+            np.random.normal(self.model.data.qpos.flat[7+2*n2_idx:9+2*n2_idx], self.pos_noise),
+            np.random.normal(self.model.data.qvel.flat[6+2*n2_idx:8+2*n2_idx], self.vel_noise),
+            np.random.normal(np.clip(self.model.data.cfrc_ext[3*idx+2:3*idx+5], -1, 1).flat, self.force_noise)
         ])
 
 
@@ -64,10 +73,14 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
                  leg_length=0.282,
                  out_file="multi_ant.xml",
                  base_file="ant_og.xml",
-                 reward_mech='local'
+                 reward_mech='local',
+                 pos_noise=1e-3,
+                 vel_noise=1e-3,
+                 force_noise=1e-3
                  ):
         EzPickle.__init__(self, n_legs, ts, integrator, leg_length,
-                                out_file)
+                                out_file, base_file, reward_mech,
+                                pos_noise, vel_noise, force_noise)
         self.n_legs = n_legs
         self.ts = ts
         self.integrator = integrator
@@ -76,14 +89,18 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         self.base_file = base_file
         self._reward_mech = reward_mech
         
+        self.pos_noise = pos_noise
+        self.vel_noise = vel_noise
+        self.force_noise = force_noise
+
         self.legs = None
-        out_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), out_file)
-        base_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), base_file)
+        self.out_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.out_file)
+        self.base_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.base_file)
 
-        self.gen_xml(out_file=out_file_path, og_file=base_file_path)
+        self.gen_xml(out_file=self.out_file_path, og_file=self.base_file_path)
 
-        mujoco_env.MujocoEnv.__init__(self, out_file_path, 5)
-        self.legs = [AntLeg(self.model, i, n_legs) for i in range(self.n_legs)]
+        mujoco_env.MujocoEnv.__init__(self, self.out_file_path, 5)
+        self.legs = [AntLeg(self.model, i, n_legs, pos_noise=pos_noise, vel_noise=vel_noise, force_noise=force_noise) for i in range(self.n_legs)]
 
 
     @property
@@ -100,6 +117,15 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
         self.np_random, seed_ = seeding.np_random(seed)
         return [seed_]
 
+
+    def setup(self):
+        self.seed()
+
+        self.gen_xml(out_file=self.out_file_path, og_file=self.base_file_path)
+
+        mujoco_env.MujocoEnv.__init__(self, self.out_file_path, 5)
+        self.legs = [AntLeg(self.model, i, self.n_legs, pos_noise=self.pos_noise, vel_noise=self.vel_noise,
+            force_noise=self.force_noise) for i in range(self.n_legs)]
 
 
     def _step(self, a):
@@ -261,7 +287,7 @@ class MultiAnt(EzPickle, mujoco_env.MujocoEnv):
 
 
 if __name__ == '__main__':
-    env = MultiAnt(8)
+    env = MultiAnt(4)
     env.reset()
     for i in range(250):
         env.render()
