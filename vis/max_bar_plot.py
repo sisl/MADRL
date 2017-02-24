@@ -21,7 +21,7 @@ params = {
 matplotlib.rcParams.update(params)
 
 import matplotlib.pyplot as plt
-plt.style.use('grayscale')
+plt.style.use('seaborn-colorblind')
 
 import pandas as pd
 
