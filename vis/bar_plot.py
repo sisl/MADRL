@@ -20,7 +20,7 @@ params = {
 matplotlib.rcParams.update(params)
 
 import matplotlib.pyplot as plt
-plt.style.use('grayscale')
+plt.style.use('seaborn-colorblind')
 
 import pandas as pd
 
@@ -38,6 +38,7 @@ def main():
     with open(os.path.join(args.dir, 'results.pkl'), 'rb') as f:
         res = pickle.load(f)['retlist']
     control_params = ['decentralized', 'concurrent', 'centralized']
+    cp2name = {'decentralized': 'PS', 'concurrent': 'Conc.', 'centralized': 'Cent.'}
     nn_params = ['mlp', 'gru', 'heuristic']
 
     header = ['training']
@@ -47,7 +48,7 @@ def main():
 
     mat = []
     for cp in control_params:
-        row = [cp]
+        row = [cp2name[cp]]
         for nnp in nn_params:
             key = cp + '-' + nnp
             if key in res:
