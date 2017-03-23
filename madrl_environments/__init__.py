@@ -385,6 +385,9 @@ class DiagnosticsWrapper(AbstractMAEnv, EzPickle):
     def agents(self):
         return self._unwrapped.agents
 
+    def set_param_values(self, lut):
+        self._unwrapped.set_param_values(lut)
+
 
 def _discount_sum(x, discount):
     return np.sum(x * (discount**np.arange(len(x))))

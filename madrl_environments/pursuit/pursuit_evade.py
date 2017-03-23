@@ -432,9 +432,9 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
 
         xlo, xhi, ylo, yhi, xolo, xohi, yolo, yohi = self.obs_clip(xp, yp)
 
-        self.local_obs[agent_idx, 0:3, xolo:xohi, yolo:yohi] = np.abs(self.model_state[
-            0:3, xlo:xhi, ylo:yhi]) / self.layer_norm
-        self.local_obs[agent_idx, 3, self.obs_range / 2, self.obs_range / 2] = float(
+        self.local_obs[agent_idx, 0:3, xolo:xohi, yolo:yohi] = np.abs(
+            self.model_state[0:3, xlo:xhi, ylo:yhi]) / self.layer_norm
+        self.local_obs[agent_idx, 3, self.obs_range // 2, self.obs_range // 2] = float(
             agent_idx) / self.n_agents()
         if self.flatten:
             o = self.local_obs[agent_idx][0:3].flatten()
