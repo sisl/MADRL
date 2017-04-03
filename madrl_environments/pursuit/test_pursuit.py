@@ -3,19 +3,20 @@ import gym
 
 from utils import *
 
-xs = 10
-ys = 10
-n_evaders = 5
-n_pursuers = 12
+xs = 5
+ys = 5
+n_evaders = 1
+n_pursuers = 2
 
 map_mat = TwoDMaps.rectangle_map(xs, ys) 
 
 # obs_range should be odd 3, 5, 7, etc
-env = PursuitEvade([map_mat], n_evaders=n_evaders, n_pursuers=n_pursuers, obs_range=9, n_catch=2, surround=False,
+env = PursuitEvade([map_mat], n_evaders=n_evaders, n_pursuers=n_pursuers, obs_range=3, n_catch=2, surround=False,
         reward_mech='local')
 
 o = env.reset()
 
+"""
 a = [4]*n_pursuers
 
 env.pursuer_layer.set_position(0, 7, 1)
@@ -63,6 +64,10 @@ env = PursuitEvade(map_pool, n_evaders=10, n_pursuers=10, obs_range=5, n_catch=2
         sample_maps=True, constraint_window=1.0)
 #env.reset()
 #env.render()
+<<<<<<< Updated upstream
 
 env = PursuitEvade(map_pool, n_evaders=10, n_pursuers=3, obs_range=9, n_catch=2, surround=False,
                 reward_mech='local')
+=======
+"""
+>>>>>>> Stashed changes

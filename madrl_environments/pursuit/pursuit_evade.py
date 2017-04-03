@@ -167,6 +167,9 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
         self.np_random, seed_ = seeding.np_random(seed)
         return [seed_]
 
+    def get_param_values(self):
+        return self.__dict__
+
     def reset(self):
         #print "Check:", self.n_evaders, self.n_pursuers, self.catchr
         self.pursuers_gone.fill(False)
@@ -535,3 +538,23 @@ class PursuitEvade(AbstractMAEnv, EzPickle):
             if self.model_state[0][xn, yn] == -1:
                 tosur -= 1
         return tosur
+
+
+
+    #################################################################  
+    ################## Model Based Methods ##########################
+    #################################################################  
+
+    def idx2state(self, idx):
+        # return the index of a state
+        # assume single evader for now
+        pos = np.unravel_index(idx, [self.xs, self.ys] * (self.n_evaders + self.n_pursuers), 'F')
+        s = np.zeros(self.model_state.shape)
+        
+        return s
+
+
+    def n_states(self):
+        return (self.xs * self.ys) ** (self.n_evaders + self.n_pursuers)
+
+
