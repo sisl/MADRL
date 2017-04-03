@@ -5,14 +5,21 @@ This package provides implementations of the following multi-agent reinforcement
 - [Pursuit Evastion](https://github.com/sisl/MADRL/blob/master/madrl_environments/pursuit/pursuit_evade.py)
 - [Waterworld](https://github.com/sisl/MADRL/blob/master/madrl_environments/pursuit/waterworld.py)
 - [Multi-Agent Walker](https://github.com/sisl/MADRL/blob/master/madrl_environments/walker/multi_walker.py)
+- [Multi-Ant](https://github.com/sisl/MADRL/blob/master/madrl_environments/mujoco/ant/multi_ant.py)
+
+## Requirements
+
+This package requires both [OpenAI Gym](https://github.com/openai/gym) and a forked version of [rllab](https://github.com/rejuvyesh/rllab/tree/multiagent) (the multiagent branch). There are a number of other requirements which can be found
+in `rllab/environment.yml` file if using `anaconda` distribution.
 
 ## Setup
-Clone this repository.
+
+The easiest way to install MADRL and its dependencies is to perform a recursive clone of this repository.
 ```bash
 git clone --recursive git@github.com:sisl/MADRL.git
 ```
 
-Add directories to `PYTHONPATH`
+Then, add directories to `PYTHONPATH`
 ```bash
 export PYTHONPATH=$(pwd):$(pwd)/rltools:$(pwd)/rllab:$PYTHONPATH
 ```
