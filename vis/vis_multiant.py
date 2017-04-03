@@ -57,16 +57,16 @@ def main():
     if fh.train_args['buffer_size'] > 1:
         env = ObservationBuffer(env, fh.train_args['buffer_size'])
 
-
+    hpolicy = None
     if args.evaluate:
         minion = Evaluator(env, fh.train_args, args.n_steps, args.n_trajs, args.deterministic,
                            'heuristic' if args.heuristic else fh.mode)
         evr = minion(fh.filename, file_key=fh.file_key, same_con_pol=args.same_con_pol,
                      hpolicy=hpolicy)
-        from tabulate import tabulate
-        print(tabulate(evr, headers='keys'))
         if args.save_file:
             pickle.dump(evr, open(args.save_file, "wb"))
+        from tabulate import tabulate
+        #print(tabulate(evr, headers='keys'))
 
 
     else:

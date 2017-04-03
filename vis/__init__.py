@@ -101,13 +101,13 @@ class Evaluator(PolicyLoad):
                                                     n_trajs=self.n_trajs)
         elif self.mode == 'rllab':
             import joblib
-            import rllab.sampler.evaluate
+            import rllab.misc.evaluate
             # XXX
             tf.reset_default_graph()
             with tf.Session() as sess:
                 data = joblib.load(filename)
                 policy = data['policy']
-                return rllab.sampler.evaluate.evaluate(self.env, policy, disc=self.disc,
+                return rllab.misc.evaluate.evaluate(self.env, policy, disc=self.disc,
                                                        ma_mode=self.control,
                                                        max_path_length=self.max_traj_len,
                                                        n_paths=self.n_trajs)
