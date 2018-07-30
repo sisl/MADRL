@@ -43,3 +43,18 @@ python3 runners/run_multiwalker.py rllab \ # Use rllab for training
 ## Details
 
 Policy definitions exist in `rllab/sandbox/rocky/tf/policies`.
+
+## Citation
+
+Please cite the accompanied paper, if you find this useful:
+
+```
+@inproceedings{gupta2017cooperative,
+  title={Cooperative multi-agent control using deep reinforcement learning},
+  author={Gupta, Jayesh K and Egorov, Maxim and Kochenderfer, Mykel},
+  booktitle={International Conference on Autonomous Agents and Multiagent Systems},
+  pages={66--83},
+  year={2017},
+  organization={Springer}
+}
+```
