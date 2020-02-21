@@ -3,7 +3,6 @@
 # File: waterworld.py
 #
 # Created: Wednesday, August 24 2016 by rejuvyesh <mail@rejuvyesh.com>
-# License: GNU GPL 3 <http://www.gnu.org/copyleft/gpl.html>
 #
 import argparse
 import os
