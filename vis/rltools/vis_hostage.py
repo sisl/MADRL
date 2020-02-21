@@ -3,7 +3,6 @@
 # File: vis_hostage.py
 #
 # Created: Monday, August  1 2016 by rejuvyesh <mail@rejuvyesh.com>
-# License: GNU GPL 3 <http://www.gnu.org/copyleft/gpl.html>
 #
 from __future__ import absolute_import, print_function
 
