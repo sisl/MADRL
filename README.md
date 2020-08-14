@@ -7,6 +7,8 @@ This package provides implementations of the following multi-agent reinforcement
 - [Multi-Agent Walker](https://github.com/sisl/MADRL/blob/master/madrl_environments/walker/multi_walker.py)
 - [Multi-Ant](https://github.com/sisl/MADRL/blob/master/madrl_environments/mujoco/ant/multi_ant.py)
 
+A maintained version of the first three environments with various fixes is included with PettingZoo (https://github.com/PettingZoo-Team/PettingZoo, https://www.pettingzoo.ml/sisl)
+
 ## Requirements
 
 This package requires both [OpenAI Gym](https://github.com/openai/gym) and a forked version of [rllab](https://github.com/rejuvyesh/rllab/tree/multiagent) (the multiagent branch). There are a number of other requirements which can be found
