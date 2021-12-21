@@ -1,5 +1,8 @@
 # MADRL
 
+**Note**: 
+**A maintained version of the first three environments with various fixes is included with PettingZoo (https://github.com/PettingZoo-Team/PettingZoo, https://www.pettingzoo.ml/sisl)**
+
 This package provides implementations of the following multi-agent reinforcement learning environemnts:
 
 - [Pursuit Evastion](https://github.com/sisl/MADRL/blob/master/madrl_environments/pursuit/pursuit_evade.py)
@@ -7,7 +10,6 @@ This package provides implementations of the following multi-agent reinforcement
 - [Multi-Agent Walker](https://github.com/sisl/MADRL/blob/master/madrl_environments/walker/multi_walker.py)
 - [Multi-Ant](https://github.com/sisl/MADRL/blob/master/madrl_environments/mujoco/ant/multi_ant.py)
 
-A maintained version of the first three environments with various fixes is included with PettingZoo (https://github.com/PettingZoo-Team/PettingZoo, https://www.pettingzoo.ml/sisl)
 
 ## Requirements
 
