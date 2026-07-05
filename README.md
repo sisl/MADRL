@@ -1,7 +1,7 @@
 # MADRL
 
 **Note**: 
-**A maintained version of the first three environments with various fixes is included with PettingZoo (https://github.com/PettingZoo-Team/PettingZoo, https://pettingzoo.farama.org/environments/sisl/)**
+**A maintained version of two of these environments with various fixes is included with PettingZoo (https://github.com/Farama-Foundation/PettingZoo), https://pettingzoo.farama.org/environments/sisl/)**
 
 This package provides implementations of the following multi-agent reinforcement learning environemnts:
 
